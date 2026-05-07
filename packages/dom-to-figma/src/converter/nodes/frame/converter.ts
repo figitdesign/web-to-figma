@@ -16,16 +16,17 @@ import type {
   FigmaPaint,
 } from "../../types";
 
-type Constraints = {
+type PositioningResult = {
   horizontalConstraint?: string;
   verticalConstraint?: string;
+  positionOverride?: Position;
 };
 
-function getConstraintsFromPositioning(
+function getPositioningInfo(
   element: Element,
   elementRect: DOMRect,
   computedStyle: CSSStyleDeclaration
-): Constraints {
+): PositioningResult {
   const position = computedStyle.position;
   const isPositioned = position === "fixed" || position === "absolute";
 
@@ -33,10 +34,14 @@ function getConstraintsFromPositioning(
     return {};
   }
 
-  // Get the containing block (parent for absolute, viewport for fixed)
+  // Get the containing block (parent for absolute, viewport for fixed).
+  // For fixed elements we need the viewport of the element's *own* window
+  // (e.g. when converting an iframe's body, the iframe has its own innerWidth/
+  // innerHeight that differ from the outer window).
   const isFixed = position === "fixed";
+  const view = element.ownerDocument?.defaultView ?? window;
   const containingRect = isFixed
-    ? { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth }
+    ? { top: 0, bottom: view.innerHeight, left: 0, right: view.innerWidth }
     : element.parentElement?.getBoundingClientRect();
 
   if (!containingRect) {
@@ -55,7 +60,28 @@ function getConstraintsFromPositioning(
   const horizontalConstraint =
     distanceFromRight < distanceFromLeft ? "MAX" : "MIN";
 
-  return { horizontalConstraint, verticalConstraint };
+  // For fixed elements, the default y/x (from getBoundingClientRect minus parent
+  // rect) places them at their viewport position. When the Figma frame represents
+  // the full document scroll height, an element anchored to the viewport bottom
+  // (e.g. a bottom navbar) ends up in the middle of the frame. Realign it to the
+  // far edge of the parent frame so the MAX constraint pins it correctly.
+  let positionOverride: Position | undefined;
+  if (isFixed) {
+    const parentRect = element.parentElement?.getBoundingClientRect();
+    if (parentRect) {
+      const x =
+        horizontalConstraint === "MAX"
+          ? parentRect.width - elementRect.width - distanceFromRight
+          : elementRect.left - parentRect.left;
+      const y =
+        verticalConstraint === "MAX"
+          ? parentRect.height - elementRect.height - distanceFromBottom
+          : elementRect.top - parentRect.top;
+      positionOverride = { x, y };
+    }
+  }
+
+  return { horizontalConstraint, verticalConstraint, positionOverride };
 }
 
 function getFillProperties(element: Element, rect: DOMRect) {
@@ -123,8 +149,9 @@ export function elementToFrameNodeChange(
   // Combine all effects
   const effects = [...shadowEffects, ...filterEffects, ...backdropEffects];
 
-  const { horizontalConstraint, verticalConstraint } =
-    getConstraintsFromPositioning(element, rect, computedStyle);
+  const { horizontalConstraint, verticalConstraint, positionOverride } =
+    getPositioningInfo(element, rect, computedStyle);
+  const finalPosition = positionOverride ?? position;
 
   const { fillsParentHeight, fillsParentWidth } = getFillProperties(
     element,
@@ -180,10 +207,10 @@ export function elementToFrameNodeChange(
     transform: {
       m00: 1.0,
       m01: 0.0,
-      m02: position.x,
+      m02: finalPosition.x,
       m10: 0.0,
       m11: 1.0,
-      m12: position.y,
+      m12: finalPosition.y,
     },
 
     /* Layout */
