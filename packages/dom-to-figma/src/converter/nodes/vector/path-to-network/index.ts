@@ -6,7 +6,6 @@ import type {
 } from "../vector-networks/types";
 import type { CurveBuilderState } from "./curve-builder";
 import { createInitialState, processCommand } from "./curve-builder";
-import { addRegionFromCurrentPath, finalizeRegions } from "./region-builder";
 
 export type { BezierCurve } from "./arc-converter";
 export type { CurveBuilderState } from "./curve-builder";
@@ -21,80 +20,54 @@ export function convertPathToVectorNetwork(
   params: { normalize: boolean; fillRule?: WindingRule } = { normalize: true }
 ): PathToVectorResult {
   const state = createInitialState();
-  const regions: Array<VectorRegion> = [];
   const fillRule = params.fillRule ?? "NONZERO";
   let normalizationOffset: { x: number; y: number } | undefined;
 
-  // For evenodd, collect all subpaths into a single region using NONZERO
-  if (fillRule === "ODD") {
-    const allPaths: Array<Array<number>> = [];
-    let currentPath: Array<number> = [];
+  // Collect each subpath as its own loop and emit a single region whose
+  // windingRule matches the SVG fill-rule. With NONZERO, opposite winding
+  // directions between loops cut holes (e.g. Phosphor outline icons whose
+  // inner subpaths are wound counter to the outer outline). Splitting into
+  // separate regions instead would render every subpath as a solid fill.
+  const loops: Array<Array<number>> = [];
+  let currentLoop: Array<number> = [];
 
-    for (const cmd of commands) {
-      const { type } = cmd;
-
-      // Handle move commands - start new subpath
-      if (type === "M" && currentPath.length > 0) {
-        allPaths.push([...currentPath]);
-        currentPath = [];
-      }
-
-      processCommand(state, cmd);
-
-      // Collect segments for the current path
-      if (state.currentPath.length > currentPath.length) {
-        currentPath.push(...state.currentPath.slice(currentPath.length));
-      }
-
-      // Handle close path commands
-      if (type === "Z") {
-        if (currentPath.length > 0) {
-          allPaths.push([...currentPath]);
-          currentPath = [];
-        }
-        state.currentPath = [];
-      }
+  for (const cmd of commands) {
+    if (cmd.type === "M" && currentLoop.length > 0) {
+      loops.push(currentLoop);
+      currentLoop = [];
     }
 
-    if (currentPath.length > 0) {
-      allPaths.push(currentPath);
+    processCommand(state, cmd);
+
+    if (state.currentPath.length > currentLoop.length) {
+      currentLoop.push(...state.currentPath.slice(currentLoop.length));
     }
 
-    if (allPaths.length > 0) {
-      const region: VectorRegion = {
-        styleID: 0,
-        windingRule: "NONZERO",
-        loops: allPaths.map((pathSegments) => ({
-          segments: pathSegments,
-          windingRule: "NONZERO",
-        })),
-      };
-      regions.push(region);
-    }
-  } else {
-    // Normal logic for nonzero fill rule
-    for (const cmd of commands) {
-      const { type } = cmd;
-
-      // Handle move commands specially - they create new regions
-      if (type === "M") {
-        addRegionFromCurrentPath(state, regions, fillRule);
+    if (cmd.type === "Z") {
+      if (currentLoop.length > 0) {
+        loops.push(currentLoop);
+        currentLoop = [];
       }
-
-      processCommand(state, cmd);
-
-      // Handle close path commands - they finalize current region
-      if (type === "Z") {
-        addRegionFromCurrentPath(state, regions, fillRule);
-      }
+      state.currentPath = [];
     }
-
-    // Add any remaining path as a region
-    const finalRegions = finalizeRegions(state, fillRule);
-    regions.push(...finalRegions);
   }
 
-  // Normalize coordinates to start from (0,0) like Figma does
+  if (currentLoop.length > 0) {
+    loops.push(currentLoop);
+  }
+
+  const regions: Array<VectorRegion> = [];
+  if (loops.length > 0) {
+    regions.push({
+      styleID: 0,
+      windingRule: fillRule,
+      loops: loops.map((segments) => ({
+        segments,
+        windingRule: fillRule,
+      })),
+    });
+  }
+
   if (params.normalize && state.vertices.length > 0) {
     normalizationOffset = normalizeVertices(state);
   }

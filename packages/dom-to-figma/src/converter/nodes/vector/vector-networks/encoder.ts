@@ -45,11 +45,11 @@ export function vectorNetworkToBytes(vectorNetwork: VectorNetwork): Uint8Array {
 
   // Write regions
   for (const region of regions) {
-    // Combine styleID and winding rule into one uint32
-    // bit 0: winding rule (0 for NONZERO, 1 for ODD/EVENODD)
-    // bits 1-31: styleID shifted left by 1
+    // Combine styleID and winding rule into one uint32.
+    // Figma packs bit 0 as 0 for ODD/EVENODD and 1 for NONZERO; bits 1-31 hold
+    // the styleID shifted left by 1.
     let styleIDWithWindingRule = region.styleID << 1;
-    if (region.windingRule === "ODD") {
+    if (region.windingRule === "NONZERO") {
       styleIDWithWindingRule |= 1;
     }
     writeUint32(buffer, styleIDWithWindingRule);
