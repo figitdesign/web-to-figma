@@ -8,7 +8,7 @@ export default defineConfig({
     name: "Copy to Figma",
     description:
       "Copy any website to Figma. One click, paste in Figma. No plugin needed.",
-    permissions: ["activeTab", "clipboardWrite"],
+    permissions: ["activeTab", "clipboardWrite", "scripting"],
     host_permissions: ["<all_urls>"],
   },
   vite: () => ({
