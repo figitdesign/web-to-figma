@@ -1,6 +1,7 @@
 packages:
   - "packages/*"
   - "apps/*"
+  - "internal/*"
 
 catalog:
   typescript: 6.0.3
