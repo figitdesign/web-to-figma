@@ -203,6 +203,7 @@ export type FigmaRoundedRectangleNodeChange = FigmaBaseNodeChange & {
   strokePaints?: Array<FigmaPaint>;
   effects?: Array<FigmaEffect>;
   cornerRadius?: number;
+  cornerSmoothing?: number;
   strokeWeight?: number;
   strokeAlign?: string;
   strokeCap?: string;

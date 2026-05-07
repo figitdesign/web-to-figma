@@ -103,7 +103,10 @@ export function elementToFrameNodeChange(
   const hasOverflowHidden = overflow === "hidden";
 
   // Parse border information
-  const borderProperties = parseBorderFromComputedStyle(computedStyle);
+  const borderProperties = parseBorderFromComputedStyle(computedStyle, {
+    width,
+    height,
+  });
 
   const paddingTop = Number.parseFloat(computedStyle.paddingTop || "0");
   const paddingRight = Number.parseFloat(computedStyle.paddingRight || "0");

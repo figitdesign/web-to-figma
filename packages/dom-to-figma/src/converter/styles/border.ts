@@ -1,10 +1,15 @@
 import type { FigmaColor, FigmaPaint } from "../types";
 import { cssColorToFigmaColor } from "./color";
 
+// Empirical fudge factor on top of the geometric `(1 + smoothing)` divisor —
+// Figma renders softer than CSS at equal radius. Higher = tighter corners.
+const SQUIRCLE_RADIUS_TIGHTEN = 1.125;
+
 export type BorderProperties = {
   strokeWeight: number;
   strokePaints: Array<FigmaPaint>;
   cornerRadius?: number;
+  cornerSmoothing?: number;
   // Conditional properties - only included when needed
   borderTopWeight?: number;
   borderRightWeight?: number;
@@ -18,14 +23,65 @@ export type BorderProperties = {
   rectangleCornerRadiiIndependent?: boolean;
 };
 
+// `squircle` ≡ `superellipse(4)` ≈ Figma's iOS smoothing (0.6).
+// `superellipse(n)` interpolates: n=2 → 0, n=4 → 0.6, clamped to 1.
+function cornerShapeToSmoothing(value: string): number | undefined {
+  const v = value.trim().toLowerCase();
+  if (!v || v === "round") {
+    return 0;
+  }
+  if (v === "squircle") {
+    return 0.6;
+  }
+  const m = v.match(/^superellipse\(\s*([\d.]+)\s*\)$/);
+  if (m) {
+    const n = Number.parseFloat(m[1]);
+    if (!Number.isFinite(n) || n <= 2) {
+      return 0;
+    }
+    return Math.min(1, ((n - 2) / 2) * 0.6);
+  }
+  return;
+}
+
+// Figma's `cornerSmoothing` is a single per-node value, so we only emit one
+// when all four CSS corners resolve to the same Figma-representable shape.
+function parseCornerSmoothing(
+  computedStyle: CSSStyleDeclaration
+): number | undefined {
+  const sides = [
+    "corner-top-left-shape",
+    "corner-top-right-shape",
+    "corner-bottom-right-shape",
+    "corner-bottom-left-shape",
+  ];
+  const values = sides.map((p) => computedStyle.getPropertyValue(p));
+  if (values.every((v) => !v)) {
+    return;
+  }
+
+  const smoothings = values.map((v) => cornerShapeToSmoothing(v));
+  const first = smoothings[0];
+  if (first === undefined) {
+    return;
+  }
+  if (!smoothings.every((s) => s === first)) {
+    return;
+  }
+  return first > 0 ? first : undefined;
+}
+
 /**
  * Parse CSS border properties and convert them to Figma border format
  *
  * @param computedStyle - The computed style of the element.
+ * @param dimensions - Element box size, used to clamp squircle radii so
+ *   `cornerSmoothing` has straight edge to extend into below Figma's pill cap.
  * @returns The border properties.
  */
 export function parseBorderFromComputedStyle(
-  computedStyle: CSSStyleDeclaration
+  computedStyle: CSSStyleDeclaration,
+  dimensions?: { width: number; height: number }
 ): BorderProperties {
   // Check for borders on all sides
   const borderTopWidth = Number.parseFloat(computedStyle.borderTopWidth || "0");
@@ -92,18 +148,38 @@ export function parseBorderFromComputedStyle(
   }
 
   // Parse border radius properties
-  const borderRadiusTopLeft = Number.parseFloat(
+  const rawBorderRadiusTopLeft = Number.parseFloat(
     computedStyle.borderTopLeftRadius || "0"
   );
-  const borderRadiusTopRight = Number.parseFloat(
+  const rawBorderRadiusTopRight = Number.parseFloat(
     computedStyle.borderTopRightRadius || "0"
   );
-  const borderRadiusBottomLeft = Number.parseFloat(
+  const rawBorderRadiusBottomLeft = Number.parseFloat(
     computedStyle.borderBottomLeftRadius || "0"
   );
-  const borderRadiusBottomRight = Number.parseFloat(
+  const rawBorderRadiusBottomRight = Number.parseFloat(
     computedStyle.borderBottomRightRadius || "0"
   );
+
+  const cornerSmoothing = parseCornerSmoothing(computedStyle);
+
+  // Scale the radius down so Figma's smoothed curve, which extends roughly
+  // `r * (1 + s)` into each side, matches the CSS visual extent. Clamp at the
+  // pill cap first so smoothing always has straight edge to extend into.
+  const compensateRadius = (raw: number): number => {
+    if (cornerSmoothing === undefined || cornerSmoothing <= 0) {
+      return raw;
+    }
+    const clamped = dimensions
+      ? Math.min(raw, Math.min(dimensions.width, dimensions.height) / 2)
+      : raw;
+    return clamped / ((1 + cornerSmoothing) * SQUIRCLE_RADIUS_TIGHTEN);
+  };
+
+  const borderRadiusTopLeft = compensateRadius(rawBorderRadiusTopLeft);
+  const borderRadiusTopRight = compensateRadius(rawBorderRadiusTopRight);
+  const borderRadiusBottomLeft = compensateRadius(rawBorderRadiusBottomLeft);
+  const borderRadiusBottomRight = compensateRadius(rawBorderRadiusBottomRight);
 
   const hasIndependentCorners =
     borderRadiusTopLeft !== borderRadiusTopRight ||
@@ -114,6 +190,7 @@ export function parseBorderFromComputedStyle(
     strokeWeight,
     strokePaints,
     cornerRadius: hasIndependentCorners ? undefined : borderRadiusTopLeft,
+    ...(cornerSmoothing !== undefined && { cornerSmoothing }),
   };
 
   // Only include individual border weights if they're different
