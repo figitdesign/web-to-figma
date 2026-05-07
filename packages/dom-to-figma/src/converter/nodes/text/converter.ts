@@ -3,6 +3,7 @@ import { getElementSize, getTextSize, isTextNode } from "../../dom";
 import type { FontCache } from "../../font-cache";
 import { createSolidPaint, cssColorToFigmaColor } from "../../styles/color";
 import { cssBackgroundToFigmaPaints } from "../../styles/gradient";
+import { parseOpacity } from "../../styles/opacity";
 import type {
   FigmaBlob,
   FigmaGuid,
@@ -424,7 +425,7 @@ export async function nodeToTextNodeChange(
     type: "TEXT",
     name: text,
     visible: true,
-    opacity: 1,
+    opacity: parseOpacity(computedStyle.opacity),
 
     /* Size and Position */
     size: {

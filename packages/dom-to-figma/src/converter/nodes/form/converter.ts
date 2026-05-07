@@ -53,6 +53,8 @@ function createStyledDiv(
   syntheticDiv.style.setProperty("display", "block");
   syntheticDiv.style.setProperty("user-select", "text");
   syntheticDiv.style.setProperty("pointer-events", "none");
+  // Opacity is applied on the parent frame; resetting here avoids it being multiplied.
+  syntheticDiv.style.setProperty("opacity", "1");
 
   syntheticDiv.textContent = placeholderText;
 

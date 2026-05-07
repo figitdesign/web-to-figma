@@ -7,6 +7,7 @@ import {
 import { parseBorderFromComputedStyle } from "../../styles/border";
 import { createSolidPaint, cssColorToFigmaColor } from "../../styles/color";
 import { cssBackgroundToFigmaPaints } from "../../styles/gradient";
+import { parseOpacity } from "../../styles/opacity";
 import { cssBoxShadowToFigmaEffects } from "../../styles/shadow";
 import type {
   FigmaFrameNodeChange,
@@ -113,6 +114,7 @@ export function elementToFrameNodeChange(
   const boxShadow = computedStyle.boxShadow;
   const backdropFilter = computedStyle.backdropFilter;
   const filter = computedStyle.filter;
+  const opacity = parseOpacity(computedStyle.opacity);
 
   const shadowEffects = cssBoxShadowToFigmaEffects(boxShadow);
   const filterEffects = cssFilterToFigmaEffects(filter);
@@ -167,7 +169,7 @@ export function elementToFrameNodeChange(
     type: "FRAME",
     name: getNodeNameFromElement(element),
     visible: true,
-    opacity: 1,
+    opacity,
     frameMaskDisabled: !hasOverflowHidden,
 
     /* Size and Position */

@@ -1,5 +1,6 @@
 import type { Position } from "../../dom";
 import { createSolidPaint, cssColorToFigmaColor } from "../../styles/color";
+import { parseOpacity } from "../../styles/opacity";
 import type { FigmaBlob, FigmaGuid, FigmaVectorNodeChange } from "../../types";
 import { shapeToPath } from "./shapes";
 import { svgPathToVectorNetworkWithScaling } from "./vector-networks";
@@ -218,6 +219,7 @@ export function elementToVectorNodeChange(
   const strokeLinejoin = parseStrokeJoin(computedStyle.strokeLinejoin);
   const strokeDasharray = parseDashArray(computedStyle.strokeDasharray);
   const fillRule = getFillRule(element, computedStyle);
+  const opacity = parseOpacity(computedStyle.opacity);
 
   const path = shapeToPath(element);
 
@@ -249,7 +251,7 @@ export function elementToVectorNodeChange(
     type: "VECTOR",
     name: "Vector",
     visible: true,
-    opacity: 1,
+    opacity,
 
     /* Size and Position */
     size: {

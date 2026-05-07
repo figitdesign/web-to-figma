@@ -1,6 +1,7 @@
 import type { Position } from "../../dom";
 import type { ImageCache } from "../../image-cache";
 import { parseBorderFromComputedStyle } from "../../styles/border";
+import { parseOpacity } from "../../styles/opacity";
 import { cssBoxShadowToFigmaEffects } from "../../styles/shadow";
 import type {
   FigmaBlob,
@@ -33,6 +34,7 @@ export async function elementToImageNodeChange(
 
   const boxShadow = computedStyle.boxShadow;
   const effects = cssBoxShadowToFigmaEffects(boxShadow);
+  const opacity = parseOpacity(computedStyle.opacity);
 
   // Parse border information (includes border radius)
   const borderProperties = parseBorderFromComputedStyle(computedStyle);
@@ -51,7 +53,7 @@ export async function elementToImageNodeChange(
     type: "ROUNDED_RECTANGLE",
     name: "Image",
     visible: true,
-    opacity: 1,
+    opacity,
 
     /* Size and Position */
     size: {

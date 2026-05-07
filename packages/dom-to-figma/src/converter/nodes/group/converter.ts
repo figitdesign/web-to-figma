@@ -1,5 +1,6 @@
 import type { Position } from "../../dom";
 import { getElementSize } from "../../dom";
+import { parseOpacity } from "../../styles/opacity";
 import type { FigmaGroupNodeChange, FigmaGuid } from "../../types";
 
 type Params = {
@@ -16,6 +17,7 @@ export function elementToGroupNodeChange(
   const { guid, parentGuid, childIndex, position } = options;
 
   const size = getElementSize(element);
+  const computedStyle = window.getComputedStyle(element);
 
   const nodeChange: FigmaGroupNodeChange = {
     /* General Info */
@@ -28,7 +30,7 @@ export function elementToGroupNodeChange(
     type: "GROUP",
     name: element.tagName.toLowerCase(),
     visible: true,
-    opacity: 1,
+    opacity: parseOpacity(computedStyle.opacity),
 
     /* Size and Position */
     size: {
