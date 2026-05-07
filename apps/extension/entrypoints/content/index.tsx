@@ -8,6 +8,7 @@ import { App } from "./app";
 import { copyElement, copyWholePage } from "./convert";
 
 import "./style.css";
+import "sonner/dist/styles.css";
 
 declare global {
   // biome-ignore lint/style/useConsistentTypeDefinitions: ambient global merging requires `interface`
@@ -25,20 +26,14 @@ export default defineContentScript({
       name: "sleek-copy-figma-ui",
       position: "overlay",
       anchor: "html",
-      // Stop hot keys (Esc, arrows, Enter) from leaking into the page while
-      // the picker is active.
+      // Picker hot keys must not leak into the page underneath.
       isolateEvents: ["keydown", "keyup", "keypress"],
       onMount(container, _shadow, shadowHost) {
         const root = createRoot(container);
         root.render(
           <App
             ctx={ctx}
-            onPickerConfirm={(element) => {
-              copyElement(element).catch((error) => {
-                // biome-ignore lint/suspicious/noConsole: surfaced via toast separately
-                console.error("[copy-to-figma] copyElement failed", error);
-              });
-            }}
+            onPickerConfirm={copyElement}
             shadowHost={shadowHost}
           />
         );
@@ -50,15 +45,11 @@ export default defineContentScript({
     });
     ui.mount();
 
-    // Hook the popup invokes via `chrome.scripting.executeScript`. The
-    // injected function runs in the same isolated world as this content
-    // script, so it sees this `window` and the activation flow is preserved.
+    // The popup invokes this via `executeScript` in the isolated world, which
+    // is the same world as this script — so user activation rides along.
     window[TRIGGER_GLOBAL] = (action) => {
       if (action === "copy-whole-page") {
-        copyWholePage().catch((error) => {
-          // biome-ignore lint/suspicious/noConsole: surfaced via toast separately
-          console.error("[copy-to-figma] copyWholePage failed", error);
-        });
+        copyWholePage();
         return;
       }
       if (action === "start-picker") {

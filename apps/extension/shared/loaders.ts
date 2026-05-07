@@ -1,41 +1,26 @@
-import type { FontLoader, ImageLoader } from "@sleekdesign/dom-to-figma";
-import { createFontsourceLoader } from "@sleekdesign/dom-to-figma";
+import type { ImageLoader } from "@sleekdesign/dom-to-figma";
+import { createDirectImageLoader } from "@sleekdesign/dom-to-figma";
 
 import { base64ToArrayBuffer } from "./base64";
 import { sendMessage } from "./messaging";
 
 /**
- * Image loader that tries a direct content-script `fetch(src)` first and falls
- * back to a background-service-worker proxy on failure. The proxy uses the
- * extension's `<all_urls>` host permissions to bypass page CORS.
+ * Try the page's own `fetch(src)` first via dom-to-figma's direct loader.
+ * On any failure (CORS, opaque response, network) fall back to the
+ * background service worker, which has `<all_urls>` host permissions and
+ * can read public bytes from any origin.
  */
 export function createBackgroundImageLoader(): ImageLoader {
-  return async ({ src }) => {
+  const direct = createDirectImageLoader();
+  return async (request) => {
     try {
-      const response = await fetch(src);
-      if (response.ok) {
-        const blob = await response.blob();
-        return {
-          bytes: await blob.arrayBuffer(),
-          mimeType: blob.type || "application/octet-stream",
-        };
-      }
+      return await direct(request);
     } catch {
-      // CORS or network — fall through to background proxy.
+      const result = await sendMessage("fetchImage", request.src);
+      return {
+        bytes: base64ToArrayBuffer(result.bytesBase64),
+        mimeType: result.mimeType,
+      };
     }
-    const result = await sendMessage("fetchImage", src);
-    return {
-      bytes: base64ToArrayBuffer(result.bytesBase64),
-      mimeType: result.mimeType,
-    };
   };
-}
-
-/**
- * Font loader. fontsource (jsdelivr) sends permissive CORS headers, so the
- * default direct-fetch loader works fine from a content script. Exposed here
- * for symmetry with the image loader and so callers can swap it out later.
- */
-export function createSleekFontLoader(): FontLoader {
-  return createFontsourceLoader();
 }

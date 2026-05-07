@@ -1,11 +1,23 @@
 import { Button } from "@sleekdesign/ui/components/button";
 import { useCallback, useState } from "react";
 import { browser } from "#imports";
+
+import { toErrorMessage } from "../../shared/errors";
 import type { TriggerAction } from "../../shared/triggers";
 import { TRIGGER_GLOBAL } from "../../shared/triggers";
 
 const RESTRICTED_PAGE_HINT =
   "This page can't be captured (browser-internal pages and the Chrome Web Store are restricted).";
+
+const RESTRICTED_URL_PREFIXES = [
+  "chrome://",
+  "chrome-extension://",
+  "edge://",
+  "about:",
+  "moz-extension://",
+  "https://chromewebstore.google.com",
+  "https://chrome.google.com/webstore",
+];
 
 export function App() {
   const [error, setError] = useState<string | null>(null);
@@ -22,36 +34,28 @@ export function App() {
       if (!tab?.id) {
         throw new Error("No active tab.");
       }
+      if (isRestrictedUrl(tab.url)) {
+        setError(RESTRICTED_PAGE_HINT);
+        return;
+      }
 
       // executeScript propagates the popup's user activation into the content
-      // script's isolated world. That activation is what
-      // `navigator.clipboard.write` requires for the figma-flavoured
-      // ClipboardItem. Requires `scripting` + `activeTab` permissions.
+      // script's isolated world. That's what `navigator.clipboard.write` needs
+      // for the figma-flavoured ClipboardItem; `tabs.sendMessage` would not.
+      // Requires `scripting` + `activeTab` permissions.
       await browser.scripting.executeScript({
         target: { tabId: tab.id },
         args: [action, TRIGGER_GLOBAL],
-        func: (a: string, key: string) => {
-          const w = window as unknown as Record<string, unknown>;
-          const trigger = w[key];
-          if (typeof trigger === "function") {
-            (trigger as (action: string) => void)(a);
-          }
-        },
+        func: invokeTrigger,
       });
 
       // Picker mode needs the popup out of the way so the user can click the
-      // page. Whole-page copy resolves quickly with a toast on the page itself.
+      // page. Whole-page copy resolves quickly with a toast on the page.
       window.close();
     } catch (cause) {
-      // biome-ignore lint/suspicious/noConsole: dev diagnostic — user-facing error is rendered below
+      // biome-ignore lint/suspicious/noConsole: user-facing error is rendered below
       console.error("[copy-to-figma] popup dispatch failed", cause);
-      const message =
-        cause instanceof Error ? cause.message : "Something went wrong.";
-      setError(
-        message.includes("Cannot access") || message.includes("chrome://")
-          ? RESTRICTED_PAGE_HINT
-          : message
-      );
+      setError(toErrorMessage(cause));
     } finally {
       setBusy(null);
     }
@@ -85,4 +89,23 @@ export function App() {
       ) : null}
     </main>
   );
+}
+
+function isRestrictedUrl(url: string | undefined): boolean {
+  if (!url) {
+    return false;
+  }
+  return RESTRICTED_URL_PREFIXES.some((prefix) => url.startsWith(prefix));
+}
+
+/**
+ * Serialized via `Function#toString` and re-parsed inside the page's isolated
+ * world by `executeScript`. Cannot reference imports — the args carry
+ * everything it needs, including the global key the content script set.
+ */
+function invokeTrigger(action: string, key: string) {
+  const trigger = (window as unknown as Record<string, unknown>)[key];
+  if (typeof trigger === "function") {
+    (trigger as (a: string) => void)(action);
+  }
 }

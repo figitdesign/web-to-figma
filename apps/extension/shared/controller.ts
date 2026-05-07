@@ -4,21 +4,10 @@
  * tree subscribes and renders accordingly.
  *
  * Lives outside React because the entrypoint needs imperative access to the UI
- * before/after the React tree mounts (e.g. dispatching a toast from a `chrome`
- * message listener).
+ * before/after the React tree mounts.
  */
 
-export type ToastKind = "info" | "success" | "error";
-
-export type UiAction =
-  | {
-      type: "show-toast";
-      kind: ToastKind;
-      message: string;
-      durationMs?: number;
-    }
-  | { type: "start-picker" }
-  | { type: "cancel-picker" };
+export type UiAction = { type: "start-picker" } | { type: "cancel-picker" };
 
 type Listener = (action: UiAction) => void;
 

@@ -1,43 +1,39 @@
 import type { Classify, FigmaConverter } from "@sleekdesign/dom-to-figma";
 import {
   createFigmaConverter,
+  createFontsourceLoader,
   defaultClassify,
 } from "@sleekdesign/dom-to-figma";
+import { toast } from "sonner";
 
-import { controller } from "../../shared/controller";
-import {
-  createBackgroundImageLoader,
-  createSleekFontLoader,
-} from "../../shared/loaders";
+import { toErrorMessage } from "../../shared/errors";
+import { createBackgroundImageLoader } from "../../shared/loaders";
+
+const COPY_TOAST_ID = "copy-to-figma";
+const SHADOW_HOST_TAG = "sleek-copy-figma-ui";
 
 let converter: FigmaConverter | null = null;
 
 function getConverter(): FigmaConverter {
-  if (converter) {
-    return converter;
+  if (!converter) {
+    converter = createFigmaConverter({
+      fontLoader: createFontsourceLoader(),
+      imageLoader: createBackgroundImageLoader(),
+      classify: skipExtensionUiClassify,
+    });
   }
-  converter = createFigmaConverter({
-    fontLoader: createSleekFontLoader(),
-    imageLoader: createBackgroundImageLoader(),
-    classify: skipExtensionUiClassify,
-  });
   return converter;
 }
 
-/**
- * Skip our own shadow-root UI host so it never ends up in the conversion. The
- * default classify is otherwise reused unchanged.
- */
 const skipExtensionUiClassify: Classify = (element) => {
   if (
     element instanceof HTMLElement &&
-    element.tagName.toLowerCase() === "sleek-copy-figma-ui"
+    element.tagName.toLowerCase() === SHADOW_HOST_TAG
   ) {
     return "skip";
   }
   // Cross-origin iframes can't be inspected from the parent context (security
-  // error on `contentDocument`), so the converter has nothing to walk. Skip
-  // them rather than crashing on the inner getComputedStyle calls.
+  // error on `contentDocument`), so the converter has nothing to walk.
   if (element instanceof HTMLIFrameElement && !isSameOriginIframe(element)) {
     return "skip";
   }
@@ -46,93 +42,68 @@ const skipExtensionUiClassify: Classify = (element) => {
 
 function isSameOriginIframe(iframe: HTMLIFrameElement): boolean {
   try {
-    // Throws SecurityError on cross-origin.
     return iframe.contentDocument !== null;
   } catch {
     return false;
   }
 }
 
-export async function copyWholePage(): Promise<void> {
+export function copyWholePage(): void {
   const root = document.documentElement;
-  const width = root.scrollWidth;
-  const height = root.scrollHeight;
-  await runConversion({
+  runConversion({
     element: document.body,
-    width,
-    height,
-    name: deriveFrameName(),
+    width: root.scrollWidth,
+    height: root.scrollHeight,
+    name: derivePageFrameName(),
   });
 }
 
-export async function copyElement(element: HTMLElement): Promise<void> {
+export function copyElement(element: HTMLElement): void {
   const rect = element.getBoundingClientRect();
   if (rect.width === 0 || rect.height === 0) {
-    controller.dispatch({
-      type: "show-toast",
-      kind: "error",
-      message: "Selected element has no size to copy.",
-    });
+    toast.error("Selected element has no size to copy.", { id: COPY_TOAST_ID });
     return;
   }
-  await runConversion({
+  runConversion({
     element,
     width: Math.round(rect.width),
     height: Math.round(rect.height),
-    name: deriveFrameName(element),
+    name: deriveElementFrameName(element),
   });
 }
 
-async function runConversion({
-  element,
-  width,
-  height,
-  name,
-}: {
+function runConversion(input: {
+  element: Element;
+  width: number;
+  height: number;
+  name: string;
+}): void {
+  // toast.promise shows a loading state, then swaps it in place to a success
+  // or error toast — the same { id } guarantees no stacking.
+  toast.promise(convertAndCopy(input), {
+    id: COPY_TOAST_ID,
+    loading: "Copying to Figma…",
+    success: "Copied. Paste in Figma with ⌘V / Ctrl+V.",
+    error: (error) => `Copy failed: ${toErrorMessage(error, "unknown error")}`,
+  });
+}
+
+async function convertAndCopy(input: {
   element: Element;
   width: number;
   height: number;
   name: string;
 }): Promise<void> {
-  controller.dispatch({
-    type: "show-toast",
-    kind: "info",
-    message: "Copying to Figma…",
-    durationMs: 30_000,
-  });
-  try {
-    const result = await getConverter().convert({
-      element,
-      width,
-      height,
-      name,
-    });
-    await navigator.clipboard.write([result.toClipboardItem()]);
-    controller.dispatch({
-      type: "show-toast",
-      kind: "success",
-      message: "Copied. Paste in Figma with ⌘V / Ctrl+V.",
-    });
-  } catch (error) {
-    // biome-ignore lint/suspicious/noConsole: dev diagnostic — user-facing error is the toast below
-    console.error("[copy-to-figma] convert failed", error);
-    controller.dispatch({
-      type: "show-toast",
-      kind: "error",
-      message:
-        error instanceof Error
-          ? `Copy failed: ${error.message}`
-          : "Copy failed.",
-    });
-  }
+  const result = await getConverter().convert(input);
+  await navigator.clipboard.write([result.toClipboardItem()]);
 }
 
-function deriveFrameName(element?: HTMLElement): string {
-  if (element) {
-    const id = element.id ? `#${element.id}` : "";
-    const cls = element.classList.length ? `.${element.classList[0]}` : "";
-    const tag = element.tagName.toLowerCase();
-    return `${tag}${id}${cls}` || "Selection";
-  }
+function deriveElementFrameName(element: HTMLElement): string {
+  const id = element.id ? `#${element.id}` : "";
+  const cls = element.classList.length ? `.${element.classList[0]}` : "";
+  return `${element.tagName.toLowerCase()}${id}${cls}`;
+}
+
+function derivePageFrameName(): string {
   return document.title || location.hostname || "Page";
 }
