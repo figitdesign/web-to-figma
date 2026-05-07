@@ -1,0 +1,13 @@
+@import "@sleekdesign/ui/styles/globals.css";
+@source "../../../../internal/ui/src";
+@source ".";
+
+/* Inside the shadow root, body/html don't apply — anchor utilities to the
+   ui-container that WXT injects. The container fills the host. */
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+  pointer-events: none;
+}
