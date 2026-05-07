@@ -34,7 +34,7 @@ function cornerShapeToSmoothing(value: string): number | undefined {
     return 0.6;
   }
   const m = v.match(/^superellipse\(\s*([\d.]+)\s*\)$/);
-  if (m) {
+  if (m?.[1]) {
     const n = Number.parseFloat(m[1]);
     if (!Number.isFinite(n) || n <= 2) {
       return 0;
