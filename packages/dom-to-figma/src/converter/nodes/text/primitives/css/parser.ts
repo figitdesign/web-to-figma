@@ -24,8 +24,6 @@ export type LineHeightOptions = {
  * Parsed CSS properties relevant to text rendering
  */
 export type ParsedTextProperties = {
-  /** Text content from the element */
-  text: string;
   /** Font properties (family, weight, style) */
   font: FontProperties;
   /** Font size in pixels */
@@ -87,14 +85,10 @@ export function parseTextProperties(element: Element): ParsedTextProperties {
   // Parse alignment
   const textAlign = parseTextAlign(computedStyle.textAlign);
 
-  // Get text content
-  const text = element.textContent?.trim() ?? "";
-
   // Get color
   const color = computedStyle.color || "rgb(0, 0, 0)";
 
   return {
-    text,
     font,
     fontSize,
     lineHeight,

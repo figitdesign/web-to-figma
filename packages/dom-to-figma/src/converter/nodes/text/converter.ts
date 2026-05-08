@@ -59,6 +59,19 @@ const cssToFigmaTextCaseMap: Record<string, FigmaTextCase> = {
   capitalize: "TITLE",
 };
 
+function applyCssTextTransform(text: string, transform: string): string {
+  switch (transform) {
+    case "uppercase":
+      return text.toUpperCase();
+    case "lowercase":
+      return text.toLowerCase();
+    case "capitalize":
+      return text.replace(/(^|\s)(\S)/g, (_, sp, c) => sp + c.toUpperCase());
+    default:
+      return text;
+  }
+}
+
 // Detects whether the browser laid out the text on a single visual line.
 // Each visual line produces at least one client rect; we group by `top`
 // (tolerating sub-pixel jitter) to count distinct lines.
@@ -123,7 +136,7 @@ export async function nodeToTextNodeChange(
   const computedStyle = window.getComputedStyle(element);
 
   const defaultTextContent = node.textContent?.trim() ?? "";
-  const text = textContent ?? defaultTextContent;
+  const rawText = textContent ?? defaultTextContent;
 
   const defaultSize = isTextNodeValue
     ? getTextSize(node)
@@ -189,6 +202,8 @@ export async function nodeToTextNodeChange(
   const textTransform = computedStyle.textTransform || "none";
   const figmaTextCase = cssToFigmaTextCaseMap[textTransform] ?? "ORIGINAL";
 
+  const text = applyCssTextTransform(rawText, textTransform);
+
   // It's generally more accurate to use the actual box height as the line height, but this doesn't work for text on multiple lines,
   // so in that case we use the computed line height.
   const computedLineHeight =
@@ -229,7 +244,7 @@ export async function nodeToTextNodeChange(
   // This accounts for font metric differences between browser and OpenType.js
   const wrappingContainerWidth = styles.dimensions.width + widthBuffer;
 
-  const layout = processTextLayout(loadedFont.font, styles.text, {
+  const layout = processTextLayout(loadedFont.font, text, {
     fontSize: styles.fontSize,
     spacing: { letterSpacing: styles.letterSpacing },
     alignment: styles.textAlign,
@@ -244,7 +259,7 @@ export async function nodeToTextNodeChange(
 
   const glyphs = processGlyphs(
     loadedFont,
-    styles.text,
+    text,
     {
       fontSize: styles.fontSize,
       includeWhitespace: true,
@@ -266,21 +281,16 @@ export async function nodeToTextNodeChange(
   const decorationType =
     figmaTextDecoration === "UNDERLINE" ? "underline" : "none";
 
-  const decorations = processTextDecorations(
-    layout,
-    loadedFont.font,
-    styles.text,
-    {
-      decorationType,
-      fontSize: styles.fontSize,
-      respectGlyphDescent: true,
-    }
-  );
+  const decorations = processTextDecorations(layout, loadedFont.font, text, {
+    decorationType,
+    fontSize: styles.fontSize,
+    respectGlyphDescent: true,
+  });
 
   // Build textData and derivedTextData
   const result = {
     textData: {
-      characters: styles.text,
+      characters: text,
       lines: [
         {
           lineType: "PLAIN" as const,
