@@ -1,8 +1,17 @@
 import { Button } from "@sleekdesign/ui/components/button";
-import { useCallback, useState } from "react";
+import { Monitor, Moon, Sun } from "lucide-react";
+import type { ComponentType } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { browser } from "#imports";
 
 import { toErrorMessage } from "../../shared/errors";
+import type { ThemePreference } from "../../shared/theme";
+import {
+  detectSystemTheme,
+  subscribeSystemTheme,
+  useResolvedTheme,
+  useThemePreference,
+} from "../../shared/theme";
 import type { TriggerAction } from "../../shared/triggers";
 import { TRIGGER_EVENT_NAME } from "../../shared/triggers";
 
@@ -19,9 +28,24 @@ const RESTRICTED_URL_PREFIXES = [
   "https://chrome.google.com/webstore",
 ];
 
+const THEME_OPTIONS: ReadonlyArray<{
+  value: ThemePreference;
+  label: string;
+  Icon: ComponentType<{ className?: string }>;
+}> = [
+  { value: "auto", label: "Auto", Icon: Monitor },
+  { value: "light", label: "Light", Icon: Sun },
+  { value: "dark", label: "Dark", Icon: Moon },
+];
+
 export function App() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<TriggerAction | null>(null);
+  const theme = useResolvedTheme(detectSystemTheme, subscribeSystemTheme);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+  }, [theme]);
 
   const dispatch = useCallback(async (action: TriggerAction) => {
     setError(null);
@@ -63,7 +87,10 @@ export function App() {
 
   return (
     <main className="flex flex-col gap-3 p-4">
-      <h1 className="font-heading font-medium text-base">Copy to Figma</h1>
+      <header className="flex items-center justify-between gap-3">
+        <h1 className="font-heading font-medium text-base">Copy to Figma</h1>
+        <ThemePicker />
+      </header>
       <p className="text-muted-foreground text-sm">
         Pick a section of the page or copy the whole thing into Figma.
       </p>
@@ -88,6 +115,32 @@ export function App() {
         </p>
       ) : null}
     </main>
+  );
+}
+
+function ThemePicker() {
+  const [preference, setPreference] = useThemePreference();
+  return (
+    <div
+      aria-label="Theme"
+      className="flex items-center gap-0.5"
+      role="radiogroup"
+    >
+      {THEME_OPTIONS.map(({ value, label, Icon }) => (
+        <Button
+          aria-checked={preference === value}
+          aria-label={label}
+          data-active={preference === value}
+          key={value}
+          onClick={() => setPreference(value)}
+          role="radio"
+          size="icon"
+          variant="ghost"
+        >
+          <Icon className="size-4" />
+        </Button>
+      ))}
+    </div>
   );
 }
 

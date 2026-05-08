@@ -53,6 +53,9 @@ importers:
       '@webext-core/messaging':
         specifier: ^2.3.0
         version: 2.3.0
+      lucide-react:
+        specifier: ^1.14.0
+        version: 1.14.0(react@19.2.5)
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.5(react@19.2.5))(react@19.2.5)

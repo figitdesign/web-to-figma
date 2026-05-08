@@ -2,6 +2,11 @@ import { Toaster } from "@sleekdesign/ui/components/sonner";
 import { useCallback, useEffect, useState } from "react";
 import type { ContentScriptContext } from "#imports";
 
+import {
+  detectPageTheme,
+  subscribePageTheme,
+  useResolvedTheme,
+} from "../../shared/theme";
 import { onTriggerEvent } from "../../shared/triggers";
 import { Picker } from "./picker";
 
@@ -13,6 +18,7 @@ type AppProps = {
 
 export function App({ ctx, shadowHost, onPickerConfirm }: AppProps) {
   const [pickerActive, setPickerActive] = useState(false);
+  const theme = useResolvedTheme(detectPageTheme, subscribePageTheme);
 
   useEffect(
     () =>
@@ -35,7 +41,7 @@ export function App({ ctx, shadowHost, onPickerConfirm }: AppProps) {
   const handleCancel = useCallback(() => setPickerActive(false), []);
 
   return (
-    <>
+    <div className={theme}>
       <Picker
         active={pickerActive}
         ctx={ctx}
@@ -43,7 +49,7 @@ export function App({ ctx, shadowHost, onPickerConfirm }: AppProps) {
         onConfirm={handleConfirm}
         shadowHost={shadowHost}
       />
-      <Toaster position="bottom-right" richColors theme="light" />
-    </>
+      <Toaster position="bottom-right" richColors theme={theme} />
+    </div>
   );
 }
