@@ -1,10 +1,12 @@
 /**
  * Kerning Processing Primitives
  *
- * Resolves the kerning adjustment for a pair of glyphs by asking fontkit to
- * lay out the two-character string with shaping disabled. fontkit applies
- * both the legacy `kern` table and modern GPOS pair-adjustment lookups
- * automatically, so the kern delta is `position.xAdvance − glyph.advanceWidth`.
+ * Resolves per-pair kerning deltas by asking fontkit to lay out the entire
+ * text run with shaping disabled. fontkit applies both the legacy `kern`
+ * table and modern GPOS pair-adjustment lookups automatically, so the kern
+ * delta between glyphs i and i+1 is `position[i].xAdvance − glyph[i].advanceWidth`.
+ *
+ * One layout call per run replaces what used to be N pairwise calls.
  */
 
 import { fontUnitsToPixels } from "../../primitives/font/metrics";
@@ -26,47 +28,47 @@ const NO_SHAPING_FEATURES = {
 } as const;
 
 /**
- * Kerning adjustment between two adjacent glyphs in pixels.
+ * Compute per-pair kerning deltas (in pixels) for a text run.
  *
- * Returns 0 when the pair is unknown to the font, when shaping unexpectedly
- * substituted the input (e.g. an unsupported script), or when fontkit throws.
+ * Returns an array of length `max(0, glyphs.length - 1)` where index `i` holds
+ * the kerning between `glyphs[i]` and `glyphs[i + 1]`. Falls back to all
+ * zeros if shaping unexpectedly substituted the input (e.g. unsupported
+ * script) or fontkit throws.
  */
-export function getKerning(
+export function computeKernings(
   font: OpenTypeFont,
-  leftGlyph: OpenTypeGlyph,
-  rightGlyph: OpenTypeGlyph,
+  text: string,
+  glyphs: ReadonlyArray<OpenTypeGlyph>,
   metrics: FontMetrics,
   fontSize: number
-): number {
-  try {
-    const leftCp = leftGlyph.codePoints[0];
-    const rightCp = rightGlyph.codePoints[0];
-    if (leftCp === undefined || rightCp === undefined) {
-      return 0;
-    }
-
-    const text = String.fromCodePoint(leftCp, rightCp);
-    const run = font.layout(text, NO_SHAPING_FEATURES);
-
-    // If shaping changed the glyph count we can't safely attribute the kern
-    // delta to the left glyph; bail out.
-    if (run.glyphs.length !== 2 || run.positions.length !== 2) {
-      return 0;
-    }
-
-    const leftPosition = run.positions[0];
-    const leftLaidGlyph = run.glyphs[0];
-    if (!(leftPosition && leftLaidGlyph)) {
-      return 0;
-    }
-
-    const kernUnits = leftPosition.xAdvance - leftLaidGlyph.advanceWidth;
-    if (kernUnits === 0) {
-      return 0;
-    }
-
-    return fontUnitsToPixels(kernUnits, fontSize, metrics.unitsPerEm);
-  } catch {
-    return 0;
+): Array<number> {
+  const result = new Array<number>(Math.max(0, glyphs.length - 1)).fill(0);
+  if (glyphs.length < 2) {
+    return result;
   }
+
+  try {
+    const run = font.layout(text, NO_SHAPING_FEATURES);
+    // If shaping merged or split clusters, the per-character contract is
+    // broken; fall back to no kerning rather than misattributing deltas.
+    if (run.glyphs.length !== glyphs.length) {
+      return result;
+    }
+    for (let i = 0; i < run.glyphs.length - 1; i += 1) {
+      const laidGlyph = run.glyphs[i];
+      const laidPos = run.positions[i];
+      if (!(laidGlyph && laidPos)) {
+        continue;
+      }
+      const kernUnits = laidPos.xAdvance - laidGlyph.advanceWidth;
+      if (kernUnits === 0) {
+        continue;
+      }
+      result[i] = fontUnitsToPixels(kernUnits, fontSize, metrics.unitsPerEm);
+    }
+  } catch {
+    /* fall through to zeros */
+  }
+
+  return result;
 }

@@ -12,18 +12,15 @@ import type { FontMetrics, LoadedFont } from "../font";
 import { pathCommandsToGlyphBytes } from "./encoder";
 
 /**
- * Processed glyph data with path and byte information
+ * Processed glyph data with path and byte information.
  *
  * Complete glyph representation ready for Figma text node construction.
- * Includes both the raw path data and encoded byte data for blob registration.
  */
 export type GlyphData = {
   /** The character this glyph represents */
   character: string;
   /** Unicode code point */
   unicode: number;
-  /** SVG path data */
-  svgPath: string;
   /** Encoded byte data for Figma blob registration */
   bytes: Array<number>;
   /** Advance width in pixels */
@@ -198,7 +195,6 @@ function processSingleGlyph(
   return {
     character: char,
     unicode: codePoint,
-    svgPath: glyph.path.toSVG(),
     bytes: glyphBytes,
     advance,
     registeredBlobIndex,
@@ -225,7 +221,6 @@ function createSpaceGlyph(
   return {
     character: char,
     unicode: char.codePointAt(0) ?? 0,
-    svgPath: "M0 0",
     bytes: spaceBytes,
     advance,
     registeredBlobIndex,

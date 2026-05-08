@@ -16,8 +16,9 @@ export type FontProperties = {
 };
 
 /**
- * Result of loading a font file. `bytes` is the raw `.ttf` file. The optional
- * `resolved*` fields let the loader signal that a fallback was applied.
+ * Result of loading a font file. `bytes` is the raw font file (TTF, OTF,
+ * WOFF, or WOFF2 — fontkit detects the format). The optional `resolved*`
+ * fields let the loader signal that a fallback was applied.
  */
 export type FontFile = {
   bytes: ArrayBuffer;
@@ -94,10 +95,17 @@ export async function loadFont(
   };
 }
 
+/**
+ * fontkit's `create` returns either a `Font` or a `FontCollection` (TTC/DFont).
+ * We discriminate on the `type` field — collections expose `'TTC' | 'DFont'`,
+ * everything else is a single font.
+ */
 function isFont(value: unknown): value is Font {
-  return (
-    typeof value === "object" && value !== null && "glyphForCodePoint" in value
-  );
+  if (typeof value !== "object" || value === null || !("type" in value)) {
+    return false;
+  }
+  const type = (value as { type: unknown }).type;
+  return type !== "TTC" && type !== "DFont";
 }
 
 function buildFontStyleName(weight: number, italic: boolean): string {

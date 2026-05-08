@@ -9,7 +9,7 @@
 
 import type { OpenTypeFont } from "../../types";
 import type { FontMetrics } from "../font";
-import { getKerning } from "./kerning";
+import { computeKernings } from "./kerning";
 import { scaleAdvanceWidth } from "./scaling";
 
 /**
@@ -119,6 +119,10 @@ export function calculateGlyphPositions(
     font.glyphForCodePoint(char.codePointAt(0) ?? 0)
   );
 
+  // One layout call resolves all pair kernings; index i holds the kern
+  // between glyphs[i] and glyphs[i + 1].
+  const kernings = computeKernings(font, text, glyphs, metrics, fontSize);
+
   for (let i = 0; i < glyphs.length; i += 1) {
     const glyph = glyphs[i];
     const char = chars[i];
@@ -126,23 +130,12 @@ export function calculateGlyphPositions(
       continue;
     }
 
-    // Apply kerning if there's a previous glyph
-    const previousGlyph = i > 0 ? glyphs[i - 1] : null;
-    if (previousGlyph) {
-      const kerningValue = getKerning(
-        font,
-        previousGlyph,
-        glyph,
-        metrics,
-        fontSize
-      );
-      currentX += kerningValue;
+    if (i > 0) {
+      currentX += kernings[i - 1] ?? 0;
     }
 
-    // Calculate advance width for this glyph
     const advance = scaleAdvanceWidth(glyph, metrics, fontSize);
 
-    // Record position for this glyph
     positions.push({
       character: char,
       x: currentX,
@@ -151,15 +144,10 @@ export function calculateGlyphPositions(
       glyphIndex: glyph.id,
     });
 
-    // Calculate advance width and add spacing
-    let totalAdvance = advance;
-
-    // Add letter spacing (always) and word spacing (for spaces)
-    totalAdvance += letterSpacing;
+    let totalAdvance = advance + letterSpacing;
     if (char === " ") {
       totalAdvance += wordSpacing;
     }
-
     currentX += totalAdvance;
   }
 
