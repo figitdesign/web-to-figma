@@ -39,11 +39,13 @@ export default defineContentScript({
     // The popup dispatches the trigger event via executeScript so its user
     // activation rides along into this isolated world. App listens for
     // "start-picker" separately to drive its UI state.
-    const removeTriggerListener = onTriggerEvent((action) => {
-      if (action === "copy-whole-page") {
-        copyWholePage();
-      }
-    });
-    ctx.onInvalidated(removeTriggerListener);
+    onTriggerEvent(
+      (action) => {
+        if (action === "copy-whole-page") {
+          copyWholePage();
+        }
+      },
+      { signal: ctx.signal }
+    );
   },
 });

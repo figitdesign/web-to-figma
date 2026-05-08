@@ -27,13 +27,18 @@ export const SHADOW_HOST_NAME = "sleek-copy-figma-ui";
 
 /**
  * Subscribe to popup-driven trigger events. Returns an unsubscribe function.
+ *
+ * Pass `signal` (typically `ctx.signal` in a content script) to scope the
+ * listener to a WXT context: when the extension is reloaded, disabled, or
+ * updated, the signal aborts and the listener is removed automatically.
  */
 export function onTriggerEvent(
-  handler: (action: TriggerAction) => void
+  handler: (action: TriggerAction) => void,
+  options?: { signal?: AbortSignal }
 ): () => void {
   const listener = (event: Event) => {
     handler((event as CustomEvent<TriggerAction>).detail);
   };
-  window.addEventListener(TRIGGER_EVENT_NAME, listener);
+  window.addEventListener(TRIGGER_EVENT_NAME, listener, options);
   return () => window.removeEventListener(TRIGGER_EVENT_NAME, listener);
 }

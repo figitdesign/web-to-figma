@@ -11,17 +11,18 @@ import { SHADOW_HOST_NAME } from "../../shared/triggers";
 
 const COPY_TOAST_ID = "copy-to-figma";
 
-let converter: FigmaConverter | null = null;
-
-function getConverter(): FigmaConverter {
-  if (!converter) {
-    converter = createFigmaConverter({
-      imageLoader: createBackgroundImageLoader(),
-      classify: skipExtensionUiClassify,
-    });
-  }
-  return converter;
-}
+const getConverter: () => FigmaConverter = (() => {
+  let instance: FigmaConverter | null = null;
+  return () => {
+    if (!instance) {
+      instance = createFigmaConverter({
+        imageLoader: createBackgroundImageLoader(),
+        classify: skipExtensionUiClassify,
+      });
+    }
+    return instance;
+  };
+})();
 
 const skipExtensionUiClassify: Classify = (element) => {
   if (
