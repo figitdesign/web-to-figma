@@ -17,11 +17,7 @@ let converter: FigmaConverter | null = null;
 function getConverter(): FigmaConverter {
   if (!converter) {
     converter = createFigmaConverter({
-      // Inter is a metrically reasonable stand-in for any sans-serif web-safe
-      // family that fontsource doesn't carry (Verdana, Tahoma, Trebuchet,
-      // Arial, etc.). The Figma payload still requests the original family
-      // name, so destinations with the system font installed render it.
-      fontLoader: createFontsourceLoader({ fallbackFamily: "Inter" }),
+      fontLoader: createFontsourceLoader(),
       imageLoader: createBackgroundImageLoader(),
       classify: skipExtensionUiClassify,
     });

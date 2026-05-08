@@ -143,21 +143,23 @@ export type FontsourceLoaderOptions = {
   /**
    * Family to substitute when the requested family isn't in fontsource (web-safe
    * fonts like Verdana, Tahoma, Georgia, Times New Roman, etc. — fontsource
-   * mirrors Google Fonts only). The substitute must itself be on fontsource;
-   * "Inter" is a safe default. The Figma payload still claims the *requested*
-   * family name, so destinations with the system font installed render it
-   * correctly — the substituted bytes only feed conversion-time metrics.
+   * mirrors Google Fonts only). The substitute must itself be on fontsource.
+   * The Figma payload still claims the *requested* family name, so destinations
+   * with the system font installed render it correctly — the substituted bytes
+   * only feed conversion-time metrics.
    *
-   * Without this option, requests for missing families throw and the converter
-   * silently drops the affected text nodes.
+   * Defaults to `"Inter"`. Pass `null` to disable substitution and throw on
+   * missing families instead — the converter's per-node try/catch will then
+   * silently drop affected text nodes.
    */
-  fallbackFamily?: string;
+  fallbackFamily?: string | null;
 };
 
 const FONTSOURCE_BASE_URL = "https://cdn.jsdelivr.net/fontsource/fonts";
 const FONTSOURCE_VERSION = "5";
 const FONTSOURCE_FALLBACK_WEIGHT = 400;
 const FONTSOURCE_DEFAULT_SUBSET = "latin";
+const DEFAULT_FALLBACK_FAMILY = "Inter";
 
 /**
  * Build a `FontLoader` that pulls Google Fonts as static `.woff2` files from
@@ -177,7 +179,11 @@ export function createFontsourceLoader(
   options: FontsourceLoaderOptions = {}
 ): FontLoader {
   const subset = options.subset ?? FONTSOURCE_DEFAULT_SUBSET;
-  const fallbackFamily = options.fallbackFamily;
+  // `undefined` → use the default; `null` → strict-fail; a string overrides.
+  const fallbackFamily =
+    options.fallbackFamily === undefined
+      ? DEFAULT_FALLBACK_FAMILY
+      : options.fallbackFamily;
   const fallbackKey = fallbackFamily ? familyToSlug(fallbackFamily) : null;
   const knownMissingFamilies = new Set<string>();
 
