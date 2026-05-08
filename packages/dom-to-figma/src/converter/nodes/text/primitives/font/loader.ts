@@ -135,23 +135,46 @@ const FONTSOURCE_DEFAULT_SUBSET = "latin";
  *
  * Falls back through a small chain when the exact (weight, italic) combo
  * isn't available: drop italic, then regular 400, then throw.
+ *
+ * Families that fontsource genuinely doesn't carry (Verdana, Tahoma, etc. —
+ * fontsource mirrors Google Fonts only) are memoized after the first
+ * exhausted-with-404s attempt, so subsequent requests for the same family
+ * fail fast instead of re-hitting jsDelivr for every text node on a page.
+ * Transient failures (network, 5xx) are not memoized.
  */
 export function createFontsourceLoader(
   options: FontsourceLoaderOptions = {}
 ): FontLoader {
   const subset = options.subset ?? FONTSOURCE_DEFAULT_SUBSET;
+  const knownMissingFamilies = new Set<string>();
 
   return async (request: FontProperties): Promise<FontFile> => {
+    const familyKey = familyToSlug(request.family);
+    if (knownMissingFamilies.has(familyKey)) {
+      throw new Error(
+        `fontsource: ${request.family} is not in the catalog (cached)`
+      );
+    }
+
+    let onlySawNotFound = true;
+
     for (const candidate of buildFallbackChain(request)) {
       const url = buildFontsourceUrl(candidate, subset);
-      const bytes = await tryFetchFont(url);
-      if (bytes) {
+      const result = await tryFetchFont(url);
+      if (result.kind === "ok") {
         return {
-          bytes,
+          bytes: result.bytes,
           resolvedWeight: candidate.weight,
           resolvedItalic: candidate.italic,
         };
       }
+      if (result.kind !== "not-found") {
+        onlySawNotFound = false;
+      }
+    }
+
+    if (onlySawNotFound) {
+      knownMissingFamilies.add(familyKey);
     }
 
     throw new Error(
@@ -185,15 +208,25 @@ function familyToSlug(family: string): string {
   return family.replace(/['"]/g, "").trim().toLowerCase().replace(/\s+/g, "-");
 }
 
-async function tryFetchFont(url: string): Promise<ArrayBuffer | null> {
+const HTTP_NOT_FOUND = 404;
+
+type FetchResult =
+  | { kind: "ok"; bytes: ArrayBuffer }
+  | { kind: "not-found" }
+  | { kind: "transient" };
+
+async function tryFetchFont(url: string): Promise<FetchResult> {
   try {
     const response = await fetch(url);
-    if (!response.ok) {
-      return null;
+    if (response.status === HTTP_NOT_FOUND) {
+      return { kind: "not-found" };
     }
-    return await response.arrayBuffer();
+    if (!response.ok) {
+      return { kind: "transient" };
+    }
+    return { kind: "ok", bytes: await response.arrayBuffer() };
   } catch {
-    return null;
+    return { kind: "transient" };
   }
 }
 
