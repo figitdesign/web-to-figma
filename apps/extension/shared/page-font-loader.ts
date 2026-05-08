@@ -3,15 +3,11 @@ import type { FontLoader, FontProperties } from "@sleekdesign/dom-to-figma";
 /**
  * Wraps a `FontLoader` with a page-aware first try: when dom-to-figma asks
  * for a font, we look at the page's own `@font-face` rules. If one matches
- * the request and points at a format opentype.js (1.x) can parse — TTF,
- * OTF, WOFF, EOT — we fetch that URL (the browser's HTTP cache hits for
- * free since the page already loaded it) and use the actual page bytes.
+ * the request, we fetch the URL it points at (the browser's HTTP cache hits
+ * for free since the page already loaded it) and use the actual page bytes.
  *
- * WOFF2 entries are skipped because opentype.js 1.x doesn't include a
- * brotli decoder. Most modern pages serve WOFF2 exclusively, so this layer
- * mostly helps for: sites that ship multi-format `@font-face` with TTF /
- * WOFF fallbacks for older browsers, custom corporate fonts served as
- * TTF, and font CDNs other than Google Fonts that still ship TTF.
+ * fontkit decompresses every web format transparently — TTF, OTF, WOFF,
+ * WOFF2, EOT — so any URL the page can render is fair game.
  *
  * Cross-origin stylesheets that block `cssRules` access are silently
  * skipped — we never see those `@font-face` declarations and fall back
@@ -25,13 +21,14 @@ const PARSEABLE_FORMATS = new Set([
   "truetype",
   "opentype",
   "woff",
+  "woff2",
   "embedded-opentype",
 ]);
 
 const FONT_URL_PATTERN =
   /url\(\s*['"]?([^'"\s)]+)['"]?\s*\)(?:\s+format\(\s*['"]?([^'"\s)]+)['"]?\s*\))?/g;
 
-const PARSEABLE_EXTENSION = /\.(ttf|otf|woff|eot)(\?|#|$)/i;
+const PARSEABLE_EXTENSION = /\.(ttf|otf|woff2?|eot)(\?|#|$)/i;
 
 const KEYWORD_TO_WEIGHT: Record<string, number> = {
   normal: 400,
@@ -128,10 +125,10 @@ function parseFontFaceRule(rule: CSSFontFaceRule): PageFontEntry | null {
 
 /**
  * Walk the comma-separated `src` list and return the first source whose
- * format we can confidently parse. Sources with a non-parseable format
- * hint (`woff2`, `svg`) are skipped; sources without any hint and without
- * a recognizable extension are skipped too — we only commit to URLs we
- * believe opentype.js will accept.
+ * format fontkit can parse. Non-font format hints (`svg`, `collection`)
+ * are skipped; sources without any hint and without a recognizable
+ * extension are skipped too — we only commit to URLs we're confident
+ * fontkit will accept.
  */
 function pickParseableUrl(src: string): string | null {
   for (const source of parseSources(src)) {
