@@ -2,7 +2,7 @@ import { Toaster } from "@sleekdesign/ui/components/sonner";
 import { useCallback, useEffect, useState } from "react";
 import type { ContentScriptContext } from "#imports";
 
-import { controller } from "../../shared/controller";
+import { onTriggerEvent } from "../../shared/triggers";
 import { Picker } from "./picker";
 
 type AppProps = {
@@ -16,16 +16,9 @@ export function App({ ctx, shadowHost, onPickerConfirm }: AppProps) {
 
   useEffect(
     () =>
-      controller.subscribe((action) => {
-        switch (action.type) {
-          case "start-picker":
-            setPickerActive(true);
-            return;
-          case "cancel-picker":
-            setPickerActive(false);
-            return;
-          default:
-            assertNever(action);
+      onTriggerEvent((action) => {
+        if (action === "start-picker") {
+          setPickerActive(true);
         }
       }),
     []
@@ -39,9 +32,7 @@ export function App({ ctx, shadowHost, onPickerConfirm }: AppProps) {
     [onPickerConfirm]
   );
 
-  const handleCancel = useCallback(() => {
-    setPickerActive(false);
-  }, []);
+  const handleCancel = useCallback(() => setPickerActive(false), []);
 
   return (
     <>
@@ -52,12 +43,7 @@ export function App({ ctx, shadowHost, onPickerConfirm }: AppProps) {
         onConfirm={handleConfirm}
         shadowHost={shadowHost}
       />
-      {/* The Sleek-themed Sonner toaster handles all transient feedback. */}
       <Toaster position="bottom-right" richColors theme="light" />
     </>
   );
-}
-
-function assertNever(value: never): never {
-  throw new Error(`Unhandled UiAction: ${JSON.stringify(value)}`);
 }

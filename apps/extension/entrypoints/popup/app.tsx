@@ -4,7 +4,7 @@ import { browser } from "#imports";
 
 import { toErrorMessage } from "../../shared/errors";
 import type { TriggerAction } from "../../shared/triggers";
-import { TRIGGER_GLOBAL } from "../../shared/triggers";
+import { TRIGGER_EVENT_NAME } from "../../shared/triggers";
 
 const RESTRICTED_PAGE_HINT =
   "This page can't be captured (browser-internal pages and the Chrome Web Store are restricted).";
@@ -39,14 +39,14 @@ export function App() {
         return;
       }
 
-      // executeScript propagates the popup's user activation into the content
-      // script's isolated world. That's what `navigator.clipboard.write` needs
-      // for the figma-flavoured ClipboardItem; `tabs.sendMessage` would not.
-      // Requires `scripting` + `activeTab` permissions.
+      // executeScript propagates the popup's user activation into the page's
+      // isolated world; the synchronous CustomEvent dispatch keeps it active
+      // through the content-script listener, so the downstream
+      // `navigator.clipboard.write` call is allowed.
       await browser.scripting.executeScript({
         target: { tabId: tab.id },
-        args: [action, TRIGGER_GLOBAL],
-        func: invokeTrigger,
+        args: [action, TRIGGER_EVENT_NAME],
+        func: dispatchTriggerEvent,
       });
 
       // Picker mode needs the popup out of the way so the user can click the
@@ -99,13 +99,9 @@ function isRestrictedUrl(url: string | undefined): boolean {
 }
 
 /**
- * Serialized via `Function#toString` and re-parsed inside the page's isolated
- * world by `executeScript`. Cannot reference imports — the args carry
- * everything it needs, including the global key the content script set.
+ * Inlined into the active tab via `executeScript`. Cannot reference imports —
+ * args carry the action name and the agreed-upon event name.
  */
-function invokeTrigger(action: string, key: string) {
-  const trigger = (window as unknown as Record<string, unknown>)[key];
-  if (typeof trigger === "function") {
-    (trigger as (a: string) => void)(action);
-  }
+function dispatchTriggerEvent(action: string, eventName: string) {
+  window.dispatchEvent(new CustomEvent(eventName, { detail: action }));
 }

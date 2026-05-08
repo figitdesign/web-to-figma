@@ -1,23 +1,21 @@
 import type { Classify, FigmaConverter } from "@sleekdesign/dom-to-figma";
 import {
   createFigmaConverter,
-  createFontsourceLoader,
   defaultClassify,
 } from "@sleekdesign/dom-to-figma";
 import { toast } from "sonner";
 
 import { toErrorMessage } from "../../shared/errors";
 import { createBackgroundImageLoader } from "../../shared/loaders";
+import { SHADOW_HOST_NAME } from "../../shared/triggers";
 
 const COPY_TOAST_ID = "copy-to-figma";
-const SHADOW_HOST_TAG = "sleek-copy-figma-ui";
 
 let converter: FigmaConverter | null = null;
 
 function getConverter(): FigmaConverter {
   if (!converter) {
     converter = createFigmaConverter({
-      fontLoader: createFontsourceLoader(),
       imageLoader: createBackgroundImageLoader(),
       classify: skipExtensionUiClassify,
     });
@@ -28,7 +26,7 @@ function getConverter(): FigmaConverter {
 const skipExtensionUiClassify: Classify = (element) => {
   if (
     element instanceof HTMLElement &&
-    element.tagName.toLowerCase() === SHADOW_HOST_TAG
+    element.tagName.toLowerCase() === SHADOW_HOST_NAME
   ) {
     return "skip";
   }
@@ -72,13 +70,15 @@ export function copyElement(element: HTMLElement): void {
   });
 }
 
-function runConversion(input: {
+type ConversionInput = {
   element: Element;
   width: number;
   height: number;
   name: string;
-}): void {
-  // toast.promise shows a loading state, then swaps it in place to a success
+};
+
+function runConversion(input: ConversionInput): void {
+  // toast.promise shows a loading toast, then swaps it in place to a success
   // or error toast — the same { id } guarantees no stacking.
   toast.promise(convertAndCopy(input), {
     id: COPY_TOAST_ID,
@@ -88,12 +88,7 @@ function runConversion(input: {
   });
 }
 
-async function convertAndCopy(input: {
-  element: Element;
-  width: number;
-  height: number;
-  name: string;
-}): Promise<void> {
+async function convertAndCopy(input: ConversionInput): Promise<void> {
   const result = await getConverter().convert(input);
   await navigator.clipboard.write([result.toClipboardItem()]);
 }

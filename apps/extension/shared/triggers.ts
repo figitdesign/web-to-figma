@@ -1,13 +1,39 @@
 /**
- * Actions invoked by the popup via `chrome.scripting.executeScript`. The
- * popup's user activation propagates through `executeScript` into the content
- * script's isolated world, which is what `navigator.clipboard.write` needs for
- * the figma-flavoured ClipboardItem (see `entrypoints/content`).
+ * Cross-entrypoint coordination details for the popup → content trigger flow
+ * and the shadow-root UI's host-tag identity. Both ends of these wires need
+ * to agree on the strings, so this module is the one source of truth.
  */
+
 export type TriggerAction = "copy-whole-page" | "start-picker";
 
 /**
- * Global hook the content script installs on `window` so the popup's
- * `executeScript({ func })` payload can stay tiny and self-contained.
+ * `CustomEvent` name dispatched by the popup (via `chrome.scripting
+ * .executeScript`) and observed by the content script. Carries a
+ * `TriggerAction` in `detail`.
+ *
+ * `executeScript` propagates the popup's user activation into the page's
+ * isolated world; dispatching the event synchronously inside the injected
+ * function preserves that activation through the listener call, so a
+ * downstream `navigator.clipboard.write([ClipboardItem])` is allowed.
  */
-export const TRIGGER_GLOBAL = "__sleekCopyFigmaTrigger" as const;
+export const TRIGGER_EVENT_NAME = "sleekdesign-copy-to-figma:trigger";
+
+/**
+ * Tag of the custom element that hosts our shadow-root UI. The conversion's
+ * classify hook skips it so the extension's own DOM never bleeds into the
+ * Figma payload.
+ */
+export const SHADOW_HOST_NAME = "sleek-copy-figma-ui";
+
+/**
+ * Subscribe to popup-driven trigger events. Returns an unsubscribe function.
+ */
+export function onTriggerEvent(
+  handler: (action: TriggerAction) => void
+): () => void {
+  const listener = (event: Event) => {
+    handler((event as CustomEvent<TriggerAction>).detail);
+  };
+  window.addEventListener(TRIGGER_EVENT_NAME, listener);
+  return () => window.removeEventListener(TRIGGER_EVENT_NAME, listener);
+}
