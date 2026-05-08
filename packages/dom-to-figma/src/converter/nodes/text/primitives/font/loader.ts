@@ -137,8 +137,9 @@ const FONTSOURCE_FALLBACK_WEIGHT = 400;
 const FONTSOURCE_DEFAULT_SUBSET = "latin";
 
 /**
- * Build a `FontLoader` that pulls Google Fonts as static `.ttf` files from
+ * Build a `FontLoader` that pulls Google Fonts as static `.woff2` files from
  * fontsource via jsDelivr's CDN. No API key, no UA tricks, browser-friendly.
+ * fontkit decompresses WOFF2 transparently.
  *
  * Falls back through a small chain when the exact (weight, italic) combo
  * isn't available: drop italic, then regular 400, then throw.
@@ -151,7 +152,7 @@ export function createFontsourceLoader(
   return async (request: FontProperties): Promise<FontFile> => {
     for (const candidate of buildFallbackChain(request)) {
       const url = buildFontsourceUrl(candidate, subset);
-      const bytes = await tryFetchTtf(url);
+      const bytes = await tryFetchFont(url);
       if (bytes) {
         return {
           bytes,
@@ -185,14 +186,14 @@ function buildFallbackChain(request: FontProperties): Array<FontProperties> {
 function buildFontsourceUrl(props: FontProperties, subset: string): string {
   const slug = familyToSlug(props.family);
   const style = props.italic ? "italic" : "normal";
-  return `${FONTSOURCE_BASE_URL}/${slug}@${FONTSOURCE_VERSION}/${subset}-${props.weight}-${style}.ttf`;
+  return `${FONTSOURCE_BASE_URL}/${slug}@${FONTSOURCE_VERSION}/${subset}-${props.weight}-${style}.woff2`;
 }
 
 function familyToSlug(family: string): string {
   return family.replace(/['"]/g, "").trim().toLowerCase().replace(/\s+/g, "-");
 }
 
-async function tryFetchTtf(url: string): Promise<ArrayBuffer | null> {
+async function tryFetchFont(url: string): Promise<ArrayBuffer | null> {
   try {
     const response = await fetch(url);
     if (!response.ok) {
