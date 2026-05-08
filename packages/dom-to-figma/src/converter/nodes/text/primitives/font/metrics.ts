@@ -31,10 +31,18 @@ export type FontMetrics = {
   /** Height of lowercase letters (typically 'x') */
   xHeight: number;
 
-  /** Total line height (ascender - descender + lineGap) */
+  /** Total line height in font units (ascender - descender + lineGap) */
   lineHeight: number;
   /** Distance from origin to baseline */
   baseline: number;
+
+  /**
+   * Intrinsic line-height as an em ratio: `lineHeight / unitsPerEm`. Equal to
+   * Figma's `FontMetaData.fontLineHeight`. Pre-divided here so callers don't
+   * each have to repeat the division (and don't have to repeat the
+   * `unitsPerEm > 0` guard either).
+   */
+  lineHeightRatio: number;
 
   /** Font family name */
   familyName: string;
@@ -47,9 +55,21 @@ export type FontMetrics = {
  *
  * Provides robust metrics extraction with fallbacks for missing data.
  * Normalizes metrics across font formats.
+ *
+ * @throws {Error} When the font reports a non-positive `unitsPerEm`, which
+ *   would silently produce `Infinity` / `NaN` ratios downstream.
  */
 export function extractFontMetrics(font: OpenTypeFont): FontMetrics {
   const unitsPerEm = font.unitsPerEm;
+
+  // Treat a degenerate `unitsPerEm` as a hard error here, at the boundary,
+  // rather than letting NaN/Infinity leak into glyph positions, baselines,
+  // and Kiwi `float` fields where the wire format is undefined.
+  if (!Number.isFinite(unitsPerEm) || unitsPerEm <= 0) {
+    throw new Error(
+      `Font has invalid unitsPerEm: ${unitsPerEm}. Cannot compute metrics.`
+    );
+  }
 
   const ascender = font.ascent;
   const descender = font.descent;
@@ -72,6 +92,7 @@ export function extractFontMetrics(font: OpenTypeFont): FontMetrics {
     capHeight,
     xHeight,
     lineHeight,
+    lineHeightRatio: lineHeight / unitsPerEm,
     baseline,
     familyName: font.familyName ?? font.fullName ?? "Unknown",
     styleName: font.subfamilyName ?? "Regular",

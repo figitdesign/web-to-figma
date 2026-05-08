@@ -409,10 +409,9 @@ export async function nodeToTextNodeChange(
             postscript: "",
           },
           // Intrinsic line-height ratio of the font, NOT the user's chosen
-          // line-height in pixels. Equivalent to (asc - desc + gap) / upm.
-          // The user's line-height already lives on `nc.lineHeight` above.
-          fontLineHeight:
-            loadedFont.metrics.lineHeight / loadedFont.metrics.unitsPerEm,
+          // line-height in pixels. The user's line-height already lives on
+          // `nc.lineHeight` above. See `FontMetrics.lineHeightRatio`.
+          fontLineHeight: loadedFont.metrics.lineHeightRatio,
           fontStyle: loadedFont.actualItalic
             ? ("ITALIC" as const)
             : ("NORMAL" as const),
