@@ -1,12 +1,14 @@
 import type { Classify, FigmaConverter } from "@sleekdesign/dom-to-figma";
 import {
   createFigmaConverter,
+  createFontsourceLoader,
   defaultClassify,
 } from "@sleekdesign/dom-to-figma";
 import { toast } from "sonner";
 
 import { toErrorMessage } from "../../shared/errors";
 import { createBackgroundImageLoader } from "../../shared/loaders";
+import { createPageFontLoader } from "../../shared/page-font-loader";
 import { SHADOW_HOST_NAME } from "../../shared/triggers";
 
 const COPY_TOAST_ID = "copy-to-figma";
@@ -19,6 +21,12 @@ const getConverter: () => FigmaConverter = (() => {
   return () => {
     if (!instance) {
       instance = createFigmaConverter({
+        // Try the page's own @font-face URLs first (browser cache hits for
+        // free, exact metrics + postScriptName) and fall back to fontsource
+        // for anything we couldn't match or parse on the page.
+        fontLoader: createPageFontLoader({
+          fallbackLoader: createFontsourceLoader(),
+        }),
         imageLoader: createBackgroundImageLoader(),
         classify: skipExtensionUiClassify,
       });
