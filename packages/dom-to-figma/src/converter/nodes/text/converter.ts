@@ -402,10 +402,17 @@ export async function nodeToTextNodeChange(
           key: {
             family: loadedFont.properties.family,
             style: loadedFont.fontStyleName,
-            postscript: loadedFont.postScriptName,
+            // Figma writes its FontMetaData entries with an empty postscript
+            // even when the top-level fontName carries one. Match that so a
+            // round-trip looks identical and Figma's font matching (which is
+            // by family + style + weight) takes the same path on both sides.
+            postscript: "",
           },
-          fontLineHeight: styles.lineHeight,
-          fontDigest: loadedFont.fontDigest,
+          // Intrinsic line-height ratio of the font, NOT the user's chosen
+          // line-height in pixels. Equivalent to (asc - desc + gap) / upm.
+          // The user's line-height already lives on `nc.lineHeight` above.
+          fontLineHeight:
+            loadedFont.metrics.lineHeight / loadedFont.metrics.unitsPerEm,
           fontStyle: loadedFont.actualItalic
             ? ("ITALIC" as const)
             : ("NORMAL" as const),
@@ -497,11 +504,19 @@ export async function nodeToTextNodeChange(
     }),
 
     /* Other */
+    // CSS `font-variant-ligatures: normal` (the default) enables common and
+    // contextual ligatures only. Discretionary and historical ligatures are
+    // off unless the author opts in — match that here.
     fontVariantCommonLigatures: true,
     fontVariantContextualLigatures: true,
-    fontVariantDiscretionaryLigatures: true,
+    fontVariantDiscretionaryLigatures: false,
     fontVersion: "2",
     textUserLayoutVersion: 4,
+    textExplicitLayoutVersion: 1,
+    textBidiVersion: 1,
+    // Let Figma grow the box on import. Our DOM-derived size is close but
+    // never byte-exact, and locking the frame causes clipping or overflow.
+    textAutoResize: "WIDTH_AND_HEIGHT",
     autoRename: true,
   };
 

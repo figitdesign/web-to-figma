@@ -11,7 +11,6 @@ import { createFigmaConverter } from "./figma";
 
 const FRAME_WIDTH = 320;
 const FRAME_HEIGHT = 80;
-const SHA1_BYTE_COUNT = 20;
 
 const mountElement = (html: string): HTMLElement => {
   const wrapper = document.createElement("div");
@@ -56,7 +55,7 @@ describe("text rendering with bundled font", () => {
     expect(textChange.fontName?.style).toBe("Regular");
   });
 
-  it("derives glyph data from real font bytes (non-zero fontDigest, glyph entries)", async () => {
+  it("derives glyph data from real font bytes", async () => {
     const element = mountElement(
       `<div style="width:${FRAME_WIDTH}px;height:${FRAME_HEIGHT}px;font-family:'${TEST_FONT_FAMILY}',sans-serif;font-size:16px">abc</div>`
     );
@@ -75,9 +74,17 @@ describe("text rendering with bundled font", () => {
       throw new Error("expected TEXT node");
     }
 
+    // fontLineHeight is the font's intrinsic line-height ratio
+    // ((asc - desc + gap) / upm), not the user's CSS line-height. For any
+    // real font this lands roughly in [1.0, 1.5]; certainly never the
+    // raw pixel value.
     const fontMeta = textChange.derivedTextData?.fontMetaData?.[0];
-    expect(fontMeta?.fontDigest).toHaveLength(SHA1_BYTE_COUNT);
-    expect(fontMeta?.fontDigest?.some((byte) => byte !== 0)).toBe(true);
+    expect(fontMeta?.fontLineHeight).toBeGreaterThan(0.8);
+    expect(fontMeta?.fontLineHeight).toBeLessThan(2);
+    // Match Figma's wire format: empty postscript on the meta key, real
+    // postscript on the top-level fontName.
+    expect(fontMeta?.key.postscript).toBe("");
+    expect(textChange.fontName?.postscript).not.toBe("");
 
     const glyphs = textChange.derivedTextData?.glyphs ?? [];
     expect(glyphs).toHaveLength(3);
@@ -85,6 +92,12 @@ describe("text rendering with bundled font", () => {
       expect(glyph.fontSize).toBe(16);
       expect(glyph.advance).toBeGreaterThan(0);
     }
+
+    // Baselines use [start, end) half-open ranges — endCharacter equals
+    // the character count, not count - 1.
+    const baseline = textChange.derivedTextData?.baselines?.[0];
+    expect(baseline?.firstCharacter).toBe(0);
+    expect(baseline?.endCharacter).toBe(3);
   });
 
   it("propagates font weight into the resolved style name", async () => {

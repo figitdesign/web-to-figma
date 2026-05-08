@@ -42,8 +42,6 @@ export type LoadedFont = {
   actualItalic: boolean;
   fontStyleName: string;
   postScriptName: string;
-  /** SHA-1 digest of the font file (20 bytes), Figma's font identifier. */
-  fontDigest: Array<number>;
 };
 
 const WEIGHT_TO_STYLE_NAME: Record<number, string> = {
@@ -74,7 +72,6 @@ export async function loadFont(
   }
   const font = parsed;
   const metrics = extractFontMetrics(font);
-  const fontDigest = await computeFontDigest(file.bytes);
 
   const actualWeight = file.resolvedWeight ?? properties.weight;
   const actualItalic = file.resolvedItalic ?? properties.italic;
@@ -91,7 +88,6 @@ export async function loadFont(
     actualItalic,
     fontStyleName,
     postScriptName,
-    fontDigest,
   };
 }
 
@@ -117,18 +113,6 @@ function buildFontStyleName(weight: number, italic: boolean): string {
     return "Italic";
   }
   return `${baseName} Italic`;
-}
-
-async function computeFontDigest(
-  fontBuffer: ArrayBuffer
-): Promise<Array<number>> {
-  try {
-    const hashBuffer = await crypto.subtle.digest("SHA-1", fontBuffer);
-    return Array.from(new Uint8Array(hashBuffer));
-  } catch {
-    // Fallback: zeroed digest if Web Crypto is unavailable.
-    return Array.from({ length: 20 }, () => 0);
-  }
 }
 
 /**

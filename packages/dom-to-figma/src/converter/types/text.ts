@@ -34,7 +34,7 @@ export type FigmaDerivedTextData = {
       style: string;
       postscript: string;
     };
-    fontDigest: Array<number>;
+    fontDigest?: Array<number>;
     fontWeight: number;
     fontLineHeight: number;
     fontStyle: "NORMAL" | "ITALIC";

@@ -119,10 +119,11 @@ function buildMultiLineBaselines(
     );
     const baselineY = lineY + baselineOffset;
 
-    // Determine character range for this line
+    // Determine character range for this line. Figma uses [start, end)
+    // half-open intervals here — endCharacter is one past the last glyph.
     const lineLength = line.positions.length || 0;
     const characterStart = characterIndex;
-    const characterEnd = characterIndex + lineLength - 1;
+    const characterEnd = characterIndex + lineLength;
 
     baselines.push({
       baseline: baselineY,
@@ -169,7 +170,9 @@ function buildSingleLineBaseline(
     {
       baseline: baselineY,
       characterStart: 0,
-      characterEnd: Math.max(0, characterCount - 1),
+      // Half-open interval — endCharacter is one past the last glyph index,
+      // i.e. equal to the character count.
+      characterEnd: characterCount,
     },
   ];
 }
