@@ -115,7 +115,9 @@ export function calculateGlyphPositions(
   // lookup at `converter.ts:374`) is keyed by character, so shaped output
   // (e.g. an "fi" ligature glyph) would be silently corrupted anyway.
   const chars = [...text];
-  const glyphs = chars.map((char) => font.charToGlyph(char));
+  const glyphs = chars.map((char) =>
+    font.glyphForCodePoint(char.codePointAt(0) ?? 0)
+  );
 
   for (let i = 0; i < glyphs.length; i += 1) {
     const glyph = glyphs[i];
@@ -146,7 +148,7 @@ export function calculateGlyphPositions(
       x: currentX,
       y: 0, // Y position will be set by alignment or multi-line layout
       advance,
-      glyphIndex: glyph.index,
+      glyphIndex: glyph.id,
     });
 
     // Calculate advance width and add spacing

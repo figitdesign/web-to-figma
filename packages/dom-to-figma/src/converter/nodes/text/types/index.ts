@@ -16,7 +16,6 @@ export type {
 export type { FontProperties, LoadedFont } from "../primitives/font/loader";
 // Font-related types
 export type { FontMetrics } from "../primitives/font/metrics";
-export type { KerningResult } from "../primitives/layout/kerning";
 // Layout-related types
 export type {
   AlignedLayout,
@@ -31,7 +30,7 @@ export type {
   WrappingOptions,
 } from "../primitives/layout/wrapping";
 
-import type { Font, Glyph } from "opentype.js";
+import type { Font, Glyph } from "fontkit";
 import type { ScalingOptions } from "../../vector/scaling";
 // Import types for use in this module
 import type { FontMetrics } from "../primitives/font/metrics";

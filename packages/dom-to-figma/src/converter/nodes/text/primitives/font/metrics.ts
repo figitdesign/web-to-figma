@@ -9,7 +9,6 @@
  */
 
 import type { OpenTypeFont } from "../../types";
-import { getFontNameTable } from "./names";
 
 /**
  * Comprehensive font metrics extracted from OpenType fonts
@@ -44,43 +43,26 @@ export type FontMetrics = {
 };
 
 /**
- * Extract comprehensive font metrics from an opentype.js font
+ * Extract comprehensive font metrics from a fontkit font.
  *
- * Provides robust metrics extraction with intelligent fallbacks for
- * missing or invalid font data. Normalizes metrics across different
- * font formats and implementations.
- *
- * @param font - OpenType.js font object
- * @returns Complete font metrics with fallback values for missing data
- * @throws {Error} When font object is invalid or missing
- *
- * @example
- * ```typescript
- * const font = await opentype.load('path/to/font.ttf');
- * const metrics = extractFontMetrics(font);
- * console.log(`Font: ${metrics.familyName}, Line height: ${metrics.lineHeight}`);
- * ```
+ * Provides robust metrics extraction with fallbacks for missing data.
+ * Normalizes metrics across font formats.
  */
 export function extractFontMetrics(font: OpenTypeFont): FontMetrics {
   const unitsPerEm = font.unitsPerEm;
 
-  // Use font's own metrics or calculate reasonable defaults
-  const ascender = font.ascender;
-  const descender = font.descender;
-  const lineGap = font.tables.hhea?.lineGap ?? 0;
+  const ascender = font.ascent;
+  const descender = font.descent;
+  const lineGap = font.lineGap ?? 0;
 
-  // Typography metrics with fallbacks from OS/2 table or calculated defaults
-  const capHeight = font.tables.os2?.sCapHeight ?? Math.round(unitsPerEm * 0.7);
-  const xHeight = font.tables.os2?.sxHeight ?? Math.round(unitsPerEm * 0.5);
+  // fontkit exposes capHeight/xHeight as top-level getters with a built-in
+  // fallback to the closest available metric, so no manual `os2?.sCapHeight`
+  // chain is needed.
+  const capHeight = font.capHeight ?? Math.round(unitsPerEm * 0.7);
+  const xHeight = font.xHeight ?? Math.round(unitsPerEm * 0.5);
 
-  // Calculate line height (ascender - descender + lineGap)
   const lineHeight = ascender - descender + lineGap;
-
-  // Baseline position (distance from origin to baseline)
-  // In font coordinates, baseline is typically at y=0 with ascender above
   const baseline = Math.abs(descender);
-
-  const names = getFontNameTable(font);
 
   return {
     unitsPerEm,
@@ -91,8 +73,8 @@ export function extractFontMetrics(font: OpenTypeFont): FontMetrics {
     xHeight,
     lineHeight,
     baseline,
-    familyName: names.fontFamily?.en ?? names.fullName?.en ?? "Unknown",
-    styleName: names.fontSubfamily?.en ?? "Regular",
+    familyName: font.familyName ?? font.fullName ?? "Unknown",
+    styleName: font.subfamilyName ?? "Regular",
   };
 }
 

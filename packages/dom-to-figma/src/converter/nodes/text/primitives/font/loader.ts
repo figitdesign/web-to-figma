@@ -1,9 +1,8 @@
-// biome-ignore lint/performance/noNamespaceImport: opentype.js exposes a namespace
-import * as opentype from "opentype.js";
+import type { Font } from "fontkit";
+import { create } from "fontkit";
 import type { OpenTypeFont } from "../../types";
 import type { FontMetrics } from "./metrics";
 import { extractFontMetrics } from "./metrics";
-import { getFontNameTable } from "./names";
 
 /**
  * Font properties used to request a font file. The loader is free to apply
@@ -64,7 +63,15 @@ export async function loadFont(
 ): Promise<LoadedFont> {
   const file = await fontLoader(properties);
 
-  const font = opentype.parse(file.bytes);
+  // fontkit's `create` accepts any `Uint8Array`-backed buffer at runtime; the
+  // `Buffer` parameter type in the published `.d.ts` is misleading. Browser-safe.
+  const parsed = create(new Uint8Array(file.bytes) as unknown as Buffer);
+  if (!isFont(parsed)) {
+    throw new Error(
+      "fontkit returned a font collection; collection inputs are not supported"
+    );
+  }
+  const font = parsed;
   const metrics = extractFontMetrics(font);
   const fontDigest = await computeFontDigest(file.bytes);
 
@@ -72,7 +79,7 @@ export async function loadFont(
   const actualItalic = file.resolvedItalic ?? properties.italic;
   const fontStyleName = buildFontStyleName(actualWeight, actualItalic);
   const postScriptName =
-    getFontNameTable(font).postScriptName?.en ??
+    font.postscriptName ??
     `${properties.family.replace(/\s+/g, "")}-${fontStyleName.replace(/\s+/g, "")}`;
 
   return {
@@ -85,6 +92,12 @@ export async function loadFont(
     postScriptName,
     fontDigest,
   };
+}
+
+function isFont(value: unknown): value is Font {
+  return (
+    typeof value === "object" && value !== null && "glyphForCodePoint" in value
+  );
 }
 
 function buildFontStyleName(weight: number, italic: boolean): string {

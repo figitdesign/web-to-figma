@@ -9,7 +9,7 @@
 
 import type { FigmaBlob, OpenTypeFont, OpenTypeGlyph } from "../../types";
 import type { FontMetrics, LoadedFont } from "../font";
-import { svgPathToGlyphBytes } from "./encoder";
+import { pathCommandsToGlyphBytes } from "./encoder";
 
 /**
  * Processed glyph data with path and byte information
@@ -156,17 +156,22 @@ function processSingleGlyph(
   fontSize: number,
   registerBlob: (blob: FigmaBlob) => number
 ): GlyphData | null {
-  const glyph = font.charToGlyph(char);
+  const codePoint = char.codePointAt(0);
+  if (codePoint === undefined) {
+    return null;
+  }
+  const glyph = font.glyphForCodePoint(codePoint);
 
-  // Check if glyph exists (glyph.index 0 is usually the "missing glyph" except for space)
-  if (glyph.index === 0 && char !== " ") {
+  // glyph.id 0 is the .notdef glyph for unmapped characters. Treat space as a
+  // valid glyph even when the cmap returns .notdef, since we substitute a
+  // minimal blob for it anyway.
+  if (glyph.id === 0 && char !== " ") {
     console.warn(
-      `No glyph found for character: '${char}' (U+${char.charCodeAt(0).toString(16).toUpperCase()})`
+      `No glyph found for character: '${char}' (U+${codePoint.toString(16).toUpperCase()})`
     );
     return null;
   }
 
-  // Handle space character with special minimal path
   if (char === " ") {
     return createSpaceGlyph(
       char,
@@ -177,35 +182,23 @@ function processSingleGlyph(
     );
   }
 
-  // Generate SVG path data from the font glyph
-  const svgPathData = generateGlyphPath(glyph, font.unitsPerEm || 2048);
+  const glyphBytes = pathCommandsToGlyphBytes(glyph.path.commands, {
+    unitsPerEm: metrics.unitsPerEm,
+  });
 
-  if (!svgPathData || svgPathData === "") {
-    console.warn(`Empty path generated for character: '${char}'`);
+  if (glyphBytes.length <= 1) {
+    // Path was empty (only the close opcode) — skip rather than emit a noop.
+    console.warn(`Empty path for character: '${char}'`);
     return null;
   }
 
-  // Convert SVG path to Figma-compatible glyph bytes
-  const glyphBytes = svgPathToGlyphBytes(svgPathData, {
-    unitsPerEm: metrics.unitsPerEm,
-    fontMetrics: {
-      ascender: metrics.ascender,
-      descender: metrics.descender,
-      xHeight: metrics.xHeight,
-      capHeight: metrics.capHeight,
-    },
-  });
-
-  // Register the blob and get its index
   const registeredBlobIndex = registerBlob({ bytes: glyphBytes });
-
-  // Calculate advance width in pixels
   const advance = calculateAdvanceWidth(glyph, fontSize, metrics.unitsPerEm);
 
   return {
     character: char,
-    unicode: char.charCodeAt(0),
-    svgPath: svgPathData,
+    unicode: codePoint,
+    svgPath: glyph.path.toSVG(),
     bytes: glyphBytes,
     advance,
     registeredBlobIndex,
@@ -213,44 +206,10 @@ function processSingleGlyph(
 }
 
 /**
- * Generate SVG path data from a font glyph
+ * Create glyph data for space character.
  *
- * Extracts the vector path data from an OpenType glyph and converts
- * it to SVG path string format suitable for encoding.
- *
- * @param glyph - OpenType glyph object
- * @param unitsPerEm - Font's units per EM value
- * @returns SVG path data string
- *
- * @internal
- */
-function generateGlyphPath(glyph: OpenTypeGlyph, unitsPerEm: number): string {
-  try {
-    // Generate path at font's native resolution
-    const path = glyph.getPath(0, 0, unitsPerEm);
-    const svgPathData = path.toPathData(5); // 5 decimal precision
-
-    return svgPathData;
-  } catch (error) {
-    console.error("Error generating path for glyph:", error);
-    return "";
-  }
-}
-
-/**
- * Create glyph data for space character
- *
- * Spaces don't have visible paths but need proper advance width
- * and minimal blob data for Figma compatibility.
- *
- * @param char - The space character
- * @param glyph - OpenType glyph for the space
- * @param fontSize - Font size in pixels
- * @param unitsPerEm - Font's units per EM
- * @param registerBlob - Blob registration function
- * @returns Complete glyph data for space character
- *
- * @internal
+ * Spaces don't have visible paths but need a proper advance width and a
+ * minimal blob (the lone close opcode) so Figma can render text runs.
  */
 function createSpaceGlyph(
   char: string,
@@ -259,16 +218,14 @@ function createSpaceGlyph(
   unitsPerEm: number,
   registerBlob: (blob: FigmaBlob) => number
 ): GlyphData {
-  // Space gets minimal path and just a close command
-  const spaceBytes = [0]; // Just a close command (Z)
+  const spaceBytes = [0]; // close command only
   const registeredBlobIndex = registerBlob({ bytes: spaceBytes });
-
   const advance = calculateAdvanceWidth(glyph, fontSize, unitsPerEm);
 
   return {
     character: char,
-    unicode: char.charCodeAt(0),
-    svgPath: "M0 0", // Minimal path for space
+    unicode: char.codePointAt(0) ?? 0,
+    svgPath: "M0 0",
     bytes: spaceBytes,
     advance,
     registeredBlobIndex,
