@@ -1,5 +1,5 @@
+import { MonitorIcon, MoonIcon, SunIcon } from "@phosphor-icons/react";
 import { Button } from "@sleekdesign/ui/components/button";
-import { Monitor, Moon, Sun } from "lucide-react";
 import type { ComponentType } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { browser } from "#imports";
@@ -33,9 +33,9 @@ const THEME_OPTIONS: ReadonlyArray<{
   label: string;
   Icon: ComponentType<{ className?: string }>;
 }> = [
-  { value: "auto", label: "Auto", Icon: Monitor },
-  { value: "light", label: "Light", Icon: Sun },
-  { value: "dark", label: "Dark", Icon: Moon },
+  { value: "auto", label: "Auto", Icon: MonitorIcon },
+  { value: "light", label: "Light", Icon: SunIcon },
+  { value: "dark", label: "Dark", Icon: MoonIcon },
 ];
 
 export function App() {
