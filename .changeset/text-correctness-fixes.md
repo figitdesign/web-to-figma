@@ -10,4 +10,3 @@ Several text correctness fixes that align our output with what Figma writes itse
 - `derivedTextData.baselines[*].endCharacter` is now exclusive (`firstCharacter + length`) — Figma uses `[start, end)` half-open intervals.
 - `fontVariantDiscretionaryLigatures` defaults to `false`. CSS `font-variant-ligatures: normal` does not enable discretionary ligatures.
 - Emit `textBidiVersion: 1` and `textExplicitLayoutVersion: 1` to match what Figma's own clipboard output writes.
-- **Behavior change:** TEXT nodes now emit `textAutoResize: "WIDTH_AND_HEIGHT"`. On import, Figma resizes the text box to fit content rather than locking it to the DOM-measured `size`. The browser's text layout and Figma's text engine never agree byte-for-byte, so locking the frame caused subtle clipping or overflow; letting Figma grow the box absorbs the difference. If you depended on the previous lock-to-`size` behavior, this will be visible.

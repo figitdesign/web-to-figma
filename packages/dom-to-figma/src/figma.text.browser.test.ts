@@ -122,8 +122,11 @@ describe("text rendering with bundled font", () => {
       throw new Error("expected TEXT node");
     }
 
-    // Let Figma fit-to-content on import rather than locking the box.
-    expect(textChange.textAutoResize).toBe("WIDTH_AND_HEIGHT");
+    // We deliberately leave textAutoResize unset — see the converter for
+    // the rationale. Emitting WIDTH_AND_HEIGHT here would un-wrap
+    // multi-line text on Figma's re-derivation pass and clip against
+    // the parent frame.
+    expect(textChange.textAutoResize).toBeUndefined();
     // Pinned to match Figma's own clipboard output.
     expect(textChange.textBidiVersion).toBe(1);
     expect(textChange.textExplicitLayoutVersion).toBe(1);

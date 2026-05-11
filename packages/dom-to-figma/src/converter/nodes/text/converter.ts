@@ -513,9 +513,13 @@ export async function nodeToTextNodeChange(
     textUserLayoutVersion: 4,
     textExplicitLayoutVersion: 1,
     textBidiVersion: 1,
-    // Let Figma grow the box on import. Our DOM-derived size is close but
-    // never byte-exact, and locking the frame causes clipping or overflow.
-    textAutoResize: "WIDTH_AND_HEIGHT",
+    // Note: we deliberately do not emit `textAutoResize`. The right value
+    // depends on whether the source DOM wrapped (`HEIGHT` — lock width,
+    // grow height) or rendered on a single line (`WIDTH_AND_HEIGHT` is
+    // safe). Emitting `WIDTH_AND_HEIGHT` unconditionally causes Figma to
+    // un-wrap multi-line text on re-derivation and clip it against the
+    // parent frame. Leaving the field unset gives Figma its default (NONE),
+    // which preserves whatever we measured.
     autoRename: true,
   };
 
