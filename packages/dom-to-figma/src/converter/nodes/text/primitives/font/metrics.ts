@@ -66,8 +66,9 @@ export function extractFontMetrics(font: OpenTypeFont): FontMetrics {
   // rather than letting NaN/Infinity leak into glyph positions, baselines,
   // and Kiwi `float` fields where the wire format is undefined.
   if (!Number.isFinite(unitsPerEm) || unitsPerEm <= 0) {
+    const fontLabel = font.familyName ?? font.fullName ?? "unknown";
     throw new Error(
-      `Font has invalid unitsPerEm: ${unitsPerEm}. Cannot compute metrics.`
+      `Font "${fontLabel}" has invalid unitsPerEm: ${unitsPerEm}. Cannot compute metrics.`
     );
   }
 
