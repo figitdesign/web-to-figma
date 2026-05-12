@@ -1,4 +1,7 @@
-@import "tailwindcss";
+@import "@sleekdesign/ui/styles/globals.css";
+
+@source "../../../internal/ui/src";
+@source ".";
 
 html,
 body {

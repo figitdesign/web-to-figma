@@ -1,5 +1,7 @@
 import { html } from "@codemirror/lang-html";
 import type { ConvertResult } from "@sleekdesign/dom-to-figma";
+import { Button } from "@sleekdesign/ui/components/button";
+import { Input } from "@sleekdesign/ui/components/input";
 import CodeMirror from "@uiw/react-codemirror";
 import {
   useCallback,
@@ -12,9 +14,6 @@ import {
 import type { Scene } from "../corpus";
 import { getConverter } from "../lib/converter";
 import { PayloadInspector } from "./payload-inspector";
-
-const FIELD_CLASSES =
-  "rounded border border-zinc-800 bg-zinc-900 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-600";
 
 const CONVERT_DEBOUNCE_MS = 300;
 
@@ -102,47 +101,42 @@ export function PlaygroundShell({ scene }: Props) {
         </div>
         <div className="flex-1" />
         <div className="flex items-center gap-1 text-sm">
-          <input
+          <Input
             aria-label="Width"
-            className={`${FIELD_CLASSES} w-16 tabular-nums`}
+            className="w-16 tabular-nums"
             min={1}
             onChange={(event) => setWidth(event.target.valueAsNumber || 0)}
             type="number"
             value={width || ""}
           />
-          <span className="text-zinc-500">×</span>
-          <input
+          <span className="text-muted-foreground">×</span>
+          <Input
             aria-label="Height"
-            className={`${FIELD_CLASSES} w-16 tabular-nums`}
+            className="w-16 tabular-nums"
             min={1}
             onChange={(event) => setHeight(event.target.valueAsNumber || 0)}
             type="number"
             value={height || ""}
           />
         </div>
-        <input
+        <Input
           aria-label="Frame name"
-          className={`${FIELD_CLASSES} w-32`}
+          className="w-32"
           onChange={(event) => setFrameName(event.target.value)}
           placeholder="Frame name"
           value={frameName}
         />
-        <button
-          className="rounded border border-zinc-800 px-3 py-1 text-sm hover:bg-zinc-900 disabled:opacity-50"
+        <Button
           disabled={isConverting}
           onClick={runConversion}
-          type="button"
+          size="sm"
+          variant="outline"
         >
           {isConverting ? "Converting…" : "Convert"}
-        </button>
-        <button
-          className="rounded bg-orange-500 px-3 py-1 font-medium text-sm text-zinc-950 hover:bg-orange-400 disabled:opacity-50"
-          disabled={isCopying || !result}
-          onClick={copyToFigma}
-          type="button"
-        >
+        </Button>
+        <Button disabled={isCopying || !result} onClick={copyToFigma} size="sm">
           {isCopying ? "Copying…" : "Copy to Figma"}
-        </button>
+        </Button>
       </header>
 
       {status && (
