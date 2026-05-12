@@ -157,7 +157,7 @@ export function PlaygroundShell({ scene }: Props) {
         </div>
         {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: onLoad fires when the iframe content is ready, which we need to trigger conversion */}
         <iframe
-          className="h-full w-full border-border border-r bg-white"
+          className="h-full w-full border-border border-r"
           onLoad={runConversion}
           ref={iframeRef}
           srcDoc={previewCode}
