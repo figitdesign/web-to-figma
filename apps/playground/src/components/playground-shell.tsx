@@ -2,6 +2,7 @@ import { html } from "@codemirror/lang-html";
 import type { ConvertResult } from "@sleekdesign/dom-to-figma";
 import { Button } from "@sleekdesign/ui/components/button";
 import { Input } from "@sleekdesign/ui/components/input";
+import { Spinner } from "@sleekdesign/ui/components/spinner";
 import CodeMirror from "@uiw/react-codemirror";
 import {
   useCallback,
@@ -20,6 +21,22 @@ const CONVERT_DEBOUNCE_MS = 300;
 type Props = {
   scene: Scene;
 };
+
+function copyButtonLabel({
+  isCopying,
+  isConverting,
+}: {
+  isCopying: boolean;
+  isConverting: boolean;
+}): string {
+  if (isCopying) {
+    return "Copying…";
+  }
+  if (isConverting) {
+    return "Converting…";
+  }
+  return "Copy to Figma";
+}
 
 export function PlaygroundShell({ scene }: Props) {
   const [code, setCode] = useState(scene.html);
@@ -127,15 +144,12 @@ export function PlaygroundShell({ scene }: Props) {
           value={frameName}
         />
         <Button
-          disabled={isConverting}
-          onClick={runConversion}
+          disabled={isCopying || isConverting || !result}
+          onClick={copyToFigma}
           size="sm"
-          variant="outline"
         >
-          {isConverting ? "Converting…" : "Convert"}
-        </Button>
-        <Button disabled={isCopying || !result} onClick={copyToFigma} size="sm">
-          {isCopying ? "Copying…" : "Copy to Figma"}
+          {(isCopying || isConverting) && <Spinner />}
+          {copyButtonLabel({ isCopying, isConverting })}
         </Button>
       </header>
 
