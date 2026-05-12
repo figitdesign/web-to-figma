@@ -120,7 +120,7 @@ export function PlaygroundShell({ scene }: Props) {
         <div className="flex items-center gap-1 text-sm">
           <Input
             aria-label="Width"
-            className="w-16 tabular-nums"
+            className="w-20 tabular-nums"
             min={1}
             onChange={(event) => setWidth(event.target.valueAsNumber || 0)}
             type="number"
@@ -129,7 +129,7 @@ export function PlaygroundShell({ scene }: Props) {
           <span className="text-muted-foreground">×</span>
           <Input
             aria-label="Height"
-            className="w-16 tabular-nums"
+            className="w-20 tabular-nums"
             min={1}
             onChange={(event) => setHeight(event.target.valueAsNumber || 0)}
             type="number"
