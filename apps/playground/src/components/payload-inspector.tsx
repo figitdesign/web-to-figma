@@ -93,9 +93,11 @@ function summarizeText(change: NodeChange): string | null {
   return `“${preview}” · ${change.fontName?.family ?? "?"} ${change.fontName?.style ?? ""} · ${change.fontSize ?? "?"}px`.trim();
 }
 
+// Type-tag colors are semantic to node kind, not chrome — they're info graphics
+// that should stay legible regardless of the surrounding theme tokens.
 const TYPE_PALETTE: Record<string, string> = {
-  DOCUMENT: "text-zinc-400",
-  CANVAS: "text-zinc-400",
+  DOCUMENT: "text-muted-foreground",
+  CANVAS: "text-muted-foreground",
   FRAME: "text-blue-300",
   GROUP: "text-purple-300",
   TEXT: "text-emerald-300",
@@ -113,7 +115,7 @@ function disclosureGlyph(hasChildren: boolean, expanded: boolean): string {
 function TreeRow({ node, depth }: { node: TreeNode; depth: number }) {
   const [expanded, setExpanded] = useState(depth < 3);
   const hasChildren = node.children.length > 0;
-  const palette = TYPE_PALETTE[node.change.type] ?? "text-zinc-300";
+  const palette = TYPE_PALETTE[node.change.type] ?? "text-foreground";
   const size = formatSize(node.change);
   const position = formatPosition(node.change);
   const fills = summarizeFills(node.change);
@@ -124,24 +126,26 @@ function TreeRow({ node, depth }: { node: TreeNode; depth: number }) {
   return (
     <div>
       <button
-        className="flex w-full items-baseline gap-2 px-2 py-1 text-left text-xs hover:bg-zinc-800"
+        className="flex w-full items-baseline gap-2 px-2 py-1 text-left text-xs hover:bg-accent hover:text-accent-foreground"
         onClick={() => hasChildren && setExpanded((prev) => !prev)}
         style={{ paddingLeft: `${depth * 14 + 8}px` }}
         type="button"
       >
-        <span className="w-3 shrink-0 text-zinc-500">{disclosure}</span>
+        <span className="w-3 shrink-0 text-muted-foreground">{disclosure}</span>
         <span className={`shrink-0 font-mono ${palette}`}>
           {node.change.type}
         </span>
-        <span className="shrink-0 text-zinc-200">{node.change.name}</span>
-        {size && <span className="shrink-0 text-zinc-500">{size}</span>}
+        <span className="shrink-0 text-foreground">{node.change.name}</span>
+        {size && <span className="shrink-0 text-muted-foreground">{size}</span>}
         {position && (
-          <span className="shrink-0 text-zinc-500">@{position}</span>
+          <span className="shrink-0 text-muted-foreground">@{position}</span>
         )}
-        {text && <span className="truncate text-zinc-400">{text}</span>}
-        {fills && <span className="truncate text-zinc-500">{fills}</span>}
+        {text && <span className="truncate text-muted-foreground">{text}</span>}
+        {fills && (
+          <span className="truncate text-muted-foreground">{fills}</span>
+        )}
         {effects && (
-          <span className="truncate text-zinc-500">fx: {effects}</span>
+          <span className="truncate text-muted-foreground">fx: {effects}</span>
         )}
       </button>
       {expanded &&
@@ -164,7 +168,7 @@ export function PayloadInspector({ document }: InspectorProps) {
 
   if (!document) {
     return (
-      <div className="flex h-full items-center justify-center text-xs text-zinc-500">
+      <div className="flex h-full items-center justify-center text-muted-foreground text-xs">
         Run a conversion to inspect the payload.
       </div>
     );
@@ -172,7 +176,7 @@ export function PayloadInspector({ document }: InspectorProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-zinc-800 border-b px-3 py-2 text-xs text-zinc-400">
+      <div className="flex items-center justify-between border-border border-b px-3 py-2 text-muted-foreground text-xs">
         <span>
           {document.nodeChanges.length} nodes · {document.blobs.length} blobs
         </span>

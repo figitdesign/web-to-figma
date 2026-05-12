@@ -19,12 +19,12 @@ function ScenePage() {
   const { scene } = Route.useLoaderData();
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center gap-2 border-zinc-800 border-b px-4 py-2 text-xs">
-        <Link className="text-zinc-400 hover:text-zinc-200" to="/">
+      <div className="flex items-center gap-2 border-border border-b px-4 py-2 text-xs">
+        <Link className="text-muted-foreground hover:text-foreground" to="/">
           ← All scenes
         </Link>
-        <span className="text-zinc-700">/</span>
-        <span className="text-zinc-500">{scene.category}</span>
+        <span className="text-border">/</span>
+        <span className="text-muted-foreground">{scene.category}</span>
       </div>
       <PlaygroundShell scene={scene} />
     </div>
@@ -33,10 +33,10 @@ function ScenePage() {
 
 function SceneNotFound() {
   return (
-    <div className="flex h-full items-center justify-center text-sm text-zinc-400">
+    <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
       <div className="flex flex-col items-center gap-2">
         <p>Scene not found.</p>
-        <Link className="text-orange-400 hover:text-orange-300" to="/">
+        <Link className="text-primary hover:text-primary/80" to="/">
           Back to gallery
         </Link>
       </div>

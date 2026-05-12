@@ -13,7 +13,7 @@ function SceneIndex() {
         <h1 className="font-semibold text-2xl tracking-tight">
           dom-to-figma playground
         </h1>
-        <p className="mt-2 max-w-2xl text-sm text-zinc-400">
+        <p className="mt-2 max-w-2xl text-muted-foreground text-sm">
           Each scene below is a small HTML+CSS snippet that exercises one
           concern. Open one to inspect the payload and copy it to Figma.
         </p>
@@ -21,13 +21,13 @@ function SceneIndex() {
         <div className="mt-10 flex flex-col gap-10">
           {SCENES_BY_CATEGORY.map(({ category, scenes }) => (
             <section key={category}>
-              <h2 className="font-medium text-xs text-zinc-500 uppercase tracking-wider">
+              <h2 className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
                 {category}
               </h2>
               <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-3">
                 {scenes.map((scene) => (
                   <Link
-                    className="block rounded border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm transition hover:border-zinc-700 hover:bg-zinc-900"
+                    className="block rounded-md border border-border bg-card/50 px-3 py-2 text-card-foreground text-sm transition hover:bg-accent hover:text-accent-foreground"
                     key={scene.slug}
                     params={{ _splat: scene.slug }}
                     to="/scenes/$"

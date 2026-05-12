@@ -35,7 +35,7 @@ function RootDocument({ children }: { children: ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body className="h-full bg-zinc-950 text-zinc-100">
+      <body className="h-full bg-background text-foreground">
         <div className="flex h-full flex-col">{children}</div>
         <Scripts />
       </body>
