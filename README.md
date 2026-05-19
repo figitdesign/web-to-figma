@@ -1,4 +1,6 @@
-# figma
+<p align="center">
+  <img src="./assets/figit-logotype.png" alt="Figit" width="240" />
+</p>
 
 Convert HTML to editable Figma layers. No plugin needed, just paste.
 
