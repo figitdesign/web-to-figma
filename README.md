@@ -23,7 +23,7 @@ Paste in Figma with **Cmd+V** / **Ctrl+V**. Done.
 
 Walks a real DOM tree, reads computed styles, and produces what Figma reads on paste. Text becomes editable text; images, vectors, gradients, shadows, borders, and form placeholders all carry over.
 
-Used in production by [Figit](https://figit.design) to copy generated designs straight from the browser into Figma.
+Used in production by [Sleek](https://sleek.design) to copy generated designs straight from the browser into Figma.
 
 ## Packages
 

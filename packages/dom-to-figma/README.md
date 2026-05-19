@@ -29,7 +29,7 @@ pnpm add @figit/dom-to-figma
 
 Walks a real DOM tree, reads computed styles, and produces what Figma reads on paste. Text becomes editable text; images, vectors, gradients, shadows, borders, and form placeholders all carry over.
 
-Used in production by Figit to copy designs straight from the browser into Figma.
+Used in production by Sleek to copy designs straight from the browser into Figma.
 
 ## Multi-frame canvas
 
