@@ -10,15 +10,6 @@ import type {
   FigmaTextDecoration,
 } from "./text";
 
-export type FigmaNodeChangeType =
-  | "TEXT"
-  | "FRAME"
-  | "GROUP"
-  | "CANVAS"
-  | "DOCUMENT"
-  | "ROUNDED_RECTANGLE"
-  | "VECTOR";
-
 // Base properties common to all nodes
 type FigmaBaseNodeChange = {
   guid: FigmaGuid;

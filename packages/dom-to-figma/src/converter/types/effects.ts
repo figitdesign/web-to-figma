@@ -1,12 +1,12 @@
 import type { FigmaColor } from "./core";
 
-export type FigmaEffectType =
+type FigmaEffectType =
   | "INNER_SHADOW"
   | "DROP_SHADOW"
   | "FOREGROUND_BLUR"
   | "BACKGROUND_BLUR";
 
-export type FigmaBlendMode =
+type FigmaBlendMode =
   | "NORMAL"
   | "DARKEN"
   | "MULTIPLY"
@@ -32,7 +32,7 @@ type FigmaEffectBase = {
 };
 
 // Shadow effects require color, offset, blendMode, etc.
-export type FigmaShadowEffect = FigmaEffectBase & {
+type FigmaShadowEffect = FigmaEffectBase & {
   type: "INNER_SHADOW" | "DROP_SHADOW";
   color: FigmaColor;
   offset: {

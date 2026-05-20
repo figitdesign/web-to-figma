@@ -1,6 +1,6 @@
 import type { FigmaColor, FigmaTransform } from "./core";
 
-export type FigmaImageScaleMode = "FILL" | "FIT" | "STRETCH" | "TILE";
+type FigmaImageScaleMode = "FILL" | "FIT" | "STRETCH" | "TILE";
 
 type FigmaBasePaint = {
   opacity: number;

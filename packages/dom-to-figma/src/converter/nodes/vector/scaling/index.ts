@@ -6,8 +6,6 @@
  * maintaining visual fidelity of strokes, dash patterns, and geometric proportions.
  */
 
-/** biome-ignore-all lint/style/noExportedImports: kept when migrating to biome */
-
 import type { VectorNetwork } from "../vector-networks/types";
 import type { Bounds } from "./bounds";
 import { calculateBounds } from "./bounds";
@@ -18,9 +16,6 @@ import {
 } from "./network-scaler";
 import type { ScaleFactors } from "./scale-factors";
 import { calculateScaleFactors, getAverageScaleFactor } from "./scale-factors";
-
-// Re-export types and utilities
-export type { Bounds, ScaleFactors };
 
 export type ScalingOptions = {
   /** Target width for the scaled vector */

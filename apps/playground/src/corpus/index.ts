@@ -47,7 +47,7 @@ function parsePath(path: string): { category: string; name: string } | null {
   return { category: match[1], name: match[2] };
 }
 
-export const SCENES: ReadonlyArray<Scene> = Object.entries(rawHtmlByPath)
+const SCENES: ReadonlyArray<Scene> = Object.entries(rawHtmlByPath)
   .flatMap(([path, html]) => {
     const parsed = parsePath(path);
     if (!parsed) {
@@ -70,7 +70,7 @@ export const SCENES: ReadonlyArray<Scene> = Object.entries(rawHtmlByPath)
     return a.slug.localeCompare(b.slug);
   });
 
-export const SCENES_BY_SLUG: ReadonlyMap<string, Scene> = new Map(
+const SCENES_BY_SLUG: ReadonlyMap<string, Scene> = new Map(
   SCENES.map((scene) => [scene.slug, scene])
 );
 

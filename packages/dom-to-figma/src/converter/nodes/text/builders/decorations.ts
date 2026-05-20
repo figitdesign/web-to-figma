@@ -13,7 +13,7 @@ import type { OpenTypeFont, ProcessedTextLayout } from "../types";
 /**
  * Decoration rectangle definition
  */
-export type DecorationRect = {
+type DecorationRect = {
   /** X position in pixels */
   x: number;
   /** Y position in pixels */

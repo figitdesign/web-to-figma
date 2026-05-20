@@ -10,5 +10,3 @@ export function getConverter() {
   }
   return cached;
 }
-
-export type { ConvertResult } from "@figit/dom-to-figma";

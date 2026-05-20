@@ -8,14 +8,5 @@
  * @module FontPrimitives
  */
 
-// Core font operations
-// Re-export common types for convenience
-export type {
-  FontProperties,
-  FontProperties as ParsedFontProperties,
-  LoadedFont,
-} from "./loader";
-export {
-  extractFontMetrics,
-  type FontMetrics,
-} from "./metrics";
+export type { LoadedFont } from "./loader";
+export { extractFontMetrics, type FontMetrics } from "./metrics";

@@ -16,7 +16,7 @@ import { pathCommandsToGlyphBytes } from "./encoder";
  *
  * Complete glyph representation ready for Figma text node construction.
  */
-export type GlyphData = {
+type GlyphData = {
   /** The character this glyph represents */
   character: string;
   /** Unicode code point */

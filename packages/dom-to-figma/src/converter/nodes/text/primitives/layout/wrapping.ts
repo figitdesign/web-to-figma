@@ -38,7 +38,7 @@ export type WrappingOptions = {
 } & SpacingOptions;
 
 /** Data for a single line of text */
-export type LinePosition = {
+type LinePosition = {
   /** Text content of this line */
   characters: string;
   /** Positioned glyphs within this line */

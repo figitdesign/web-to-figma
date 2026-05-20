@@ -7,9 +7,6 @@ import type {
 import type { CurveBuilderState } from "./curve-builder";
 import { createInitialState, processCommand } from "./curve-builder";
 
-export type { BezierCurve } from "./arc-converter";
-export type { CurveBuilderState } from "./curve-builder";
-
 export type PathToVectorResult = {
   vectorNetwork: VectorNetwork;
   normalizationOffset?: { x: number; y: number };

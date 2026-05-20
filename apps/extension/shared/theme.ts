@@ -9,7 +9,7 @@ export type ResolvedTheme = "light" | "dark";
  * content script and to the OS preference in the popup; `"light"` / `"dark"`
  * is a hard override that wins over both.
  */
-export const themePreference = storage.defineItem<ThemePreference>(
+const themePreference = storage.defineItem<ThemePreference>(
   "local:theme-preference",
   { fallback: "auto" }
 );

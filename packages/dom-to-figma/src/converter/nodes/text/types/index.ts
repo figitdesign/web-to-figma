@@ -7,32 +7,8 @@
  * @module TextProcessingTypes
  */
 
-// Re-export external types
-export type {
-  FigmaBlob,
-  FigmaGuid,
-  FigmaPaint,
-} from "../../../types";
-export type { FontProperties, LoadedFont } from "../primitives/font/loader";
-// Font-related types
-export type { FontMetrics } from "../primitives/font/metrics";
-// Layout-related types
-export type {
-  AlignedLayout,
-  AlignmentOptions,
-  GlyphPosition,
-  HorizontalAlignment,
-  SpacingOptions,
-} from "../primitives/layout/positioning";
-export type {
-  LinePosition,
-  MultiLineLayout,
-  WrappingOptions,
-} from "../primitives/layout/wrapping";
-
 import type { Font, Glyph } from "fontkit";
 import type { ScalingOptions } from "../../vector/scaling";
-// Import types for use in this module
 import type { FontMetrics } from "../primitives/font/metrics";
 import type {
   AlignedLayout,
@@ -42,28 +18,11 @@ import type {
 } from "../primitives/layout/positioning";
 import type { MultiLineLayout } from "../primitives/layout/wrapping";
 
+export type { FigmaBlob } from "../../../types";
+export type { FontMetrics } from "../primitives/font/metrics";
+
 export type OpenTypeFont = Font;
 export type OpenTypeGlyph = Glyph;
-
-/**
- * Normalized path command structure
- */
-export type PathCommand = {
-  type: "M" | "L" | "Q" | "C" | "Z";
-  values: Array<number>;
-};
-
-/**
- * Bounding box for glyph measurements
- */
-export type GlyphBounds = {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-  width: number;
-  height: number;
-};
 
 /**
  * Complete configuration options for text layout processing
@@ -120,17 +79,3 @@ export type ProcessedTextLayout = {
   /** Whether this layout uses multiple lines */
   isMultiLine: boolean;
 } & AlignedLayout;
-
-// Builder-related types
-export type { FigmaBaseline } from "../builders/baselines";
-// CSS-related types
-export type {
-  LineHeightOptions,
-  ParsedTextProperties,
-} from "../primitives/css/parser";
-// Glyph-related types
-export type {
-  GlyphData,
-  GlyphProcessingOptions,
-  ProcessedGlyphs,
-} from "../primitives/glyph/processor";

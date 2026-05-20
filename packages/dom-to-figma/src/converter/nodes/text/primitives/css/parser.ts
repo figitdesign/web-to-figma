@@ -13,7 +13,7 @@ import { parseFontProperties } from "../font/properties";
 /**
  * CSS line-height value parsing options
  */
-export type LineHeightOptions = {
+type LineHeightOptions = {
   /** Font size in pixels for relative calculations */
   fontSize: number;
   /** Root font size in pixels for rem calculations (defaults to 16px) */
