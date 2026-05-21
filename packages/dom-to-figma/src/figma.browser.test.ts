@@ -127,6 +127,7 @@ describe("ConvertResult clipboard helpers", () => {
 
     const html = result.toClipboardHtml();
     expect(typeof html).toBe("string");
+    expect(html).toContain("data-buffer=");
     expect(html).toContain(FIGMA_HTML_MARKER);
     expect(html).toContain(result.base64);
   });

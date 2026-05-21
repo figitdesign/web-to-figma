@@ -1,13 +1,14 @@
 /**
  * HTML envelope Figma reads when you paste from the system clipboard.
  *
- * The wire format is two HTML comments — Figma scans pasted HTML for these
- * markers and decodes the inner base64 payloads. No surrounding `<html>`,
- * `<body>`, or `<span>` scaffolding is required (verified against the actual
- * Figma reader).
+ * The wire format stores Figma's comment markers inside data attributes,
+ * matching the HTML Figma writes when copying a node. Keeping the markers out
+ * of top-level comment nodes is important for WebKit: Safari sanitizes
+ * `text/html` clipboard writes and strips comment nodes before they reach the
+ * system pasteboard.
  *
- *   <!--(figmeta)<base64-json>(/figmeta)-->
- *   <!--(figma)<base64-bytes>(/figma)-->
+ *   <span data-metadata="<!--(figmeta)<base64-json>(/figmeta)-->"></span>
+ *   <span data-buffer="<!--(figma)<base64-bytes>(/figma)-->"></span>
  */
 
 export type FigmaClipboardMeta = {
@@ -28,7 +29,12 @@ export function composeClipboardHtml(
   meta: FigmaClipboardMeta = DEFAULT_META
 ): string {
   const metaB64 = btoa(JSON.stringify(meta));
-  return `<!--(figmeta)${metaB64}(/figmeta)--><!--(figma)${base64}(/figma)-->`;
+  return (
+    '<meta charset="utf-8"><div>' +
+    `<span data-metadata="<!--(figmeta)${metaB64}(/figmeta)-->"></span>` +
+    `<span data-buffer="<!--(figma)${base64}(/figma)-->"></span>` +
+    "</div>"
+  );
 }
 
 /** Wrap envelope HTML in a `ClipboardItem` for `navigator.clipboard.write`. */
