@@ -1,5 +1,16 @@
 # @figit/dom-to-figma
 
+## 0.0.2
+
+### Patch Changes
+
+- [#16](https://github.com/figitdesign/web-to-figma/pull/16) [`63bbf23`](https://github.com/figitdesign/web-to-figma/commit/63bbf23140a4f9e927064be60ee28ace4af5c0aa) Thanks [@stefanofa](https://github.com/stefanofa)! - Internal cleanup surfaced by Knip: drop unused exports and dead type aliases, remove the no-longer-needed `@vitest/browser` devDependency (Vitest 4 only needs the provider package). No runtime or behavior changes. The published `.d.ts` no longer exposes a handful of internal-only types (e.g. `FigmaShadowEffect`, `FigmaBlendMode`, `DecorationRect`) that were exported but never consumed from outside the package.
+
+- [#17](https://github.com/figitdesign/web-to-figma/pull/17) [`eaca85c`](https://github.com/figitdesign/web-to-figma/commit/eaca85c9b10e7fccdf37f96b90c13c8a8c66eabf) Thanks [@stefanofa](https://github.com/stefanofa)! - Wrap Figma clipboard markers in `data-metadata` and `data-buffer` attributes so Safari/WebKit HTML clipboard sanitization preserves the payload.
+
+- Updated dependencies [[`eaca85c`](https://github.com/figitdesign/web-to-figma/commit/eaca85c9b10e7fccdf37f96b90c13c8a8c66eabf)]:
+  - @figit/fig-kiwi@0.0.2
+
 ## 0.0.1
 
 ### Patch Changes

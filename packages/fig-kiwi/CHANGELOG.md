@@ -1,5 +1,11 @@
 # @figit/fig-kiwi
 
+## 0.0.2
+
+### Patch Changes
+
+- [#17](https://github.com/figitdesign/web-to-figma/pull/17) [`eaca85c`](https://github.com/figitdesign/web-to-figma/commit/eaca85c9b10e7fccdf37f96b90c13c8a8c66eabf) Thanks [@stefanofa](https://github.com/stefanofa)! - Wrap Figma clipboard markers in `data-metadata` and `data-buffer` attributes so Safari/WebKit HTML clipboard sanitization preserves the payload.
+
 ## 0.0.1
 
 ### Patch Changes
