@@ -1,0 +1,1694 @@
+{
+  "batch": "batch-02-sizing",
+  "source": "figma paste round-trip",
+  "scenes": [
+    {
+      "name": "Space Between",
+      "width": 320,
+      "height": 140,
+      "nodes": [
+        {
+          "name": "Space Between",
+          "size": {
+            "x": 320,
+            "y": 140
+          },
+          "pos": null,
+          "stack": {
+            "stackMode": "VERTICAL"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 140
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 140
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackMode": "HORIZONTAL",
+            "stackSpacing": 60,
+            "stackPrimaryAlignItems": "SPACE_BETWEEN",
+            "stackHorizontalPadding": 16,
+            "stackVerticalPadding": 16,
+            "stackPaddingRight": 16,
+            "stackPaddingBottom": 16,
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 56,
+            "y": 44
+          },
+          "pos": {
+            "x": 16,
+            "y": 16
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 56,
+            "y": 44
+          },
+          "pos": {
+            "x": 132,
+            "y": 16
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 56,
+            "y": 44
+          },
+          "pos": {
+            "x": 248,
+            "y": 16
+          },
+          "stack": {},
+          "parentIsStack": true
+        }
+      ]
+    },
+    {
+      "name": "Justify End",
+      "width": 320,
+      "height": 140,
+      "nodes": [
+        {
+          "name": "Justify End",
+          "size": {
+            "x": 320,
+            "y": 140
+          },
+          "pos": null,
+          "stack": {
+            "stackMode": "VERTICAL"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 140
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 140
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackMode": "HORIZONTAL",
+            "stackSpacing": 14,
+            "stackPrimaryAlignItems": "MAX",
+            "stackHorizontalPadding": 12,
+            "stackVerticalPadding": 12,
+            "stackPaddingRight": 12,
+            "stackPaddingBottom": 12,
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 60,
+            "y": 44
+          },
+          "pos": {
+            "x": 174,
+            "y": 12
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 60,
+            "y": 44
+          },
+          "pos": {
+            "x": 248,
+            "y": 12
+          },
+          "stack": {},
+          "parentIsStack": true
+        }
+      ]
+    },
+    {
+      "name": "Hug Row",
+      "width": 320,
+      "height": 120,
+      "nodes": [
+        {
+          "name": "Hug Row",
+          "size": {
+            "x": 320,
+            "y": 120
+          },
+          "pos": null,
+          "stack": {
+            "stackMode": "VERTICAL"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 120
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 228,
+            "y": 76
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackMode": "HORIZONTAL",
+            "stackSpacing": 14,
+            "stackHorizontalPadding": 16,
+            "stackVerticalPadding": 16,
+            "stackPaddingRight": 16,
+            "stackPaddingBottom": 16,
+            "stackChildPrimaryGrow": 1,
+            "stackPrimarySizing": "RESIZE_TO_FIT",
+            "stackCounterSizing": "RESIZE_TO_FIT"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 56,
+            "y": 44
+          },
+          "pos": {
+            "x": 16,
+            "y": 16
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 56,
+            "y": 44
+          },
+          "pos": {
+            "x": 86,
+            "y": 16
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 56,
+            "y": 44
+          },
+          "pos": {
+            "x": 156,
+            "y": 16
+          },
+          "stack": {},
+          "parentIsStack": true
+        }
+      ]
+    },
+    {
+      "name": "Space Evenly",
+      "width": 320,
+      "height": 140,
+      "nodes": [
+        {
+          "name": "Space Evenly",
+          "size": {
+            "x": 320,
+            "y": 140
+          },
+          "pos": null,
+          "stack": {
+            "stackMode": "VERTICAL"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 140
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 140
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackMode": "HORIZONTAL",
+            "stackSpacing": 38,
+            "stackPrimaryAlignItems": "CENTER",
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 56,
+            "y": 44
+          },
+          "pos": {
+            "x": 38,
+            "y": 0
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 56,
+            "y": 44
+          },
+          "pos": {
+            "x": 132,
+            "y": 0
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 56,
+            "y": 44
+          },
+          "pos": {
+            "x": 226,
+            "y": 0
+          },
+          "stack": {},
+          "parentIsStack": true
+        }
+      ]
+    },
+    {
+      "name": "Nested Mix",
+      "width": 320,
+      "height": 140,
+      "nodes": [
+        {
+          "name": "Nested Mix",
+          "size": {
+            "x": 320,
+            "y": 140
+          },
+          "pos": null,
+          "stack": {
+            "stackMode": "VERTICAL"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 140
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 140
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackMode": "HORIZONTAL",
+            "stackSpacing": 16,
+            "stackHorizontalPadding": 16,
+            "stackVerticalPadding": 16,
+            "stackPaddingRight": 16,
+            "stackPaddingBottom": 16,
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 86,
+            "y": 108
+          },
+          "pos": {
+            "x": 16,
+            "y": 16
+          },
+          "stack": {
+            "stackMode": "VERTICAL",
+            "stackSpacing": 8,
+            "stackHorizontalPadding": 8,
+            "stackVerticalPadding": 8,
+            "stackPaddingRight": 8,
+            "stackPaddingBottom": 8,
+            "stackCounterSizing": "RESIZE_TO_FIT",
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 70,
+            "y": 40
+          },
+          "pos": {
+            "x": 8,
+            "y": 8
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 70,
+            "y": 40
+          },
+          "pos": {
+            "x": 8,
+            "y": 56
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 186,
+            "y": 108
+          },
+          "pos": {
+            "x": 118,
+            "y": 16
+          },
+          "stack": {
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        }
+      ]
+    },
+    {
+      "name": "Hug Column",
+      "width": 320,
+      "height": 160,
+      "nodes": [
+        {
+          "name": "Hug Column",
+          "size": {
+            "x": 320,
+            "y": 160
+          },
+          "pos": null,
+          "stack": {
+            "stackMode": "VERTICAL"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 160
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 180,
+            "y": 152
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackMode": "VERTICAL",
+            "stackSpacing": 10,
+            "stackHorizontalPadding": 12,
+            "stackVerticalPadding": 12,
+            "stackPaddingRight": 12,
+            "stackPaddingBottom": 12,
+            "stackChildPrimaryGrow": 1,
+            "stackPrimarySizing": "RESIZE_TO_FIT"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 120,
+            "y": 36
+          },
+          "pos": {
+            "x": 12,
+            "y": 12
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 120,
+            "y": 36
+          },
+          "pos": {
+            "x": 12,
+            "y": 58
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 120,
+            "y": 36
+          },
+          "pos": {
+            "x": 12,
+            "y": 104
+          },
+          "stack": {},
+          "parentIsStack": true
+        }
+      ]
+    },
+    {
+      "name": "Row Basic",
+      "width": 320,
+      "height": 160,
+      "nodes": [
+        {
+          "name": "Row Basic",
+          "size": {
+            "x": 320,
+            "y": 160
+          },
+          "pos": null,
+          "stack": {
+            "stackMode": "VERTICAL"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 160
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 160
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackMode": "HORIZONTAL",
+            "stackSpacing": 16,
+            "stackHorizontalPadding": 24,
+            "stackVerticalPadding": 24,
+            "stackPaddingRight": 24,
+            "stackPaddingBottom": 24,
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 60,
+            "y": 48
+          },
+          "pos": {
+            "x": 24,
+            "y": 24
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 60,
+            "y": 48
+          },
+          "pos": {
+            "x": 100,
+            "y": 24
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 60,
+            "y": 48
+          },
+          "pos": {
+            "x": 176,
+            "y": 24
+          },
+          "stack": {},
+          "parentIsStack": true
+        }
+      ]
+    },
+    {
+      "name": "Column Basic",
+      "width": 200,
+      "height": 240,
+      "nodes": [
+        {
+          "name": "Column Basic",
+          "size": {
+            "x": 200,
+            "y": 240
+          },
+          "pos": null,
+          "stack": {
+            "stackMode": "VERTICAL"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 200,
+            "y": 240
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 200,
+            "y": 240
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackMode": "VERTICAL",
+            "stackSpacing": 12,
+            "stackHorizontalPadding": 20,
+            "stackVerticalPadding": 20,
+            "stackPaddingRight": 20,
+            "stackPaddingBottom": 20,
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 120,
+            "y": 40
+          },
+          "pos": {
+            "x": 20,
+            "y": 20
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 120,
+            "y": 40
+          },
+          "pos": {
+            "x": 20,
+            "y": 72
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 120,
+            "y": 40
+          },
+          "pos": {
+            "x": 20,
+            "y": 124
+          },
+          "stack": {},
+          "parentIsStack": true
+        }
+      ]
+    },
+    {
+      "name": "Asymmetric Padding",
+      "width": 320,
+      "height": 160,
+      "nodes": [
+        {
+          "name": "Asymmetric Padding",
+          "size": {
+            "x": 320,
+            "y": 160
+          },
+          "pos": null,
+          "stack": {
+            "stackMode": "VERTICAL"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 160
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 160
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackMode": "HORIZONTAL",
+            "stackSpacing": 10,
+            "stackHorizontalPadding": 16,
+            "stackVerticalPadding": 8,
+            "stackPaddingRight": 48,
+            "stackPaddingBottom": 32,
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 70,
+            "y": 56
+          },
+          "pos": {
+            "x": 16,
+            "y": 8
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 70,
+            "y": 56
+          },
+          "pos": {
+            "x": 96,
+            "y": 8
+          },
+          "stack": {},
+          "parentIsStack": true
+        }
+      ]
+    },
+    {
+      "name": "Align Center End",
+      "width": 320,
+      "height": 180,
+      "nodes": [
+        {
+          "name": "Align Center End",
+          "size": {
+            "x": 320,
+            "y": 180
+          },
+          "pos": null,
+          "stack": {
+            "stackMode": "VERTICAL"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 180
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 90
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackMode": "HORIZONTAL",
+            "stackSpacing": 10,
+            "stackCounterAlignItems": "CENTER",
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 50,
+            "y": 30
+          },
+          "pos": {
+            "x": 0,
+            "y": 30
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 50,
+            "y": 56
+          },
+          "pos": {
+            "x": 60,
+            "y": 17
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 50,
+            "y": 44
+          },
+          "pos": {
+            "x": 120,
+            "y": 23
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 90
+          },
+          "pos": {
+            "x": 0,
+            "y": 90
+          },
+          "stack": {
+            "stackMode": "HORIZONTAL",
+            "stackSpacing": 10,
+            "stackCounterAlignItems": "MAX",
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 50,
+            "y": 30
+          },
+          "pos": {
+            "x": 0,
+            "y": 60
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 50,
+            "y": 56
+          },
+          "pos": {
+            "x": 60,
+            "y": 34
+          },
+          "stack": {},
+          "parentIsStack": true
+        }
+      ]
+    },
+    {
+      "name": "Grow Unequal",
+      "width": 320,
+      "height": 80,
+      "nodes": [
+        {
+          "name": "Grow Unequal",
+          "size": {
+            "x": 320,
+            "y": 80
+          },
+          "pos": null,
+          "stack": {
+            "stackMode": "VERTICAL"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 80
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 80
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackMode": "HORIZONTAL",
+            "stackSpacing": 10,
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 207,
+            "y": 80
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 104,
+            "y": 80
+          },
+          "pos": {
+            "x": 217,
+            "y": 0
+          },
+          "stack": {},
+          "parentIsStack": true
+        }
+      ]
+    },
+    {
+      "name": "Fill Child",
+      "width": 320,
+      "height": 80,
+      "nodes": [
+        {
+          "name": "Fill Child",
+          "size": {
+            "x": 320,
+            "y": 80
+          },
+          "pos": null,
+          "stack": {
+            "stackMode": "VERTICAL"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 80
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 80
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackMode": "HORIZONTAL",
+            "stackSpacing": 16,
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 90,
+            "y": 80
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 214,
+            "y": 80
+          },
+          "pos": {
+            "x": 106,
+            "y": 0
+          },
+          "stack": {
+            "stackChildPrimaryGrow": 1
+          },
+          "parentIsStack": true
+        }
+      ]
+    },
+    {
+      "name": "Stretch Cross",
+      "width": 320,
+      "height": 100,
+      "nodes": [
+        {
+          "name": "Stretch Cross",
+          "size": {
+            "x": 320,
+            "y": 100
+          },
+          "pos": null,
+          "stack": {
+            "stackMode": "VERTICAL"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 100
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 100
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackMode": "HORIZONTAL",
+            "stackSpacing": 12,
+            "stackHorizontalPadding": 10,
+            "stackVerticalPadding": 10,
+            "stackPaddingRight": 10,
+            "stackPaddingBottom": 10,
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 70,
+            "y": 80
+          },
+          "pos": {
+            "x": 10,
+            "y": 10
+          },
+          "stack": {
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 70,
+            "y": 50
+          },
+          "pos": {
+            "x": 92,
+            "y": 10
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 70,
+            "y": 80
+          },
+          "pos": {
+            "x": 174,
+            "y": 10
+          },
+          "stack": {
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        }
+      ]
+    },
+    {
+      "name": "Justify Center",
+      "width": 320,
+      "height": 140,
+      "nodes": [
+        {
+          "name": "Justify Center",
+          "size": {
+            "x": 320,
+            "y": 140
+          },
+          "pos": null,
+          "stack": {
+            "stackMode": "VERTICAL"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 140
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 140
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackMode": "HORIZONTAL",
+            "stackSpacing": 14,
+            "stackPrimaryAlignItems": "CENTER",
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 60,
+            "y": 44
+          },
+          "pos": {
+            "x": 93,
+            "y": 0
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 60,
+            "y": 44
+          },
+          "pos": {
+            "x": 167,
+            "y": 0
+          },
+          "stack": {},
+          "parentIsStack": true
+        }
+      ]
+    },
+    {
+      "name": "Fill Two",
+      "width": 320,
+      "height": 80,
+      "nodes": [
+        {
+          "name": "Fill Two",
+          "size": {
+            "x": 320,
+            "y": 80
+          },
+          "pos": null,
+          "stack": {
+            "stackMode": "VERTICAL"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 80
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 80
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackMode": "HORIZONTAL",
+            "stackSpacing": 12,
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 80,
+            "y": 80
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 108,
+            "y": 80
+          },
+          "pos": {
+            "x": 92,
+            "y": 0
+          },
+          "stack": {
+            "stackChildPrimaryGrow": 1
+          },
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 108,
+            "y": 80
+          },
+          "pos": {
+            "x": 212,
+            "y": 0
+          },
+          "stack": {
+            "stackChildPrimaryGrow": 1
+          },
+          "parentIsStack": true
+        }
+      ]
+    },
+    {
+      "name": "Margin Spacing Border",
+      "width": 320,
+      "height": 160,
+      "nodes": [
+        {
+          "name": "Margin Spacing Border",
+          "size": {
+            "x": 320,
+            "y": 160
+          },
+          "pos": null,
+          "stack": {
+            "stackMode": "VERTICAL"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 160
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 160
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackMode": "HORIZONTAL",
+            "stackSpacing": 18,
+            "stackHorizontalPadding": 19,
+            "stackVerticalPadding": 19,
+            "stackPaddingRight": 19,
+            "stackPaddingBottom": 19,
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 60,
+            "y": 48
+          },
+          "pos": {
+            "x": 19,
+            "y": 19
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 60,
+            "y": 48
+          },
+          "pos": {
+            "x": 97,
+            "y": 19
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 60,
+            "y": 48
+          },
+          "pos": {
+            "x": 175,
+            "y": 19
+          },
+          "stack": {},
+          "parentIsStack": true
+        }
+      ]
+    },
+    {
+      "name": "Nested",
+      "width": 320,
+      "height": 220,
+      "nodes": [
+        {
+          "name": "Nested",
+          "size": {
+            "x": 320,
+            "y": 220
+          },
+          "pos": null,
+          "stack": {
+            "stackMode": "VERTICAL"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 220
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 320,
+            "y": 220
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {
+            "stackMode": "VERTICAL",
+            "stackSpacing": 16,
+            "stackHorizontalPadding": 20,
+            "stackVerticalPadding": 20,
+            "stackPaddingRight": 20,
+            "stackPaddingBottom": 20,
+            "stackChildPrimaryGrow": 1,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": false
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 280,
+            "y": 70
+          },
+          "pos": {
+            "x": 20,
+            "y": 20
+          },
+          "stack": {
+            "stackMode": "HORIZONTAL",
+            "stackSpacing": 12,
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 80,
+            "y": 70
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 80,
+            "y": 70
+          },
+          "pos": {
+            "x": 92,
+            "y": 0
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 80,
+            "y": 70
+          },
+          "pos": {
+            "x": 184,
+            "y": 0
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 280,
+            "y": 70
+          },
+          "pos": {
+            "x": 20,
+            "y": 106
+          },
+          "stack": {
+            "stackMode": "HORIZONTAL",
+            "stackSpacing": 40,
+            "stackPrimaryAlignItems": "SPACE_BETWEEN",
+            "stackChildAlignSelf": "STRETCH"
+          },
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 120,
+            "y": 70
+          },
+          "pos": {
+            "x": 0,
+            "y": 0
+          },
+          "stack": {},
+          "parentIsStack": true
+        },
+        {
+          "name": "Container",
+          "size": {
+            "x": 120,
+            "y": 70
+          },
+          "pos": {
+            "x": 160,
+            "y": 0
+          },
+          "stack": {},
+          "parentIsStack": true
+        }
+      ]
+    }
+  ]
+}

@@ -29,5 +29,6 @@ __screenshots__
 *.tgz
 
 # Human-oracle exchange for auto-layout work (see .context/auto-layout/PLAN.md)
-oracle/
+# Root-anchored: src/__fixtures__/oracle/ must stay tracked.
+/oracle/
 .oracle-build/
