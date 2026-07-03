@@ -43,14 +43,20 @@ const VIEWBOX_SEPARATOR = /[\s,]+/;
 export async function walkRoot(
   root: Element,
   parentGuid: FigmaGuid,
-  ctx: WalkContext
+  ctx: WalkContext,
+  rootSize?: { width: number; height: number }
 ) {
-  await walkNode(root, parentGuid, 0, EMPTY_INHERITED, ctx);
+  await walkNode(root, parentGuid, 0, EMPTY_INHERITED, ctx, {
+    isAutoLayout: false,
+    rootFill: rootSize,
+  });
 }
 
 type ParentStackInfo = {
   isAutoLayout: boolean;
   childSpecs?: ReadonlyMap<Element, InferredChildStack>;
+  /** Only on the root walk: the paste-template frame size. */
+  rootFill?: { width: number; height: number };
 };
 
 const NO_PARENT_STACK: ParentStackInfo = { isAutoLayout: false };
@@ -96,6 +102,7 @@ async function walkNode(
       layout: ctx.layout,
       parentIsAutoLayout: parentStack.isAutoLayout,
       childStackSpec: parentStack.childSpecs?.get(node),
+      rootFill: parentStack.rootFill,
       registerBlob: ctx.registerBlob,
       fontCache: ctx.fontCache,
       imageCache: ctx.imageCache,

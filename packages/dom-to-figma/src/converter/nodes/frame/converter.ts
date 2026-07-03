@@ -108,6 +108,9 @@ type Params = {
   parentIsAutoLayout?: boolean;
   /** Fill/stretch overrides computed by the parent stack's inference. */
   childStackSpec?: InferredChildStack;
+  /** Set for the converted root element only: the size of the paste-template
+   * frame (a VERTICAL stack) that this element is a fill child of. */
+  rootFill?: { width: number; height: number };
 };
 
 type FrameResult = {
@@ -132,6 +135,7 @@ export function elementToFrameNodeChange(
     layout,
     parentIsAutoLayout,
     childStackSpec,
+    rootFill,
   } = options;
 
   // Inferred auto-layout, spread onto the node change last so it overrides
@@ -186,6 +190,32 @@ export function elementToFrameNodeChange(
     element,
     rect
   );
+
+  // Fill beats hug — but only when the fill actually resizes the node:
+  // Figma keeps RESIZE_TO_FIT on a filled axis whose sizes already agree and
+  // normalizes it to FIXED when they disagree (oracle batch-03). Children of
+  // inferred stacks agree by construction (fill is only assigned when sizes
+  // match), so the sole disagreement source is the converted root element
+  // versus the paste-template frame it fills.
+  if (inferred && rootFill) {
+    const filledVertical =
+      Boolean(fillsParentHeight) && Math.abs(rect.height - rootFill.height) > 1;
+    const filledHorizontal =
+      Boolean(fillsParentWidth) && Math.abs(rect.width - rootFill.width) > 1;
+    const primaryIsHorizontal = inferred.stack.stackMode === "HORIZONTAL";
+    if (
+      inferred.stack.stackPrimarySizing === "RESIZE_TO_FIT" &&
+      (primaryIsHorizontal ? filledHorizontal : filledVertical)
+    ) {
+      inferred.stack.stackPrimarySizing = "FIXED";
+    }
+    if (
+      inferred.stack.stackCounterSizing === "RESIZE_TO_FIT" &&
+      (primaryIsHorizontal ? filledVertical : filledHorizontal)
+    ) {
+      inferred.stack.stackCounterSizing = "FIXED";
+    }
+  }
 
   const fillPaints: Array<FigmaPaint> = [];
   let textGradient: Array<FigmaPaint> | undefined;

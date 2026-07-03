@@ -20,6 +20,11 @@ const convertScene = async (
   layout: ConverterLayout = "auto"
 ): Promise<ReadonlyArray<FigmaNodeChange>> => {
   const wrapper = document.createElement("div");
+  // Sized larger than any scene so the legacy fill heuristics (which fire
+  // when an element matches its parent's size) never trigger on the scene
+  // element by harness coincidence.
+  wrapper.style.width = "400px";
+  wrapper.style.height = "300px";
   wrapper.innerHTML = html;
   document.body.appendChild(wrapper);
   const element = wrapper.firstElementChild as HTMLElement;

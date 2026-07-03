@@ -34,6 +34,8 @@ export type ConvertContext = {
   parentIsAutoLayout?: boolean;
   /** This node's fill/stretch overrides from the parent stack's inference. */
   childStackSpec?: InferredChildStack;
+  /** Set for the converted root element only: the paste-template frame size. */
+  rootFill?: { width: number; height: number };
   registerBlob: (blob: FigmaBlob) => number;
   fontCache: FontCache;
   imageCache: ImageCache;
@@ -81,6 +83,7 @@ export async function convertElement(
     layout,
     parentIsAutoLayout,
     childStackSpec,
+    rootFill,
     registerBlob,
     fontCache,
     imageCache,
@@ -113,6 +116,7 @@ export async function convertElement(
         layout,
         parentIsAutoLayout,
         childStackSpec,
+        rootFill,
       });
       return {
         changes: [frameResult.nodeChange],

@@ -27,7 +27,14 @@ import hugColumn from "../scripts/oracle-scenes/02-sizing/hug-column.html?raw";
 import hugRow from "../scripts/oracle-scenes/02-sizing/hug-row.html?raw";
 import nestedMix from "../scripts/oracle-scenes/02-sizing/nested-mix.html?raw";
 import stretchCross from "../scripts/oracle-scenes/02-sizing/stretch-cross.html?raw";
-import fixture from "./__fixtures__/oracle/batch-02-sizing.json";
+import absoluteBadge from "../scripts/oracle-scenes/03-flow/absolute-badge.html?raw";
+import absoluteInBlock from "../scripts/oracle-scenes/03-flow/absolute-in-block.html?raw";
+import blockCenter from "../scripts/oracle-scenes/03-flow/block-center.html?raw";
+import blockColumn from "../scripts/oracle-scenes/03-flow/block-column.html?raw";
+import blockHug from "../scripts/oracle-scenes/03-flow/block-hug.html?raw";
+import blockStretch from "../scripts/oracle-scenes/03-flow/block-stretch.html?raw";
+import cardMock from "../scripts/oracle-scenes/03-flow/card-mock.html?raw";
+import fixture from "./__fixtures__/oracle/batch-03-flow.json";
 import type { FigmaNodeChange } from "./converter/types";
 import { createFigmaConverter } from "./figma";
 
@@ -49,6 +56,13 @@ const SCENE_HTML: Record<string, string> = {
   "Stretch Cross": stretchCross,
   "Grow Unequal": growUnequal,
   "Nested Mix": nestedMix,
+  "Block Column": blockColumn,
+  "Block Center": blockCenter,
+  "Block Stretch": blockStretch,
+  "Block Hug": blockHug,
+  "Absolute Badge": absoluteBadge,
+  "Absolute In Block": absoluteInBlock,
+  "Card Mock": cardMock,
 };
 
 type FixtureNode = {
@@ -62,19 +76,30 @@ type FixtureNode = {
 const GEOMETRY_TOLERANCE = 0.6;
 
 // The wrapper stands in for the capture's iframe body, so its fill-parent
-// heuristics (grow/stretch against the harness, not the scene) are artifacts.
+// heuristics (grow/stretch against the harness, not the scene) are
+// artifacts. The wrapper's own sizing modes are too: the iframe body has
+// auto height (hugs at equilibrium) while the test wrapper is explicitly
+// sized (FIXED).
 const HARNESS_ONLY_FIELDS = new Set([
   "stackChildPrimaryGrow",
   "stackChildAlignSelf",
 ]);
+const WRAPPER_HARNESS_FIELDS = new Set([
+  ...HARNESS_ONLY_FIELDS,
+  "stackPrimarySizing",
+  "stackCounterSizing",
+  // Trailing leftover folds into the measured pad on the fixed-height test
+  // wrapper but not on the auto-height iframe body.
+  "stackPaddingBottom",
+]);
 
 function stackOf(
   node: Record<string, unknown>,
-  ignoreHarnessFields: boolean
+  skipFields: ReadonlySet<string> | null
 ): Record<string, unknown> {
   const stack: Record<string, unknown> = {};
   for (const field of TRACKED_STACK_FIELDS) {
-    if (ignoreHarnessFields && HARNESS_ONLY_FIELDS.has(field)) {
+    if (skipFields?.has(field)) {
       continue;
     }
     const value = node[field];
@@ -135,13 +160,19 @@ describe(`oracle fixtures (${fixture.batch}, Figma-vetted)`, () => {
           // Child fill/stretch fields are placebo when the parent isn't a
           // stack (legacy heuristics fire on harness geometry, e.g. the
           // wrapper standing in for the capture's iframe body) — skip them
-          // there and compare them strictly inside real stacks.
-          const ignoreHarness = i === 1 || !expectedNode.parentIsStack;
-          expect(stackOf(actual, ignoreHarness)).toEqual(
-            ignoreHarness
+          // there and compare them strictly inside real stacks. The wrapper
+          // node additionally skips its own sizing modes (see above).
+          let skipFields: ReadonlySet<string> | null = null;
+          if (i === 1) {
+            skipFields = WRAPPER_HARNESS_FIELDS;
+          } else if (!expectedNode.parentIsStack) {
+            skipFields = HARNESS_ONLY_FIELDS;
+          }
+          expect(stackOf(actual, skipFields)).toEqual(
+            skipFields
               ? Object.fromEntries(
                   Object.entries(expectedNode.stack).filter(
-                    ([field]) => !HARNESS_ONLY_FIELDS.has(field)
+                    ([field]) => !skipFields.has(field)
                   )
                 )
               : expectedNode.stack

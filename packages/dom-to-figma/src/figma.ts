@@ -169,7 +169,10 @@ async function buildSingle(
   walkContext: WalkContext,
   blobManager: BlobManager
 ): Promise<FigmaClipboard> {
-  await walkRoot(input.element, ROOT_FRAME_GUID, walkContext);
+  await walkRoot(input.element, ROOT_FRAME_GUID, walkContext, {
+    width: input.width,
+    height: input.height,
+  });
   return getRootTemplate({
     width: input.width,
     height: input.height,
@@ -203,7 +206,10 @@ async function buildCanvas(
       name: frame.name,
       localId: frameGuid.localID,
     });
-    await walkRoot(frame.element, frameGuid, walkContext);
+    await walkRoot(frame.element, frameGuid, walkContext, {
+      width: frame.width,
+      height: frame.height,
+    });
   }
 
   return getMultiFrameRootTemplate({
