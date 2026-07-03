@@ -74,12 +74,14 @@ function extractOutboxEnvelope(pageHtml: string): string {
 }
 
 /**
- * Depth-first list of layout nodes, children ordered by their position
- * strings (Figma's fractional indexing sorts lexicographically). The root of
- * the walk is the single frame parented to a canvas; DOCUMENT/CANVAS nodes
- * (including Figma's "Internal Only Canvas") never enter the walk.
+ * Depth-first node list per canvas-level frame, children ordered by their
+ * position strings (Figma's fractional indexing sorts lexicographically).
+ * Multi-scene payloads have several canvas-level frames; DOCUMENT/CANVAS
+ * nodes (including Figma's "Internal Only Canvas") never enter the walk.
  */
-function treeOrder(changes: Array<Node>): Array<Node> {
+function treeOrder(
+  changes: Array<Node>
+): Array<{ name: string; nodes: Array<Node> }> {
   const key = (guid: { sessionID: number; localID: number }) =>
     `${guid.sessionID}:${guid.localID}`;
   const canvases = new Set(
@@ -108,15 +110,17 @@ function treeOrder(changes: Array<Node>): Array<Node> {
   }
 
   const roots = [...canvases].flatMap((c) => byParent.get(c) ?? []);
-  const out: Array<Node> = [];
-  const visit = (node: Node) => {
-    out.push(node);
-    for (const child of byParent.get(key(node.guid)) ?? []) {
-      visit(child);
-    }
-  };
+  const out: Array<{ name: string; nodes: Array<Node> }> = [];
   for (const root of roots) {
+    const nodes: Array<Node> = [];
+    const visit = (node: Node) => {
+      nodes.push(node);
+      for (const child of byParent.get(key(node.guid)) ?? []) {
+        visit(child);
+      }
+    };
     visit(root);
+    out.push({ name: String(root.name ?? "?"), nodes });
   }
   return out;
 }
@@ -135,13 +139,50 @@ function differs(a: unknown, b: unknown): boolean {
 type Mismatch = { node: string; field: string; sent: unknown; got: unknown };
 
 function diffScene(sent: Array<Node>, got: Array<Node>): Array<Mismatch> {
-  const sentTree = treeOrder(sent);
-  const gotTree = treeOrder(got);
+  const sentRoots = treeOrder(sent);
+  const gotRoots = treeOrder(got);
   const mismatches: Array<Mismatch> = [];
+
+  if (sentRoots.length !== gotRoots.length) {
+    mismatches.push({
+      node: "(payload)",
+      field: "top-level frame count",
+      sent: sentRoots.length,
+      got: gotRoots.length,
+    });
+    return mismatches;
+  }
+
+  // Multi-scene payloads: pair pasted frames with sent frames by name (Figma
+  // preserves names; canvas order of a multi-selection copy is not reliable).
+  const gotByName = new Map(gotRoots.map((r) => [r.name, r]));
+  for (const sentRoot of sentRoots) {
+    const gotRoot = gotByName.get(sentRoot.name);
+    if (!gotRoot) {
+      mismatches.push({
+        node: `[${sentRoot.name}]`,
+        field: "frame",
+        sent: "present",
+        got: "missing (renamed?)",
+      });
+      continue;
+    }
+    mismatches.push(...diffRoot(sentRoot, gotRoot));
+  }
+  return mismatches;
+}
+
+function diffRoot(
+  sentRoot: { name: string; nodes: Array<Node> },
+  gotRoot: { name: string; nodes: Array<Node> }
+): Array<Mismatch> {
+  const mismatches: Array<Mismatch> = [];
+  const sentTree = sentRoot.nodes;
+  const gotTree = gotRoot.nodes;
 
   if (sentTree.length !== gotTree.length) {
     mismatches.push({
-      node: "(tree)",
+      node: `[${sentRoot.name}]`,
       field: "node count",
       sent: sentTree.length,
       got: gotTree.length,
@@ -151,7 +192,7 @@ function diffScene(sent: Array<Node>, got: Array<Node>): Array<Mismatch> {
 
   sentTree.forEach((sentNode, i) => {
     const gotNode = gotTree[i] as Node;
-    const label = `#${i} ${String(sentNode.name ?? sentNode.type)}`;
+    const label = `[${sentRoot.name}] #${i} ${String(sentNode.name ?? sentNode.type)}`;
 
     const fields = new Set([
       ...Object.keys(sentNode).filter((f) => TRACKED.has(f)),

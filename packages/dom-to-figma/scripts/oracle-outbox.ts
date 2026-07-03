@@ -145,6 +145,90 @@ function copyPageHtml(options: {
 `;
 }
 
+/** Horizontal gutter between scene frames on the Figma canvas. */
+const CANVAS_GUTTER = 80;
+
+function singlePageHtml(options: {
+  batch: string;
+  captureName: string;
+  scenes: ReadonlyArray<SceneSpec>;
+  envelope: string;
+  nodeCount: number;
+}): string {
+  const { batch, captureName, scenes, envelope, nodeCount } = options;
+  const previews = scenes
+    .map(
+      (scene) =>
+        `<p class="meta">${scene.name} (${scene.width}×${scene.height})</p>
+  <iframe title="${scene.name}" width="${scene.width}" height="${scene.height}" srcdoc="${escapeAttribute(scene.html)}"></iframe>`
+    )
+    .join("\n  ");
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>${batch} / all scenes</title>
+<style>
+  body { margin: 0; padding: 32px; font-family: system-ui, sans-serif; background: #fafafa; color: #18181b; }
+  main { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+  h1 { font-size: 16px; margin: 0; }
+  h1 small { color: #71717a; font-weight: 400; }
+  button { font-size: 15px; font-weight: 600; padding: 12px 20px; border-radius: 8px; border: none; background: #18181b; color: white; cursor: pointer; align-self: flex-start; }
+  button:hover { background: #3f3f46; }
+  ol { margin: 0; padding-left: 20px; line-height: 1.7; font-size: 14px; }
+  code { background: #e4e4e7; padding: 2px 6px; border-radius: 4px; font-size: 12.5px; }
+  #status { font-size: 14px; min-height: 20px; color: #16a34a; font-weight: 600; }
+  iframe { border: 1px solid #e4e4e7; border-radius: 8px; background: white; }
+  .meta { font-size: 12px; color: #71717a; margin: 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>${batch} — all ${scenes.length} scenes in one paste <small>(${nodeCount} node changes)</small></h1>
+  <button id="copy" type="button">1. Copy Figma payload (all scenes)</button>
+  <p id="status"></p>
+  <ol>
+    <li>Click the button above (use Chrome if copying fails).</li>
+    <li>In the scratch Figma file: <strong>Cmd+V</strong> once — all ${scenes.length} frames appear side by side.</li>
+    <li>Select <strong>all ${scenes.length} pasted frames</strong> (drag a rubber-band around them on the canvas), then <strong>Cmd+C</strong>.</li>
+    <li>Run: <code>pnpm oracle:capture ${captureName}</code></li>
+  </ol>
+  ${previews}
+</main>
+<script>
+  const ENVELOPE = ${scriptSafeJson(envelope)};
+  const status = document.getElementById("status");
+  document.getElementById("copy").addEventListener("click", async () => {
+    try {
+      const blob = new Blob([ENVELOPE], { type: "text/html" });
+      await navigator.clipboard.write([new ClipboardItem({ "text/html": blob })]);
+      status.textContent = "Copied ✓ — now paste in Figma (Cmd+V)";
+    } catch (error) {
+      status.style.color = "#dc2626";
+      status.textContent = "Copy failed: " + error.message + " — try Chrome, and click the page first.";
+    }
+  });
+</script>
+</body>
+</html>
+`;
+}
+
+function singleInstructionsMarkdown(
+  batch: string,
+  captureName: string
+): string {
+  return `# ${batch} (single-paste batch)
+
+All scenes travel in one payload.
+
+1. Open \`oracle/outbox/${batch}/all-scenes.html\` in Chrome, click **Copy**.
+2. In a scratch Figma design file: **Cmd+V** once.
+3. Rubber-band select all pasted frames, **Cmd+C**.
+4. Run \`pnpm oracle:capture ${captureName}\`, then ping Claude.
+`;
+}
+
 function instructionsMarkdown(
   batch: string,
   entries: Array<{ file: string; captureName: string; scene: SceneSpec }>
@@ -170,13 +254,134 @@ When every capture is in \`oracle/inbox/${batch}/\`, ping Claude.
 `;
 }
 
+/**
+ * Single-paste mode: mount every scene in its own iframe (so scene CSS can't
+ * collide), convert them all as one multi-frame canvas payload, and emit one
+ * copy page — one paste, one selection, one capture for the whole batch.
+ */
+async function generateSinglePage(options: {
+  batch: string;
+  batchDir: string;
+  scenes: Array<SceneSpec>;
+  bundle: string;
+  layout: string;
+  browser: Awaited<ReturnType<typeof chromium.launch>>;
+}) {
+  const { batch, batchDir, scenes, bundle, layout, browser } = options;
+
+  const compositeHtml = `<!DOCTYPE html><html><body style="margin:0">
+${scenes
+  .map(
+    (scene) =>
+      `<iframe width="${scene.width}" height="${scene.height}" style="border:0;display:block" srcdoc="${escapeAttribute(scene.html)}"></iframe>`
+  )
+  .join("\n")}
+</body></html>`;
+
+  const maxWidth = Math.max(...scenes.map((s) => s.width));
+  const totalHeight = scenes.reduce((n, s) => n + s.height, 0);
+  const page = await browser.newPage({
+    viewport: { width: maxWidth, height: totalHeight },
+  });
+  await page.setContent(compositeHtml, { waitUntil: "networkidle" });
+  await page.evaluate(async () => {
+    const frames = Array.from(document.querySelectorAll("iframe"));
+    await Promise.all(frames.map((f) => f.contentDocument?.fonts.ready));
+  });
+  await page.addScriptTag({ content: bundle });
+
+  const frameInputs: Array<{
+    width: number;
+    height: number;
+    x: number;
+    y: number;
+    name: string;
+  }> = [];
+  let x = 0;
+  for (const scene of scenes) {
+    frameInputs.push({
+      width: scene.width,
+      height: scene.height,
+      x,
+      y: 0,
+      name: scene.name,
+    });
+    x += scene.width + CANVAS_GUTTER;
+  }
+
+  const envelope = await page.evaluate(
+    async ({ inputs, layoutMode, canvasName }) => {
+      const api = (
+        window as unknown as {
+          FigitDomToFigma: {
+            createFigmaConverter: (config: { layout: string }) => {
+              convert: (input: {
+                frames: Array<Record<string, unknown>>;
+                canvasName: string;
+              }) => Promise<{ toClipboardHtml: () => string }>;
+            };
+          };
+        }
+      ).FigitDomToFigma;
+      const iframes = Array.from(document.querySelectorAll("iframe"));
+      const frames = inputs.map((input, i) => ({
+        ...input,
+        element: iframes[i]?.contentDocument?.body as Element,
+      }));
+      const result = await api
+        .createFigmaConverter({ layout: layoutMode })
+        .convert({ frames, canvasName });
+      return result.toClipboardHtml();
+    },
+    { inputs: frameInputs, layoutMode: layout, canvasName: batch }
+  );
+  await page.close();
+
+  const decoded = decodeFigmaData(parseClipboardHtml(envelope).fig);
+  const nodeChanges = decoded.message.nodeChanges as Array<
+    Record<string, unknown>
+  >;
+  const topFrames = nodeChanges.filter(
+    (c) =>
+      c.type === "FRAME" &&
+      (c.parentIndex as { guid: { localID: number } } | undefined)?.guid
+        .localID === 1
+  );
+  if (topFrames.length !== scenes.length) {
+    throw new Error(
+      `Expected ${scenes.length} top-level frames, payload has ${topFrames.length}.`
+    );
+  }
+
+  const captureName = `${batch}/all-scenes`;
+  writeFileSync(
+    resolve(batchDir, "all-scenes.html"),
+    singlePageHtml({
+      batch,
+      captureName,
+      scenes,
+      envelope,
+      nodeCount: nodeChanges.length,
+    })
+  );
+  writeFileSync(
+    resolve(batchDir, "INSTRUCTIONS.md"),
+    singleInstructionsMarkdown(batch, captureName)
+  );
+  console.error(
+    `all-scenes.html  (${scenes.length} scenes, ${nodeChanges.length} node changes)`
+  );
+  console.error(`\nBatch ready: oracle/outbox/${batch}/ (single-paste mode)`);
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const layout = args.includes("--layout=auto") ? "auto" : "absolute";
+  const single = args.includes("--single");
   const [batch, ...sceneRefs] = args.filter((a) => !a.startsWith("--"));
   if (!batch || sceneRefs.length === 0) {
     console.error(
-      "Usage: pnpm oracle:outbox [--layout=auto] <batch-name> <scene>..."
+      "Usage: pnpm oracle:outbox [--layout=auto] [--single] <batch-name> <scene>..."
     );
     process.exit(1);
   }
@@ -204,6 +409,22 @@ async function main() {
   mkdirSync(batchDir, { recursive: true });
 
   const browser = await chromium.launch();
+
+  if (single) {
+    try {
+      await generateSinglePage({
+        batch,
+        batchDir,
+        scenes,
+        bundle,
+        layout,
+        browser,
+      });
+    } finally {
+      await browser.close();
+    }
+    return;
+  }
   const entries: Array<{
     file: string;
     captureName: string;
