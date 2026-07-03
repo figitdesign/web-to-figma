@@ -597,6 +597,29 @@ describe("text inside and around stacks", () => {
     }
   });
 
+  it("anchors centered text glyphs to the emitted box, not the parent", async () => {
+    // Centered raw text in a wide parent: the box sits at the measured rect,
+    // so baked-in glyph offsets must be near zero — centering against the
+    // parent width again would render the glyphs shifted right.
+    // Mixed inline content keeps "Alpha" a raw text node with a tight box.
+    const changes = await convertScene(
+      `<div style="width:600px;height:60px;text-align:center;font-family:'${TEST_FONT_FAMILY}';font-size:24px">
+        <h1 style="margin:0;font-size:24px;line-height:32px">Alpha <span style="color:#f60">beta</span></h1>
+      </div>`
+    );
+
+    const text = changes.find((c) => c.type === "TEXT" && c.name === "Alpha") as
+      | (FigmaNodeChange & {
+          derivedTextData?: {
+            baselines?: Array<{ position?: { x: number } }>;
+          };
+        })
+      | undefined;
+    expect(text).toBeDefined();
+    const baselineX = text?.derivedTextData?.baselines?.[0]?.position?.x ?? 99;
+    expect(Math.abs(baselineX)).toBeLessThan(6);
+  });
+
   it("keeps exact (uninflated) text box sizes inside stacks", async () => {
     const changes = await convertScene(
       `<div style="width:320px;height:40px;display:flex;gap:20px;font-family:'${TEST_FONT_FAMILY}';font-size:16px">

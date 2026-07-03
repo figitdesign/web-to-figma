@@ -240,9 +240,15 @@ export async function nodeToTextNodeChange(
 
   const loadedFont = await fontCache.get(font);
 
-  // Apply width buffer to container width for wrapping calculations
-  // This accounts for font metric differences between browser and OpenType.js
-  const wrappingContainerWidth = styles.dimensions.width + widthBuffer;
+  // Wrap and align within the box this node ships with, NOT the parent
+  // element's width: glyph/baseline offsets bake the alignment in, and the
+  // box is already positioned at the measured rect — centering against the
+  // parent again would double the offset (it did: centered raw text nodes
+  // rendered shifted by (parentWidth - textWidth) / 2). Line breaking is
+  // unaffected: every browser break also overflows the (narrower) box, and
+  // no line exceeds it. The buffer absorbs font-metric differences between
+  // the browser and OpenType.js.
+  const wrappingContainerWidth = nodeSize.width + widthBuffer;
 
   const layout = processTextLayout(loadedFont.font, text, {
     fontSize: styles.fontSize,
@@ -271,7 +277,7 @@ export async function nodeToTextNodeChange(
     layout,
     styles.fontSize,
     styles.textAlign,
-    styles.dimensions.width,
+    nodeSize.width,
     loadedFont.metrics
   );
 
