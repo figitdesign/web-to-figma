@@ -326,11 +326,11 @@ describe("auto-layout fallbacks (stackMode stays NONE)", () => {
     expectNone(changes);
   });
 
-  it("bails on absolutely positioned children (phase 3)", async () => {
+  it("bails on inline children", async () => {
     const changes = await convertScene(
-      `<div style="width:320px;height:200px;display:flex;position:relative">
-        <div style="width:100px;height:80px"></div>
-        <div style="position:absolute;top:0;right:0;width:20px;height:20px"></div>
+      `<div style="width:320px;height:200px">
+        <span style="display:inline-block;width:60px;height:30px"></span>
+        <span style="display:inline-block;width:60px;height:30px"></span>
       </div>`
     );
     expectNone(changes);
@@ -367,12 +367,157 @@ describe("auto-layout fallbacks (stackMode stays NONE)", () => {
     expectNone(changes);
   });
 
-  it("bails on non-flex containers", async () => {
+  it("bails on non-uniform block margins", async () => {
     const changes = await convertScene(
-      `<div style="width:320px;height:200px">
-        <div style="width:100px;height:80px"></div>
+      `<div style="width:320px;height:300px">
+        <div style="width:100px;height:40px;margin-bottom:8px"></div>
+        <div style="width:100px;height:40px;margin-bottom:32px"></div>
+        <div style="width:100px;height:40px"></div>
       </div>`
     );
     expectNone(changes);
+  });
+
+  it("bails on floated children", async () => {
+    const changes = await convertScene(
+      `<div style="width:320px;height:200px">
+        <div style="float:left;width:100px;height:80px"></div>
+        <div style="float:left;width:100px;height:80px"></div>
+      </div>`
+    );
+    expectNone(changes);
+  });
+});
+
+describe("block flow inference", () => {
+  it("converts uniform block flow into a VERTICAL stack", async () => {
+    const changes = await convertScene(
+      `<div style="width:320px;height:300px;padding:20px;box-sizing:border-box">
+        <div style="width:100px;height:40px;margin-bottom:16px"></div>
+        <div style="width:100px;height:40px;margin-bottom:16px"></div>
+        <div style="width:100px;height:40px"></div>
+      </div>`
+    );
+
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID)).toMatchObject({
+      stackMode: "VERTICAL",
+      stackSpacing: 16,
+      stackPrimaryAlignItems: "MIN",
+      stackCounterAlignItems: "MIN",
+      stackHorizontalPadding: 20,
+      stackVerticalPadding: 20,
+      // Vertical paddings are measured, so the fixed container's leftover
+      // space (300 - 20 - 3*40 - 2*16 = 128) folds into the trailing pad.
+      stackPaddingBottom: 128,
+    });
+  });
+
+  it("detects margin-auto centering as counter CENTER", async () => {
+    const changes = await convertScene(
+      `<div style="width:320px;height:200px">
+        <div style="width:120px;height:40px;margin:0 auto 12px"></div>
+        <div style="width:80px;height:40px;margin:0 auto"></div>
+      </div>`
+    );
+
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID)).toMatchObject({
+      stackMode: "VERTICAL",
+      stackSpacing: 12,
+      stackCounterAlignItems: "CENTER",
+    });
+  });
+
+  it("marks width-auto block children as STRETCH", async () => {
+    const changes = await convertScene(
+      `<div style="width:320px;height:200px;padding:10px;box-sizing:border-box">
+        <div style="height:40px;margin-bottom:10px"></div>
+        <div style="width:150px;height:40px"></div>
+      </div>`
+    );
+
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID)?.stackMode).toBe("VERTICAL");
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID + 1)).toMatchObject({
+      stackChildAlignSelf: "STRETCH",
+    });
+    expect(
+      byLocalId(changes, CONTAINER_LOCAL_ID + 2)?.stackChildAlignSelf
+    ).toBeUndefined();
+  });
+
+  it("hugs an auto-height block container", async () => {
+    const changes = await convertScene(
+      `<div style="width:320px;padding:14px;box-sizing:border-box">
+        <div style="width:100px;height:40px;margin-bottom:10px"></div>
+        <div style="width:100px;height:40px"></div>
+      </div>`
+    );
+
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID)).toMatchObject({
+      stackMode: "VERTICAL",
+      stackPrimarySizing: "RESIZE_TO_FIT",
+      stackCounterSizing: "FIXED",
+    });
+  });
+
+  it("folds first/last child margins into measured vertical padding", async () => {
+    const changes = await convertScene(
+      `<div style="width:320px;height:200px">
+        <div style="width:100px;height:40px;margin:24px 0"></div>
+        <div style="width:100px;height:40px;margin:24px 0 8px"></div>
+      </div>`
+    );
+
+    // Margins collapse to 24 between children. The first child's top margin
+    // collapses THROUGH the unpadded parent (escaping it entirely), so the
+    // measured leading pad is 0; the leftover height folds into the trailing
+    // pad (200 - 2*40 - 24 = 96).
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID)).toMatchObject({
+      stackMode: "VERTICAL",
+      stackSpacing: 24,
+      stackVerticalPadding: 0,
+      stackPaddingBottom: 96,
+    });
+  });
+});
+
+describe("absolute children inside stacks", () => {
+  it("keeps the stack and marks absolute children ABSOLUTE (flex)", async () => {
+    const changes = await convertScene(
+      `<div style="width:320px;height:200px;display:flex;gap:20px;position:relative">
+        <div style="width:100px;height:80px"></div>
+        <div style="width:100px;height:80px"></div>
+        <div style="position:absolute;top:8px;right:8px;width:24px;height:24px"></div>
+      </div>`
+    );
+
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID)?.stackMode).toBe(
+      "HORIZONTAL"
+    );
+    // Positioned children sort above static ones, so the badge is emitted
+    // last regardless of DOM order.
+    const badge = byLocalId(changes, CONTAINER_LOCAL_ID + 3);
+    expect(badge).toMatchObject({
+      stackPositioning: "ABSOLUTE",
+      horizontalConstraint: "MAX",
+    });
+    expect(
+      byLocalId(changes, CONTAINER_LOCAL_ID + 1)?.stackPositioning
+    ).toBeUndefined();
+  });
+
+  it("keeps the stack and marks absolute children ABSOLUTE (block)", async () => {
+    const changes = await convertScene(
+      `<div style="width:320px;height:200px;position:relative">
+        <div style="width:100px;height:40px;margin-bottom:12px"></div>
+        <div style="width:100px;height:40px"></div>
+        <div style="position:absolute;bottom:4px;left:4px;width:30px;height:10px"></div>
+      </div>`
+    );
+
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID)?.stackMode).toBe("VERTICAL");
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID + 3)).toMatchObject({
+      stackPositioning: "ABSOLUTE",
+      verticalConstraint: "MAX",
+    });
   });
 });

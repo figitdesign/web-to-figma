@@ -51,6 +51,22 @@ export type ConversionResult = {
   childStackSpecs?: ReadonlyMap<Element, InferredChildStack>;
 };
 
+/**
+ * Stamp the parent stack's child overrides (e.g. `stackPositioning:
+ * "ABSOLUTE"`) onto a converted element's own node change. The frame
+ * converter merges these itself; every other kind gets them here.
+ */
+function withChildStackSpec(
+  changes: ReadonlyArray<FigmaNodeChange>,
+  childStackSpec: InferredChildStack | undefined
+): ReadonlyArray<FigmaNodeChange> {
+  if (!childStackSpec || changes.length === 0) {
+    return changes;
+  }
+  const [own, ...rest] = changes;
+  return [{ ...own, ...childStackSpec } as FigmaNodeChange, ...rest];
+}
+
 export async function convertElement(
   element: Element,
   kind: ElementKind,
@@ -109,37 +125,63 @@ export async function convertElement(
 
     case "vector":
       return {
-        changes: [
-          elementToVectorNodeChange(element as SVGChildElement, {
-            guid,
-            parentGuid,
-            childIndex,
-            position,
-            registerBlob,
-          }),
-        ],
+        changes: withChildStackSpec(
+          [
+            elementToVectorNodeChange(element as SVGChildElement, {
+              guid,
+              parentGuid,
+              childIndex,
+              position,
+              registerBlob,
+            }),
+          ],
+          childStackSpec
+        ),
         hasChildren: false,
       };
 
     case "image":
       return {
-        changes: [
-          await elementToImageNodeChange(element as HTMLImageElement, {
-            guid,
-            parentGuid,
-            childIndex,
-            position,
-            registerBlob,
-            imageCache,
-          }),
-        ],
+        changes: withChildStackSpec(
+          [
+            await elementToImageNodeChange(element as HTMLImageElement, {
+              guid,
+              parentGuid,
+              childIndex,
+              position,
+              registerBlob,
+              imageCache,
+            }),
+          ],
+          childStackSpec
+        ),
         hasChildren: false,
       };
 
     case "text":
       return {
-        changes: [
-          await nodeToTextNodeChange(element, {
+        changes: withChildStackSpec(
+          [
+            await nodeToTextNodeChange(element, {
+              guid,
+              parentGuid,
+              childIndex,
+              position,
+              registerBlob,
+              inheritedProperties,
+              fontCache,
+            }),
+          ],
+          childStackSpec
+        ),
+        hasChildren: false,
+      };
+
+    case "form-with-placeholder":
+      return {
+        changes: withChildStackSpec(
+          await elementToFormNodeChange({
+            element,
             guid,
             parentGuid,
             childIndex,
@@ -147,24 +189,10 @@ export async function convertElement(
             registerBlob,
             inheritedProperties,
             fontCache,
+            createGuid,
           }),
-        ],
-        hasChildren: false,
-      };
-
-    case "form-with-placeholder":
-      return {
-        changes: await elementToFormNodeChange({
-          element,
-          guid,
-          parentGuid,
-          childIndex,
-          position,
-          registerBlob,
-          inheritedProperties,
-          fontCache,
-          createGuid,
-        }),
+          childStackSpec
+        ),
         hasChildren: false,
       };
 

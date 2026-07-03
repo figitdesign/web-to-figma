@@ -34,6 +34,9 @@ export type InferredChildStack = {
   stackChildPrimaryGrow?: 1;
   /** Child stretched across the counter axis with no explicit cross size. */
   stackChildAlignSelf?: "STRETCH";
+  /** Absolutely positioned child inside a stack: excluded from layout, kept
+   * at its transform with its constraints — mirroring CSS semantics. */
+  stackPositioning?: "ABSOLUTE";
 };
 
 export type InferredAutoLayout = {
@@ -82,24 +85,102 @@ const ALIGN_MAP: Record<string, StackAlignValue> = {
 
 type Rect = { x: number; y: number; width: number; height: number };
 
+/** Block-level outer displays that can participate in vertical block flow. */
+const BLOCK_LEVEL_DISPLAYS = new Set([
+  "block",
+  "flex",
+  "grid",
+  "flow-root",
+  "table",
+  "list-item",
+]);
+
 /**
  * Infer Figma auto-layout properties for an element, or return `null` when
- * the container isn't a flex layout we can reproduce exactly (then it stays
+ * the container's layout can't be reproduced exactly (then it stays
  * absolutely positioned, which is always safe).
  *
- * Out of scope (bails): wrapping, reverse directions, absolute children,
- * text-node flex items, `order`, z-index reordering, baseline alignment.
+ * Covers flex containers (HORIZONTAL/VERTICAL by direction) and plain block
+ * flow (VERTICAL when spacing is uniform). Absolutely positioned children
+ * ride along with `stackPositioning: "ABSOLUTE"` instead of blocking the
+ * container. Out of scope (bails): wrapping, reverse directions, text-node
+ * flow items, `order`, z-index reordering, baseline alignment, floats,
+ * inline flow.
  */
 export function inferAutoLayout(element: Element): InferredAutoLayout | null {
   const style = window.getComputedStyle(element);
-
-  if (style.display !== "flex" && style.display !== "inline-flex") {
+  const display = style.display;
+  const isFlex = display === "flex" || display === "inline-flex";
+  const isBlock = display === "block" || display === "flow-root";
+  if (!(isFlex || isBlock)) {
     return null;
   }
+
+  const collected = collectChildren(element);
+  if (!collected || collected.flow.length === 0) {
+    return null;
+  }
+  const { flow, absolute } = collected;
+
+  // The walker emits children in stacking order and Figma lays a stack out
+  // in child order, so a z-index reshuffle among FLOW children would change
+  // the layout order. Absolute children may move freely: they are excluded
+  // from layout on both sides and stacking order only affects z, which the
+  // walker preserves.
+  const flowSet = new Set<Node>(flow);
+  const domFlow = Array.from(element.childNodes).filter((n) => flowSet.has(n));
+  const stackedFlow = sortNodesByStackingOrder(
+    Array.from(element.childNodes)
+  ).filter((n) => flowSet.has(n));
+  if (domFlow.some((node, i) => node !== stackedFlow[i])) {
+    return null;
+  }
+
+  const parentRect = element.getBoundingClientRect();
+  const childRects: Array<Rect> = flow.map((child) => {
+    const rect = child.getBoundingClientRect();
+    return {
+      x: rect.left - parentRect.left,
+      y: rect.top - parentRect.top,
+      width: rect.width,
+      height: rect.height,
+    };
+  });
+  const parentSize = { width: parentRect.width, height: parentRect.height };
+
+  const inferred = isFlex
+    ? inferFlexStack({ element, style, flow, childRects, parentSize })
+    : inferBlockStack({ element, style, flow, childRects, parentSize });
+  if (!inferred) {
+    return null;
+  }
+
+  for (const child of absolute) {
+    inferred.childOverrides.set(child, { stackPositioning: "ABSOLUTE" });
+  }
+
+  return { stack: inferred.stack, children: inferred.childOverrides };
+}
+
+type StackInferenceInput = {
+  element: Element;
+  style: CSSStyleDeclaration;
+  flow: ReadonlyArray<Element>;
+  childRects: ReadonlyArray<Rect>;
+  parentSize: { width: number; height: number };
+};
+
+type StackInference = {
+  stack: InferredStack;
+  childOverrides: Map<Element, InferredChildStack>;
+};
+
+function inferFlexStack(input: StackInferenceInput): StackInference | null {
+  const { element, style, flow, childRects, parentSize } = input;
+
   if (style.flexWrap !== "nowrap") {
     return null;
   }
-
   const direction = style.flexDirection;
   if (direction !== "row" && direction !== "column") {
     return null;
@@ -112,40 +193,153 @@ export function inferAutoLayout(element: Element): InferredAutoLayout | null {
     return null;
   }
 
-  const children = layoutChildren(element);
-  if (!children || children.length === 0) {
+  const spacing = uniformGap(childRects, isRow);
+  if (spacing === null) {
     return null;
   }
 
-  // The walker emits children in stacking order and Figma lays a stack out in
-  // child order, so a z-index reshuffle would change the layout order.
-  const domOrder = Array.from(element.childNodes);
-  const stackingOrder = sortNodesByStackingOrder(domOrder);
-  if (domOrder.some((node, i) => node !== stackingOrder[i])) {
-    return null;
-  }
-
-  const parentRect = element.getBoundingClientRect();
-  const childRects: Array<Rect> = children.map((child) => {
-    const rect = child.getBoundingClientRect();
-    return {
-      x: rect.left - parentRect.left,
-      y: rect.top - parentRect.top,
-      width: rect.width,
-      height: rect.height,
-    };
-  });
-
-  const paddings = {
-    left: edge(style.borderLeftWidth) + edge(style.paddingLeft),
-    top: edge(style.borderTopWidth) + edge(style.paddingTop),
-    right: edge(style.borderRightWidth) + edge(style.paddingRight),
-    bottom: edge(style.borderBottomWidth) + edge(style.paddingBottom),
+  const spec: InferredStack = {
+    stackMode: isRow ? "HORIZONTAL" : "VERTICAL",
+    stackSpacing: spacing,
+    stackPrimaryAlignItems: justify,
+    stackCounterAlignItems: align,
+    stackPrimarySizing: "FIXED",
+    stackCounterSizing: "FIXED",
+    stackHorizontalPadding: round2(
+      edge(style.borderLeftWidth) + edge(style.paddingLeft)
+    ),
+    stackVerticalPadding: round2(
+      edge(style.borderTopWidth) + edge(style.paddingTop)
+    ),
+    stackPaddingRight: round2(
+      edge(style.borderRightWidth) + edge(style.paddingRight)
+    ),
+    stackPaddingBottom: round2(
+      edge(style.borderBottomWidth) + edge(style.paddingBottom)
+    ),
   };
 
-  // Spacing between adjacent children comes from measurement (covering gap
-  // and margins alike); Figma has a single spacing value, so it must be
-  // uniform. Negative values are fine — Figma supports them.
+  if (!verifyGeometry(spec, parentSize, childRects)) {
+    return null;
+  }
+
+  applySizingModes({
+    element,
+    style,
+    spec,
+    parent: parentSize,
+    children: flow,
+    childRects,
+    isRow,
+  });
+
+  return {
+    stack: spec,
+    childOverrides: inferChildOverrides({
+      element,
+      children: flow,
+      childRects,
+      parentStyle: style,
+      spec,
+      parentSize,
+      isRow,
+    }),
+  };
+}
+
+/**
+ * Plain block flow as a VERTICAL stack: block-level children stacked top to
+ * bottom with uniform (margin-driven) spacing.
+ *
+ * Vertical paddings are measured (the first/last child margins fold into
+ * them, and margin collapse is already baked into the rects); horizontal
+ * paddings come from CSS. The counter alignment is whichever of MIN /
+ * CENTER / MAX reproduces the measured geometry — CENTER covers
+ * `margin: 0 auto` centering.
+ */
+function inferBlockStack(input: StackInferenceInput): StackInference | null {
+  const { element, style, flow, childRects, parentSize } = input;
+
+  for (const child of flow) {
+    const childStyle = window.getComputedStyle(child);
+    if (!BLOCK_LEVEL_DISPLAYS.has(childStyle.display)) {
+      return null; // Inline flow — not representable as a stack.
+    }
+    if (childStyle.float !== "none") {
+      return null;
+    }
+  }
+
+  const spacing = uniformGap(childRects, false);
+  if (spacing === null) {
+    return null;
+  }
+
+  const first = childRects[0] as Rect;
+  const last = childRects.at(-1) as Rect;
+  const padTop = first.y;
+  const padBottom = parentSize.height - (last.y + last.height);
+  if (padTop < -GEOMETRY_TOLERANCE || padBottom < -GEOMETRY_TOLERANCE) {
+    return null; // Content overflows the frame; a stack would clip/shift it.
+  }
+
+  const padLeft = edge(style.borderLeftWidth) + edge(style.paddingLeft);
+  const padRight = edge(style.borderRightWidth) + edge(style.paddingRight);
+
+  for (const align of ["MIN", "CENTER", "MAX"] as const) {
+    const spec: InferredStack = {
+      stackMode: "VERTICAL",
+      stackSpacing: spacing,
+      stackPrimaryAlignItems: "MIN",
+      stackCounterAlignItems: align,
+      stackPrimarySizing: "FIXED",
+      stackCounterSizing: "FIXED",
+      stackHorizontalPadding: round2(padLeft),
+      stackVerticalPadding: round2(Math.max(padTop, 0)),
+      stackPaddingRight: round2(padRight),
+      stackPaddingBottom: round2(Math.max(padBottom, 0)),
+    };
+    if (!verifyGeometry(spec, parentSize, childRects)) {
+      continue;
+    }
+
+    applySizingModes({
+      element,
+      style,
+      spec,
+      parent: parentSize,
+      children: flow,
+      childRects,
+      isRow: false,
+    });
+
+    // Block children with `width: auto` fill the content box — exactly
+    // Figma's STRETCH on the counter axis of a vertical stack.
+    const childOverrides = new Map<Element, InferredChildStack>();
+    const innerWidth = parentSize.width - padLeft - padRight;
+    flow.forEach((child, i) => {
+      if (
+        hasContentSizedKeyword(child, "width") &&
+        Math.abs((childRects[i] as Rect).width - innerWidth) <=
+          GEOMETRY_TOLERANCE
+      ) {
+        childOverrides.set(child, { stackChildAlignSelf: "STRETCH" });
+      }
+    });
+
+    return { stack: spec, childOverrides };
+  }
+
+  return null;
+}
+
+/** Uniform inter-child gap along the given axis, or null when non-uniform.
+ * Measured from rects, so CSS gaps and margins (incl. collapse) are covered;
+ * negative values are fine — Figma supports them. */
+function uniformGap(
+  childRects: ReadonlyArray<Rect>,
+  isRow: boolean
+): number | null {
   const gaps: Array<number> = [];
   for (let i = 1; i < childRects.length; i += 1) {
     const prev = childRects[i - 1] as Rect;
@@ -157,48 +351,7 @@ export function inferAutoLayout(element: Element): InferredAutoLayout | null {
   if (gaps.some((gap) => Math.abs(gap - (gaps[0] ?? 0)) > GEOMETRY_TOLERANCE)) {
     return null;
   }
-  const spacing = round2(gaps[0] ?? 0);
-
-  const spec: InferredStack = {
-    stackMode: isRow ? "HORIZONTAL" : "VERTICAL",
-    stackSpacing: spacing,
-    stackPrimaryAlignItems: justify,
-    stackCounterAlignItems: align,
-    stackPrimarySizing: "FIXED",
-    stackCounterSizing: "FIXED",
-    stackHorizontalPadding: round2(paddings.left),
-    stackVerticalPadding: round2(paddings.top),
-    stackPaddingRight: round2(paddings.right),
-    stackPaddingBottom: round2(paddings.bottom),
-  };
-
-  const parentSize = { width: parentRect.width, height: parentRect.height };
-  if (!verifyGeometry(spec, parentSize, childRects)) {
-    return null;
-  }
-
-  applySizingModes({
-    element,
-    style,
-    spec,
-    parent: parentSize,
-    children,
-    childRects,
-    isRow,
-  });
-
-  return {
-    stack: spec,
-    children: inferChildOverrides({
-      element,
-      children,
-      childRects,
-      parentStyle: style,
-      spec,
-      parentSize,
-      isRow,
-    }),
-  };
+  return round2(gaps[0] ?? 0);
 }
 
 /**
@@ -285,7 +438,7 @@ function inferChildOverrides(options: {
   spec: InferredStack;
   parentSize: { width: number; height: number };
   isRow: boolean;
-}): ReadonlyMap<Element, InferredChildStack> {
+}): Map<Element, InferredChildStack> {
   const { children, childRects, parentStyle, spec, parentSize, isRow } =
     options;
   const overrides = new Map<Element, InferredChildStack>();
@@ -437,12 +590,15 @@ function isContentDrivenSize(
 }
 
 /**
- * The element children that participate in flex layout, or `null` when the
- * container holds something we don't model yet (absolutely positioned
- * children, text-node flex items, `order`).
+ * Split element children into layout participants (`flow`) and absolutely
+ * positioned ones (which become `stackPositioning: "ABSOLUTE"`), or `null`
+ * when the container holds something we don't model yet (text-node flow
+ * items, `order`).
  */
-function layoutChildren(element: Element): Array<Element> | null {
-  // Non-empty direct text nodes become anonymous flex items we can't map to
+function collectChildren(
+  element: Element
+): { flow: Array<Element>; absolute: Array<Element> } | null {
+  // Non-empty direct text nodes become anonymous flow items we can't map to
   // a converted node yet.
   for (const node of element.childNodes) {
     if (node.nodeType === Node.TEXT_NODE && (node.textContent ?? "").trim()) {
@@ -450,21 +606,23 @@ function layoutChildren(element: Element): Array<Element> | null {
     }
   }
 
-  const children: Array<Element> = [];
+  const flow: Array<Element> = [];
+  const absolute: Array<Element> = [];
   for (const child of element.children) {
     const style = window.getComputedStyle(child);
     if (style.display === "none") {
       continue; // Takes no space and the walker skips it too.
     }
     if (style.position === "absolute" || style.position === "fixed") {
-      return null; // Phase 3: stackPositioning ABSOLUTE.
+      absolute.push(child);
+      continue;
     }
     if (style.order !== "0") {
       return null; // Visual order differs from DOM order.
     }
-    children.push(child);
+    flow.push(child);
   }
-  return children;
+  return { flow, absolute };
 }
 
 /**
