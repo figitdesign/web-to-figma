@@ -137,6 +137,7 @@ export type FigmaFrameNodeChange = FigmaBaseNodeChange & {
   stackPositioning?: string;
   stackWrap?: string;
   stackCounterSpacing?: number;
+  stackReverseZIndex?: boolean;
   minSize?: object;
   maxSize?: object;
   miterLimit?: number;

@@ -55,6 +55,8 @@ export async function walkRoot(
 type ParentStackInfo = {
   isAutoLayout: boolean;
   childSpecs?: ReadonlyMap<Element, InferredChildStack>;
+  /** Reversed flex parent: emit children in visual (reversed DOM) order. */
+  reverse?: boolean;
   /** Only on the root walk: the paste-template frame size. */
   rootFill?: { width: number; height: number };
 };
@@ -120,6 +122,7 @@ async function walkNode(
         {
           isAutoLayout: result.isAutoLayout ?? false,
           childSpecs: result.childStackSpecs,
+          reverse: result.reverseChildren,
         }
       );
     }
@@ -139,6 +142,11 @@ async function walkChildren(
   parentStack: ParentStackInfo = NO_PARENT_STACK
 ) {
   const sortedNodes = sortNodesByStackingOrder(Array.from(element.childNodes));
+  if (parentStack.reverse) {
+    // Reversed flex parent: Figma stacks lay children out in emission order,
+    // so emit the visual order; stackReverseZIndex restores paint order.
+    sortedNodes.reverse();
+  }
 
   let childNodeIndex = 0;
   for (const node of sortedNodes) {

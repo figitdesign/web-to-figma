@@ -51,6 +51,8 @@ export type ConversionResult = {
   isAutoLayout?: boolean;
   /** Fill/stretch overrides for this element's children, keyed by element. */
   childStackSpecs?: ReadonlyMap<Element, InferredChildStack>;
+  /** Reversed flex direction: children must be emitted in visual order. */
+  reverseChildren?: boolean;
 };
 
 /**
@@ -124,6 +126,7 @@ export async function convertElement(
         frameTextGradient: frameResult.textGradient,
         isAutoLayout: frameResult.isAutoLayout,
         childStackSpecs: frameResult.childStackSpecs,
+        reverseChildren: frameResult.reverseChildren,
       };
     }
 

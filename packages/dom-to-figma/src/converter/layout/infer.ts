@@ -26,6 +26,13 @@ export type InferredStack = {
   stackVerticalPadding: number;
   stackPaddingRight: number;
   stackPaddingBottom: number;
+  /** Multi-line rows (flex-wrap / uniform grids). */
+  stackWrap?: "WRAP";
+  /** Gap between wrapped rows. */
+  stackCounterSpacing?: number;
+  /** Set for reversed flex directions: children are emitted in visual order,
+   * so Figma's z-order must flip to preserve the browser's paint order. */
+  stackReverseZIndex?: boolean;
 };
 
 /** Auto-layout child overrides, keyed by child element by `inferAutoLayout`. */
@@ -43,6 +50,9 @@ export type InferredAutoLayout = {
   stack: InferredStack;
   /** Per-child overrides; children not in the map get fixed sizing. */
   children: ReadonlyMap<Element, InferredChildStack>;
+  /** Reversed flex direction: the walker must emit children in reverse
+   * (visual) order, paired with `stackReverseZIndex` on the stack. */
+  reverseChildren?: boolean;
 };
 
 type StackJustifyValue = "MIN" | "CENTER" | "MAX" | "SPACE_BETWEEN";
@@ -112,7 +122,8 @@ export function inferAutoLayout(element: Element): InferredAutoLayout | null {
   const display = style.display;
   const isFlex = display === "flex" || display === "inline-flex";
   const isBlock = display === "block" || display === "flow-root";
-  if (!(isFlex || isBlock)) {
+  const isGrid = display === "grid" || display === "inline-grid";
+  if (!(isFlex || isBlock || isGrid)) {
     return null;
   }
 
@@ -148,10 +159,34 @@ export function inferAutoLayout(element: Element): InferredAutoLayout | null {
   });
   const parentSize = { width: parentRect.width, height: parentRect.height };
 
-  const inferred = isFlex
-    ? inferFlexStack({ element, style, flow, childRects, parentSize })
-    : inferBlockStack({ element, style, flow, childRects, parentSize });
+  const input: StackInferenceInput = {
+    element,
+    style,
+    flow,
+    childRects,
+    parentSize,
+  };
+  let inferred: StackInference | null = null;
+  if (isFlex) {
+    inferred =
+      style.flexWrap === "nowrap"
+        ? inferFlexStack(input)
+        : inferWrapStack(input, "flex");
+  } else if (isBlock) {
+    inferred = inferBlockStack(input);
+  } else {
+    // Single-column grids are semantically vertical stacks (the block path
+    // covers them); multi-column uniform grids match Figma's greedy wrap
+    // layout exactly, gated by the packing simulation.
+    inferred = inferBlockStack(input) ?? inferWrapStack(input, "grid");
+  }
   if (!inferred) {
+    return null;
+  }
+
+  // Reversal reorders emission; mixing that with absolute children (which
+  // keep their stacking positions) isn't modeled yet.
+  if (inferred.reverseChildren && absolute.length > 0) {
     return null;
   }
 
@@ -159,7 +194,11 @@ export function inferAutoLayout(element: Element): InferredAutoLayout | null {
     inferred.childOverrides.set(child, { stackPositioning: "ABSOLUTE" });
   }
 
-  return { stack: inferred.stack, children: inferred.childOverrides };
+  return {
+    stack: inferred.stack,
+    children: inferred.childOverrides,
+    reverseChildren: inferred.reverseChildren,
+  };
 }
 
 type StackInferenceInput = {
@@ -173,24 +212,33 @@ type StackInferenceInput = {
 type StackInference = {
   stack: InferredStack;
   childOverrides: Map<Element, InferredChildStack>;
+  reverseChildren?: boolean;
 };
 
 function inferFlexStack(input: StackInferenceInput): StackInference | null {
-  const { element, style, flow, childRects, parentSize } = input;
+  const { element, style, parentSize } = input;
 
-  if (style.flexWrap !== "nowrap") {
-    return null;
-  }
   const direction = style.flexDirection;
-  if (direction !== "row" && direction !== "column") {
-    return null;
-  }
-  const isRow = direction === "row";
+  const isRow = direction === "row" || direction === "row-reverse";
+  const reversed = direction.endsWith("-reverse");
 
-  const justify = JUSTIFY_MAP[style.justifyContent];
+  // Reversed directions: work in visual order (reversed DOM order) — the
+  // walker will emit children the same way.
+  const flow = reversed ? [...input.flow].reverse() : input.flow;
+  const childRects = reversed
+    ? [...input.childRects].reverse()
+    : input.childRects;
+
+  let justify = JUSTIFY_MAP[style.justifyContent];
   const align = ALIGN_MAP[style.alignItems];
   if (!(justify && align)) {
     return null;
+  }
+  // In reversed flow the main-axis start/end swap in visual terms.
+  if (reversed && justify === "MIN") {
+    justify = "MAX";
+  } else if (reversed && justify === "MAX") {
+    justify = "MIN";
   }
 
   const spacing = uniformGap(childRects, isRow);
@@ -217,6 +265,7 @@ function inferFlexStack(input: StackInferenceInput): StackInference | null {
     stackPaddingBottom: round2(
       edge(style.borderBottomWidth) + edge(style.paddingBottom)
     ),
+    ...(reversed && { stackReverseZIndex: true }),
   };
 
   if (!verifyGeometry(spec, parentSize, childRects)) {
@@ -244,7 +293,145 @@ function inferFlexStack(input: StackInferenceInput): StackInference | null {
       parentSize,
       isRow,
     }),
+    reverseChildren: reversed || undefined,
   };
+}
+
+/**
+ * Multi-line rows as a wrapped HORIZONTAL stack (`flex-wrap: wrap`, and
+ * uniform CSS grids, which lay out identically when every child fits the
+ * same greedy packing). Figma re-flows wrapped stacks with its own greedy
+ * row-breaking on paste, so conversion requires that a simulation of that
+ * packing reproduces the browser's exact row assignments and positions —
+ * otherwise the container falls back to absolute positioning.
+ */
+function inferWrapStack(
+  input: StackInferenceInput,
+  source: "flex" | "grid"
+): StackInference | null {
+  const { element, style, flow, childRects, parentSize } = input;
+
+  if (source === "flex") {
+    if (style.flexDirection !== "row" || style.flexWrap !== "wrap") {
+      return null; // wrap-reverse / column wrap aren't modeled.
+    }
+    // Row-internal distribution other than left-packed changes Figma's
+    // re-flow in ways the simulation below doesn't model.
+    if (JUSTIFY_MAP[style.justifyContent] !== "MIN") {
+      return null;
+    }
+    if (ALIGN_MAP[style.alignItems] !== "MIN") {
+      return null;
+    }
+  }
+  for (const child of flow) {
+    if (Number.parseFloat(window.getComputedStyle(child).flexGrow) > 0) {
+      return null; // fill-in-wrap is unverified against Figma.
+    }
+  }
+
+  const padLeft = edge(style.borderLeftWidth) + edge(style.paddingLeft);
+  const padTop = edge(style.borderTopWidth) + edge(style.paddingTop);
+  const padRight = edge(style.borderRightWidth) + edge(style.paddingRight);
+  const padBottom = edge(style.borderBottomWidth) + edge(style.paddingBottom);
+
+  // Group measured rects into rows by top edge (children of a row share it
+  // for the start/stretch alignments accepted above).
+  const rows: Array<Array<number>> = [];
+  let currentTop = Number.NEGATIVE_INFINITY;
+  childRects.forEach((rect, i) => {
+    if (Math.abs(rect.y - currentTop) > GEOMETRY_TOLERANCE) {
+      rows.push([]);
+      currentTop = rect.y;
+    }
+    (rows.at(-1) as Array<number>).push(i);
+  });
+
+  const inRowGaps: Array<number> = [];
+  for (const row of rows) {
+    for (let k = 1; k < row.length; k += 1) {
+      const prev = childRects[row[k - 1] as number] as Rect;
+      const cur = childRects[row[k] as number] as Rect;
+      inRowGaps.push(cur.x - (prev.x + prev.width));
+    }
+  }
+  const spacing = round2(inRowGaps[0] ?? 0);
+  if (inRowGaps.some((g) => Math.abs(g - spacing) > GEOMETRY_TOLERANCE)) {
+    return null;
+  }
+
+  const rowTops = rows.map((r) => (childRects[r[0] as number] as Rect).y);
+  const rowHeights = rows.map((r) =>
+    Math.max(...r.map((i) => (childRects[i] as Rect).height))
+  );
+  const rowGaps: Array<number> = [];
+  for (let r = 1; r < rows.length; r += 1) {
+    rowGaps.push(
+      (rowTops[r] as number) -
+        ((rowTops[r - 1] as number) + (rowHeights[r - 1] as number))
+    );
+  }
+  const counterSpacing = round2(rowGaps[0] ?? 0);
+  if (
+    counterSpacing < -GEOMETRY_TOLERANCE ||
+    rowGaps.some((g) => Math.abs(g - counterSpacing) > GEOMETRY_TOLERANCE)
+  ) {
+    return null;
+  }
+
+  // Simulate Figma's greedy packing; every child must land exactly where the
+  // browser put it.
+  const rightLimit = parentSize.width - padRight;
+  let x = padLeft;
+  let y = padTop;
+  let simRowHeight = 0;
+  let rowStart = true;
+  for (const rect of childRects) {
+    if (!rowStart && x + rect.width - rightLimit > GEOMETRY_TOLERANCE) {
+      y += simRowHeight + counterSpacing;
+      x = padLeft;
+      simRowHeight = 0;
+    }
+    if (
+      Math.abs(rect.x - x) > GEOMETRY_TOLERANCE ||
+      Math.abs(rect.y - y) > GEOMETRY_TOLERANCE
+    ) {
+      return null;
+    }
+    x += rect.width + spacing;
+    simRowHeight = Math.max(simRowHeight, rect.height);
+    rowStart = false;
+  }
+
+  const spec: InferredStack = {
+    stackMode: "HORIZONTAL",
+    stackSpacing: spacing,
+    stackPrimaryAlignItems: "MIN",
+    stackCounterAlignItems: "MIN",
+    stackPrimarySizing: "FIXED",
+    stackCounterSizing: "FIXED",
+    stackHorizontalPadding: round2(padLeft),
+    stackVerticalPadding: round2(padTop),
+    stackPaddingRight: round2(padRight),
+    stackPaddingBottom: round2(padBottom),
+    stackWrap: "WRAP",
+    stackCounterSpacing: counterSpacing,
+  };
+
+  // Counter-axis hug: rows content height equals the frame height.
+  const contentHeight =
+    padTop +
+    padBottom +
+    rowHeights.reduce((n, h) => n + h, 0) +
+    counterSpacing * (rows.length - 1);
+  if (
+    isContentDrivenSize(element, style, "height") &&
+    Math.abs(parentSize.height - contentHeight) <= GEOMETRY_TOLERANCE
+  ) {
+    spec.stackCounterSizing = "RESIZE_TO_FIT";
+  }
+
+  return { stack: spec, childOverrides: new Map() };
 }
 
 /**

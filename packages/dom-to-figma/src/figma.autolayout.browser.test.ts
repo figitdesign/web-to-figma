@@ -352,16 +352,6 @@ describe("auto-layout fallbacks (stackMode stays NONE)", () => {
     expectNone(changes);
   });
 
-  it("bails on flex-wrap (phase 4)", async () => {
-    const changes = await convertScene(
-      `<div style="width:150px;height:200px;display:flex;flex-wrap:wrap">
-        <div style="width:100px;height:40px"></div>
-        <div style="width:100px;height:40px"></div>
-      </div>`
-    );
-    expectNone(changes);
-  });
-
   it("bails on direct text-node flex items", async () => {
     const changes = await convertScene(
       `<div style="width:320px;height:200px;display:flex;font-family:monospace">
@@ -481,6 +471,104 @@ describe("block flow inference", () => {
       stackSpacing: 24,
       stackVerticalPadding: 0,
       stackPaddingBottom: 96,
+    });
+  });
+});
+
+describe("wrap, reverse, and grid", () => {
+  it("converts flex-wrap into a wrapped HORIZONTAL stack", async () => {
+    // 5 × 90px in a 300px content box → rows of 3 + 2. Content-sized height:
+    // align-content stretch would otherwise inflate the measured row gap
+    // (which stays geometrically exact, but this pins the simple case).
+    const changes = await convertScene(
+      `<div style="width:320px;height:110px;display:flex;flex-wrap:wrap;gap:10px;padding:10px;box-sizing:border-box">
+        ${'<div style="width:90px;height:40px"></div>'.repeat(5)}
+      </div>`
+    );
+
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID)).toMatchObject({
+      stackMode: "HORIZONTAL",
+      stackWrap: "WRAP",
+      stackSpacing: 10,
+      stackCounterSpacing: 10,
+    });
+  });
+
+  it("bails on wrap when row gaps are not uniform", async () => {
+    const changes = await convertScene(
+      `<div style="width:320px;height:220px;display:flex;flex-wrap:wrap;column-gap:10px">
+        <div style="width:150px;height:40px;margin-bottom:8px"></div>
+        <div style="width:150px;height:40px;margin-bottom:8px"></div>
+        <div style="width:150px;height:40px;margin-bottom:30px"></div>
+        <div style="width:150px;height:40px;margin-bottom:30px"></div>
+        <div style="width:150px;height:40px"></div>
+      </div>`
+    );
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID)?.stackMode).toBe("NONE");
+  });
+
+  it("converts row-reverse with reversed emission order", async () => {
+    const changes = await convertScene(
+      `<div style="width:320px;height:80px;display:flex;flex-direction:row-reverse;gap:12px">
+        <div style="width:60px;height:40px;background:#ff0000"></div>
+        <div style="width:80px;height:40px;background:#00ff00"></div>
+      </div>`
+    );
+
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID)).toMatchObject({
+      stackMode: "HORIZONTAL",
+      stackReverseZIndex: true,
+      // row-reverse packs from the right: flex-start becomes visual MAX.
+      stackPrimaryAlignItems: "MAX",
+    });
+    // Emission order is visual (left to right): the 80px box (last in DOM,
+    // leftmost on screen) must be emitted first.
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID + 1)?.size?.x).toBe(80);
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID + 2)?.size?.x).toBe(60);
+  });
+
+  it("converts column-reverse into a reversed VERTICAL stack", async () => {
+    const changes = await convertScene(
+      `<div style="width:200px;height:300px;display:flex;flex-direction:column-reverse;gap:10px">
+        <div style="width:100px;height:40px"></div>
+        <div style="width:100px;height:60px"></div>
+      </div>`
+    );
+
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID)).toMatchObject({
+      stackMode: "VERTICAL",
+      stackReverseZIndex: true,
+      stackPrimaryAlignItems: "MAX",
+    });
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID + 1)?.size?.y).toBe(60);
+  });
+
+  it("converts a uniform grid into a wrapped stack", async () => {
+    const changes = await convertScene(
+      `<div style="width:320px;height:130px;display:grid;grid-template-columns:repeat(3, 100px);gap:10px">
+        ${'<div style="height:60px"></div>'.repeat(6)}
+      </div>`
+    );
+
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID)).toMatchObject({
+      stackMode: "HORIZONTAL",
+      stackWrap: "WRAP",
+      stackSpacing: 10,
+      stackCounterSpacing: 10,
+    });
+  });
+
+  it("converts a single-column grid like block flow", async () => {
+    const changes = await convertScene(
+      `<div style="width:200px;height:200px;display:grid;grid-template-columns:1fr;row-gap:14px;align-content:start">
+        <div style="height:40px"></div>
+        <div style="height:40px"></div>
+      </div>`
+    );
+
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID)).toMatchObject({
+      stackMode: "VERTICAL",
+      stackSpacing: 14,
     });
   });
 });

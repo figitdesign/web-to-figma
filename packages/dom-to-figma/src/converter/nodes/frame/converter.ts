@@ -121,6 +121,8 @@ type FrameResult = {
   isAutoLayout: boolean;
   /** Per-child overrides from stack inference, for the walker to hand down. */
   childStackSpecs?: ReadonlyMap<Element, InferredChildStack>;
+  /** Reversed flex direction: the walker emits children in visual order. */
+  reverseChildren?: boolean;
 };
 
 export function elementToFrameNodeChange(
@@ -313,5 +315,6 @@ export function elementToFrameNodeChange(
     textGradient,
     isAutoLayout: inferred !== null,
     childStackSpecs: inferred?.children,
+    reverseChildren: inferred?.reverseChildren,
   };
 }
