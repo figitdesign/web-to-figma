@@ -1,0 +1,280 @@
+/**
+ * Generate an oracle outbox batch: convert scenes headlessly and emit
+ * self-contained copy-button pages plus an INSTRUCTIONS.md, for the
+ * human-in-the-loop auto-layout verification workflow
+ * (see .context/auto-layout/PLAN.md).
+ *
+ * Usage:
+ *   pnpm oracle:outbox <batch-name> <scene>...
+ *
+ * where <scene> is either a path to an HTML file or `corpus:<slug>` for a
+ * playground corpus scene, e.g.:
+ *   pnpm oracle:outbox batch-00-smoke scripts/oracle-scenes/00-smoke/two-boxes.html
+ *   pnpm oracle:outbox batch-01-flex corpus:layout/flex
+ *
+ * Scenes render at 1280x800 unless they carry a size hint comment:
+ *   <!-- oracle: width=320 height=200 -->
+ *
+ * Each page is converted with the real library (bundled fresh from src/ on
+ * every run), and the resulting envelope is decoded again before writing, so
+ * a broken payload fails here instead of in Figma.
+ */
+
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, resolve } from "node:path";
+import process from "node:process";
+import { decodeFigmaData, parseClipboardHtml } from "@figit/fig-kiwi";
+import { chromium } from "playwright";
+import { build } from "tsdown";
+
+const PACKAGE_ROOT = resolve(import.meta.dirname, "..");
+const REPO_ROOT = resolve(PACKAGE_ROOT, "../..");
+const CORPUS_DIR = resolve(REPO_ROOT, "apps/playground/src/corpus");
+const OUTBOX = resolve(REPO_ROOT, "oracle/outbox");
+const BUNDLE_PATH = resolve(
+  PACKAGE_ROOT,
+  "scripts/.oracle-build/figma.iife.js"
+);
+
+const DEFAULT_WIDTH = 1280;
+const DEFAULT_HEIGHT = 800;
+const SIZE_HINT = /<!--\s*oracle:\s*width=(\d+)\s+height=(\d+)\s*-->/;
+
+type SceneSpec = {
+  /** kebab-case identifier, used in file and capture names. */
+  id: string;
+  /** Frame name shown in Figma. */
+  name: string;
+  html: string;
+  width: number;
+  height: number;
+};
+
+function titleFromId(id: string): string {
+  return id
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function loadScene(ref: string): SceneSpec {
+  const path = ref.startsWith("corpus:")
+    ? resolve(CORPUS_DIR, `${ref.slice("corpus:".length)}.html`)
+    : resolve(PACKAGE_ROOT, ref);
+  const id = ref.startsWith("corpus:")
+    ? ref.slice("corpus:".length).replace("/", "-")
+    : basename(path, ".html");
+
+  const html = readFileSync(path, "utf-8");
+  const hint = SIZE_HINT.exec(html);
+  return {
+    id,
+    name: titleFromId(id),
+    html,
+    width: hint ? Number(hint[1]) : DEFAULT_WIDTH,
+    height: hint ? Number(hint[2]) : DEFAULT_HEIGHT,
+  };
+}
+
+/** Escape a string for safe embedding inside a <script> tag. */
+function scriptSafeJson(value: string): string {
+  return JSON.stringify(value).replaceAll("<", "\\u003c");
+}
+
+function escapeAttribute(value: string): string {
+  return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;");
+}
+
+function copyPageHtml(options: {
+  batch: string;
+  captureName: string;
+  scene: SceneSpec;
+  envelope: string;
+  nodeCount: number;
+}): string {
+  const { batch, captureName, scene, envelope, nodeCount } = options;
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>${batch} / ${scene.id}</title>
+<style>
+  body { margin: 0; padding: 32px; font-family: system-ui, sans-serif; background: #fafafa; color: #18181b; }
+  main { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+  h1 { font-size: 16px; margin: 0; }
+  h1 small { color: #71717a; font-weight: 400; }
+  button { font-size: 15px; font-weight: 600; padding: 12px 20px; border-radius: 8px; border: none; background: #18181b; color: white; cursor: pointer; align-self: flex-start; }
+  button:hover { background: #3f3f46; }
+  ol { margin: 0; padding-left: 20px; line-height: 1.7; font-size: 14px; }
+  code { background: #e4e4e7; padding: 2px 6px; border-radius: 4px; font-size: 12.5px; }
+  #status { font-size: 14px; min-height: 20px; color: #16a34a; font-weight: 600; }
+  iframe { border: 1px solid #e4e4e7; border-radius: 8px; background: white; }
+  .meta { font-size: 12px; color: #71717a; }
+</style>
+</head>
+<body>
+<main>
+  <h1>${batch} / ${scene.id} <small>(${nodeCount} node changes)</small></h1>
+  <button id="copy" type="button">1. Copy Figma payload</button>
+  <p id="status"></p>
+  <ol>
+    <li>Click the button above (use Chrome if copying fails).</li>
+    <li>In the scratch Figma file: <strong>Cmd+V</strong>. Compare against the preview below.</li>
+    <li>Select the pasted top-level frame, <strong>Cmd+C</strong>.</li>
+    <li>Run: <code>pnpm oracle:capture ${captureName}</code></li>
+  </ol>
+  <p class="meta">Preview (what the paste should look like, ${scene.width}×${scene.height}):</p>
+  <iframe title="scene preview" width="${scene.width}" height="${scene.height}" srcdoc="${escapeAttribute(scene.html)}"></iframe>
+</main>
+<script>
+  const ENVELOPE = ${scriptSafeJson(envelope)};
+  const status = document.getElementById("status");
+  document.getElementById("copy").addEventListener("click", async () => {
+    try {
+      const blob = new Blob([ENVELOPE], { type: "text/html" });
+      await navigator.clipboard.write([new ClipboardItem({ "text/html": blob })]);
+      status.textContent = "Copied ✓ — now paste in Figma (Cmd+V)";
+    } catch (error) {
+      status.style.color = "#dc2626";
+      status.textContent = "Copy failed: " + error.message + " — try Chrome, and click the page first.";
+    }
+  });
+</script>
+</body>
+</html>
+`;
+}
+
+function instructionsMarkdown(
+  batch: string,
+  entries: Array<{ file: string; captureName: string; scene: SceneSpec }>
+): string {
+  const steps = entries
+    .map(
+      (e, i) =>
+        `${i + 1}. Open \`oracle/outbox/${batch}/${e.file}\` in Chrome and follow the four steps on the page.\n` +
+        `   Capture command: \`pnpm oracle:capture ${e.captureName}\``
+    )
+    .join("\n");
+  return `# ${batch}
+
+One scene = one HTML page = one capture. Each page has the payload baked in
+and lists its own steps; this file is just the batch checklist.
+
+Setup (once): open a scratch Figma design file. Any file works; nothing is
+read from your account.
+
+${steps}
+
+When every capture is in \`oracle/inbox/${batch}/\`, ping Claude.
+`;
+}
+
+async function main() {
+  const [batch, ...sceneRefs] = process.argv.slice(2);
+  if (!batch || sceneRefs.length === 0) {
+    console.error("Usage: pnpm oracle:outbox <batch-name> <scene>...");
+    process.exit(1);
+  }
+
+  console.error("Bundling converter from src/ ...");
+  // Self-contained IIFE bundle of the converter, injected into each headless
+  // page below. Never published.
+  await build({
+    cwd: PACKAGE_ROOT,
+    entry: { figma: "src/figma.ts" },
+    format: ["iife"],
+    globalName: "FigitDomToFigma",
+    outDir: "scripts/.oracle-build",
+    deps: { alwaysBundle: [/./] },
+    dts: false,
+    clean: true,
+    sourcemap: false,
+    target: "es2022",
+    platform: "browser",
+  });
+  const bundle = readFileSync(BUNDLE_PATH, "utf-8");
+
+  const scenes = sceneRefs.map(loadScene);
+  const batchDir = resolve(OUTBOX, batch);
+  mkdirSync(batchDir, { recursive: true });
+
+  const browser = await chromium.launch();
+  const entries: Array<{
+    file: string;
+    captureName: string;
+    scene: SceneSpec;
+  }> = [];
+  try {
+    for (const [index, scene] of scenes.entries()) {
+      const page = await browser.newPage({
+        viewport: { width: scene.width, height: scene.height },
+      });
+      await page.setContent(scene.html, { waitUntil: "networkidle" });
+      await page.evaluate(() => document.fonts.ready);
+      await page.addScriptTag({ content: bundle });
+
+      const envelope = await page.evaluate(
+        async ({ width, height, name }) => {
+          const api = (
+            window as unknown as {
+              FigitDomToFigma: {
+                createFigmaConverter: () => {
+                  convert: (input: {
+                    element: Element;
+                    width: number;
+                    height: number;
+                    name: string;
+                  }) => Promise<{ toClipboardHtml: () => string }>;
+                };
+              };
+            }
+          ).FigitDomToFigma;
+          const result = await api.createFigmaConverter().convert({
+            element: document.body,
+            width,
+            height,
+            name,
+          });
+          return result.toClipboardHtml();
+        },
+        { width: scene.width, height: scene.height, name: scene.name }
+      );
+      await page.close();
+
+      // Round-trip the envelope through the decoder before writing anything.
+      const decoded = decodeFigmaData(parseClipboardHtml(envelope).fig);
+      const nodeChanges = decoded.message.nodeChanges;
+      const nodeCount = Array.isArray(nodeChanges) ? nodeChanges.length : 0;
+      if (nodeCount < 3) {
+        throw new Error(
+          `Scene '${scene.id}' produced only ${nodeCount} node changes — conversion likely failed.`
+        );
+      }
+
+      const prefix = String(index + 1).padStart(2, "0");
+      const file = `${prefix}-${scene.id}.html`;
+      const captureName = `${batch}/${prefix}-${scene.id}`;
+      writeFileSync(
+        resolve(batchDir, file),
+        copyPageHtml({ batch, captureName, scene, envelope, nodeCount })
+      );
+      entries.push({ file, captureName, scene });
+      console.error(
+        `${file}  (${scene.width}x${scene.height}, ${nodeCount} node changes)`
+      );
+    }
+  } finally {
+    await browser.close();
+  }
+
+  writeFileSync(
+    resolve(batchDir, "INSTRUCTIONS.md"),
+    instructionsMarkdown(batch, entries)
+  );
+  console.error(
+    `\nBatch ready: oracle/outbox/${batch}/ (INSTRUCTIONS.md inside)`
+  );
+}
+
+await main();

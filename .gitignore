@@ -30,3 +30,4 @@ __screenshots__
 
 # Human-oracle exchange for auto-layout work (see .context/auto-layout/PLAN.md)
 oracle/
+.oracle-build/
