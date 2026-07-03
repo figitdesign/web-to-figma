@@ -27,3 +27,6 @@ __screenshots__
 
 # pnpm pack output
 *.tgz
+
+# Human-oracle exchange for auto-layout work (see .context/auto-layout/PLAN.md)
+oracle/

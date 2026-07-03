@@ -13,6 +13,7 @@
     "lint": "biome check",
     "format": "biome check --write",
     "knip": "knip",
+    "oracle:capture": "pnpm --filter @figit/fig-kiwi oracle:capture",
     "changeset": "changeset",
     "release": "pnpm build && pnpm changeset publish"
   },
