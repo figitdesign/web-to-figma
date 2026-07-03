@@ -290,6 +290,20 @@ ${scenes
   });
   await page.addScriptTag({ content: bundle });
 
+  // Pages can be taller than their viewport hint; the template frame must
+  // cover the full scroll height or the paste clips everything below the
+  // fold (the frame masks its children, mirroring browser overflow). The
+  // iframe keeps the hint-sized viewport so vh/fixed styling still renders
+  // like a real browser window.
+  const contentHeights = await page.evaluate(() =>
+    Array.from(document.querySelectorAll("iframe")).map((frame) =>
+      Math.ceil(frame.contentDocument?.documentElement.scrollHeight ?? 0)
+    )
+  );
+  for (const [i, scene] of scenes.entries()) {
+    scene.height = Math.max(scene.height, contentHeights[i] ?? 0);
+  }
+
   const frameInputs: Array<{
     width: number;
     height: number;
@@ -438,6 +452,15 @@ async function main() {
       await page.setContent(scene.html, { waitUntil: "networkidle" });
       await page.evaluate(() => document.fonts.ready);
       await page.addScriptTag({ content: bundle });
+
+      // Cover the full scroll height so the paste doesn't clip below-the-fold
+      // content (see the single-page path for details).
+      scene.height = Math.max(
+        scene.height,
+        await page.evaluate(() =>
+          Math.ceil(document.documentElement.scrollHeight)
+        )
+      );
 
       const envelope = await page.evaluate(
         async ({ width, height, name, layoutMode }) => {
