@@ -44,6 +44,7 @@ export function PlaygroundShell({ scene }: Props) {
   const [width, setWidth] = useState(1280);
   const [height, setHeight] = useState(800);
   const [frameName, setFrameName] = useState(scene.name);
+  const [autoLayout, setAutoLayout] = useState(true);
   const [result, setResult] = useState<ConvertResult | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [isConverting, setIsConverting] = useState(false);
@@ -65,7 +66,9 @@ export function PlaygroundShell({ scene }: Props) {
     }
     setIsConverting(true);
     try {
-      const converted = await getConverter().convert({
+      const converted = await getConverter(
+        autoLayout ? "auto" : "absolute"
+      ).convert({
         element: body,
         width: width || 1,
         height: height || 1,
@@ -80,7 +83,7 @@ export function PlaygroundShell({ scene }: Props) {
     } finally {
       setIsConverting(false);
     }
-  }, [width, height, frameName]);
+  }, [width, height, frameName, autoLayout]);
 
   // Re-run conversion when width/height/name change. Code changes are picked
   // up via the iframe's onLoad after srcDoc swaps.
@@ -143,6 +146,15 @@ export function PlaygroundShell({ scene }: Props) {
           placeholder="Frame name"
           value={frameName}
         />
+        <label className="flex cursor-pointer items-center gap-1.5 text-muted-foreground text-xs">
+          <input
+            aria-label="Infer auto-layout"
+            checked={autoLayout}
+            onChange={(event) => setAutoLayout(event.target.checked)}
+            type="checkbox"
+          />
+          Auto-layout
+        </label>
         <Button
           disabled={isCopying || isConverting || !result}
           onClick={copyToFigma}
