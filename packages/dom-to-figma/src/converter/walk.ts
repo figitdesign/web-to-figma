@@ -2,6 +2,7 @@ import type { ElementKind } from "./classify";
 import { defaultClassify } from "./classify";
 import type { ConversionResult, InheritedProperties } from "./convert";
 import { convertElement } from "./convert";
+import type { TextLineSegment } from "./dom";
 import {
   getElementPositionRelativeToParent,
   getTextPositionRelativeToParent,
@@ -11,6 +12,7 @@ import {
   isTextEmpty,
   isTextNode,
   sortNodesByStackingOrder,
+  splitMidLineWrappedText,
 } from "./dom";
 import type { FontCache } from "./font-cache";
 import type { ImageCache } from "./image-cache";
@@ -63,6 +65,8 @@ type ParentStackInfo = {
 
 const NO_PARENT_STACK: ParentStackInfo = { isAutoLayout: false };
 
+/** Returns the number of node changes emitted for this DOM node (text nodes
+ * can split into several). */
 async function walkNode(
   node: Node,
   parentGuid: FigmaGuid,
@@ -70,7 +74,7 @@ async function walkNode(
   inheritedProperties: InheritedProperties,
   ctx: WalkContext,
   parentStack: ParentStackInfo = NO_PARENT_STACK
-): Promise<boolean> {
+): Promise<number> {
   try {
     if (isTextNode(node)) {
       return await renderTextNode(
@@ -78,18 +82,46 @@ async function walkNode(
         parentGuid,
         childIndex,
         inheritedProperties,
-        ctx
+        ctx,
+        parentStack.isAutoLayout
       );
     }
     if (!isElementNode(node)) {
-      return false;
+      return 0;
     }
 
     const defaultKind = defaultClassify(node);
     const kind = ctx.classify ? ctx.classify(node, defaultKind) : defaultKind;
 
     if (kind === "skip") {
-      return false;
+      return 0;
+    }
+
+    // An inline text element (span/a/…) whose inner text continues a line
+    // and wraps needs the same per-line split as a raw text node; segments
+    // are positioned against the element's parent, which is also their
+    // parent in the emitted tree.
+    if (kind === "text" && node.parentElement) {
+      const only =
+        node.childNodes.length === 1 && node.firstChild
+          ? node.firstChild
+          : null;
+      if (only && isTextNode(only)) {
+        const segments = splitMidLineWrappedText(only, {
+          siblingContext: node,
+          relativeTo: node.parentElement,
+        });
+        if (segments) {
+          return await emitTextSegments(
+            only,
+            segments,
+            parentGuid,
+            childIndex,
+            inheritedProperties,
+            ctx
+          );
+        }
+      }
     }
 
     const guid = ctx.createGuid();
@@ -127,10 +159,10 @@ async function walkNode(
       );
     }
 
-    return true;
+    return 1;
   } catch (error) {
     console.warn("Failed to process node:", error);
-    return false;
+    return 0;
   }
 }
 
@@ -150,7 +182,7 @@ async function walkChildren(
 
   let childNodeIndex = 0;
   for (const node of sortedNodes) {
-    const success = await walkNode(
+    childNodeIndex += await walkNode(
       node,
       parentGuid,
       childNodeIndex,
@@ -158,9 +190,6 @@ async function walkChildren(
       ctx,
       parentStack
     );
-    if (success) {
-      childNodeIndex += 1;
-    }
   }
 }
 
@@ -169,13 +198,29 @@ async function renderTextNode(
   parentGuid: FigmaGuid,
   childIndex: number,
   inheritedProperties: InheritedProperties,
-  ctx: WalkContext
-): Promise<boolean> {
+  ctx: WalkContext,
+  parentIsAutoLayout = false
+): Promise<number> {
   if (isTextEmpty(textNode)) {
-    return false;
+    return 0;
   }
   if (!textNode.parentElement) {
-    return false;
+    return 0;
+  }
+
+  // A text node that continues a sibling's line and wraps cannot be one
+  // Figma text box (its indented first line isn't representable): emit one
+  // box per rendered line instead.
+  const segments = splitMidLineWrappedText(textNode);
+  if (segments) {
+    return await emitTextSegments(
+      textNode,
+      segments,
+      parentGuid,
+      childIndex,
+      inheritedProperties,
+      ctx
+    );
   }
 
   const guid = ctx.createGuid();
@@ -184,7 +229,8 @@ async function renderTextNode(
     parentGuid,
     childIndex,
     position: getTextPositionRelativeToParent(textNode),
-    size: getTextSize(textNode),
+    // Exact size inside stacks: box edges drive sibling positions there.
+    size: getTextSize(textNode, parentIsAutoLayout),
     textContent: (textNode.textContent || "").trim(),
     registerBlob: ctx.registerBlob,
     inheritedProperties,
@@ -192,7 +238,34 @@ async function renderTextNode(
   });
 
   ctx.appendChanges([change]);
-  return true;
+  return 1;
+}
+
+async function emitTextSegments(
+  textNode: Text,
+  segments: ReadonlyArray<TextLineSegment>,
+  parentGuid: FigmaGuid,
+  childIndex: number,
+  inheritedProperties: InheritedProperties,
+  ctx: WalkContext
+): Promise<number> {
+  let emitted = 0;
+  for (const segment of segments) {
+    const change = await nodeToTextNodeChange(textNode, {
+      guid: ctx.createGuid(),
+      parentGuid,
+      childIndex: childIndex + emitted,
+      position: segment.position,
+      size: segment.size,
+      textContent: segment.text,
+      registerBlob: ctx.registerBlob,
+      inheritedProperties,
+      fontCache: ctx.fontCache,
+    });
+    ctx.appendChanges([change]);
+    emitted += 1;
+  }
+  return emitted;
 }
 
 function nextInheritedProperties(

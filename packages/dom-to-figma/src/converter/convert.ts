@@ -165,7 +165,15 @@ export async function convertElement(
         hasChildren: false,
       };
 
-    case "text":
+    case "text": {
+      // Inside stacks the box edges drive sibling positions, so use the
+      // exact measured size instead of the converter's ceiled default.
+      const exactSize = parentIsAutoLayout
+        ? (() => {
+            const rect = element.getBoundingClientRect();
+            return { width: rect.width, height: rect.height };
+          })()
+        : undefined;
       return {
         changes: withChildStackSpec(
           [
@@ -174,6 +182,7 @@ export async function convertElement(
               parentGuid,
               childIndex,
               position,
+              size: exactSize,
               registerBlob,
               inheritedProperties,
               fontCache,
@@ -183,6 +192,7 @@ export async function convertElement(
         ),
         hasChildren: false,
       };
+    }
 
     case "form-with-placeholder":
       return {

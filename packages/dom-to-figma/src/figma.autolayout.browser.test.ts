@@ -2,6 +2,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   createTestFontLoader,
   loadTestFontIntoBrowser,
+  TEST_FONT_FAMILY,
 } from "./__fixtures__/loaders";
 import type { FigmaFrameNodeChange, FigmaNodeChange } from "./converter/types";
 import type { ConverterLayout } from "./converter/walk";
@@ -570,6 +571,50 @@ describe("wrap, reverse, and grid", () => {
       stackMode: "VERTICAL",
       stackSpacing: 14,
     });
+  });
+});
+
+describe("text inside and around stacks", () => {
+  it("splits a mid-line wrapping tail into per-line text nodes", async () => {
+    // The tail continues the span's line and wraps — the one shape a single
+    // Figma text box cannot represent.
+    const changes = await convertScene(
+      `<div style="width:220px;font-family:'${TEST_FONT_FAMILY}';font-size:24px;line-height:32px">
+        <h1 style="margin:0;font-size:24px;line-height:32px">Alpha beta <span style="color:#f60">gamma delta</span> epsilon zeta eta theta</h1>
+      </div>`
+    );
+
+    const texts = changes.filter((c) => c.type === "TEXT");
+    // "Alpha beta ", split span segments, and the split tail segments.
+    expect(texts.length).toBeGreaterThanOrEqual(4);
+    // The bug's signature was a multi-line union box (h ≈ 2 lines) anchored
+    // a line too high; after splitting, every text box is single-line tall.
+    for (const text of texts) {
+      expect(
+        text.size?.y ?? 0,
+        `"${text.name}" should be a single-line box`
+      ).toBeLessThanOrEqual(34);
+    }
+  });
+
+  it("keeps exact (uninflated) text box sizes inside stacks", async () => {
+    const changes = await convertScene(
+      `<div style="width:320px;height:40px;display:flex;gap:20px;font-family:'${TEST_FONT_FAMILY}';font-size:16px">
+        <a style="text-decoration:none">Product</a>
+        <a style="text-decoration:none">Pricing</a>
+      </div>`
+    );
+
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID)?.stackMode).toBe(
+      "HORIZONTAL"
+    );
+    const texts = changes.filter((c) => c.type === "TEXT");
+    expect(texts).toHaveLength(2);
+    // The absolute-mode ceil(width)+1 buffer would make these integers; the
+    // exact measured widths of proportional text are fractional.
+    for (const text of texts) {
+      expect(Number.isInteger(text.size?.x)).toBe(false);
+    }
   });
 });
 

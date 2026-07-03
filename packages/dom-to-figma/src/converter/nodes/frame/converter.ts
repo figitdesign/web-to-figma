@@ -148,8 +148,10 @@ export function elementToFrameNodeChange(
   const rect = element.getBoundingClientRect();
   const computedStyle = window.getComputedStyle(element);
 
-  const width = Math.ceil(rect.width);
-  const height = Math.ceil(rect.height);
+  // Inside auto-layout stacks the box edges drive sibling positions, so
+  // ceiling fractional sizes would accumulate as visible drift there.
+  const width = parentIsAutoLayout ? rect.width : Math.ceil(rect.width);
+  const height = parentIsAutoLayout ? rect.height : Math.ceil(rect.height);
 
   const backgroundImage = computedStyle.backgroundImage;
   const backgroundColor = cssColorToFigmaColor(computedStyle.backgroundColor);
