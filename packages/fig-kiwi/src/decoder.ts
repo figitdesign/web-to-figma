@@ -1,4 +1,5 @@
 import { inflateSync } from "fflate";
+import { decompress as zstdDecompress } from "fzstd";
 import { KiwiReader } from "./kiwi-reader";
 import type { Field, Schema, TypeDef } from "./types";
 
@@ -213,6 +214,16 @@ function readSchema(bytes: Uint8Array, version: number): Schema {
   return { version, types, type_count: types.length };
 }
 
+// Figma sniffs chunk compression on paste rather than fixing it per format
+// version, and (as of 2026) writes deflate for the schema chunk but zstd for
+// the data chunk. Mirror the sniffing: zstd by magic number, deflate otherwise.
+const ZSTD_MAGIC = [0x28, 0xb5, 0x2f, 0xfd] as const;
+
+function decompressChunk(chunk: Uint8Array): Uint8Array {
+  const isZstd = ZSTD_MAGIC.every((byte, i) => chunk[i] === byte);
+  return isZstd ? zstdDecompress(chunk) : inflateSync(chunk);
+}
+
 export type DecodedFigmaData = {
   prelude: string;
   version: number;
@@ -222,10 +233,10 @@ export type DecodedFigmaData = {
 };
 
 /**
- * Decode a fig-kiwi binary envelope (magic + version + deflated schema +
- * deflated data) into the root Kiwi `Message`, using the schema embedded in
- * the payload itself so newer Figma schema versions decode without a
- * regenerated `schema.json`.
+ * Decode a fig-kiwi binary envelope (magic + version + compressed schema +
+ * compressed data, deflate or zstd per chunk) into the root Kiwi `Message`,
+ * using the schema embedded in the payload itself so newer Figma schema
+ * versions decode without a regenerated `schema.json`.
  */
 export function decodeFigmaData(figBytes: Uint8Array): DecodedFigmaData {
   const prelude = new TextDecoder().decode(figBytes.subarray(0, 8));
@@ -245,8 +256,8 @@ export function decodeFigmaData(figBytes: Uint8Array): DecodedFigmaData {
   const dataOffset = 16 + schemaLength;
   const dataLength = view.getUint32(dataOffset, true);
 
-  const schemaBytes = inflateSync(figBytes.subarray(16, 16 + schemaLength));
-  const dataBytes = inflateSync(
+  const schemaBytes = decompressChunk(figBytes.subarray(16, 16 + schemaLength));
+  const dataBytes = decompressChunk(
     figBytes.subarray(dataOffset + 4, dataOffset + 4 + dataLength)
   );
 

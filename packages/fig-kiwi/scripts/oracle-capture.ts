@@ -11,8 +11,8 @@
  *   oracle/inbox/batch-00-smoke/01-two-boxes.html   raw clipboard envelope
  *   oracle/inbox/batch-00-smoke/01-two-boxes.json   decoded message (blobs summarized)
  *
- * The payload is decoded before anything is written, so a wrong copy (empty
- * clipboard, non-Figma content) fails loudly instead of polluting the inbox.
+ * The raw envelope is written before decoding, so when a decode fails the
+ * bytes are preserved for debugging; the .json is only written on success.
  */
 
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -49,14 +49,23 @@ function main() {
   }
 
   const html = readHtmlInput(process.argv[3]);
-  const { fig, meta } = parseClipboardHtml(html);
-  const decoded = decodeFigmaData(fig);
+  mkdirSync(dirname(htmlPath), { recursive: true });
+  writeFileSync(htmlPath, html);
+
+  let decoded: ReturnType<typeof decodeFigmaData>;
+  let meta: ReturnType<typeof parseClipboardHtml>["meta"];
+  try {
+    const parsed = parseClipboardHtml(html);
+    meta = parsed.meta;
+    decoded = decodeFigmaData(parsed.fig);
+  } catch (error) {
+    console.error(`Decode failed — raw envelope kept at ${htmlPath}`);
+    console.error("Send that file to Claude for debugging.");
+    throw error;
+  }
 
   const nodeChanges = decoded.message.nodeChanges;
   const nodeCount = Array.isArray(nodeChanges) ? nodeChanges.length : 0;
-
-  mkdirSync(dirname(htmlPath), { recursive: true });
-  writeFileSync(htmlPath, html);
   writeFileSync(
     htmlPath.replace(/\.html$/, ".json"),
     `${JSON.stringify(

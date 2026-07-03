@@ -1,3 +1,5 @@
+import { zstdCompressSync } from "node:zlib";
+import { inflateSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import { composeClipboardHtml, parseClipboardHtml } from "./clipboard";
 import { decodeFigmaData } from "./decoder";
@@ -154,6 +156,40 @@ describe("decodeFigmaData", () => {
   it("rejects bytes without a fig prelude", () => {
     expect(() => decodeFigmaData(new Uint8Array(32))).toThrow(/prelude/);
   });
+
+  // Figma (as of 2026) writes the data chunk zstd-compressed while the schema
+  // chunk stays deflate. Rebuild the encoder's output that way and make sure
+  // the decoder's per-chunk sniffing handles it. Node gained zstd in v23, so
+  // guard for older runtimes; CI runs new enough Node for this to execute.
+  it.runIf(typeof zstdCompressSync === "function")(
+    "decodes a zstd-compressed data chunk like Figma's copy output",
+    () => {
+      const { figBytes } = encodeFigmaData(FIXTURE_MESSAGE);
+      const view = new DataView(
+        figBytes.buffer,
+        figBytes.byteOffset,
+        figBytes.byteLength
+      );
+      const schemaLength = view.getUint32(12, true);
+      const dataOffset = 16 + schemaLength;
+      const dataLength = view.getUint32(dataOffset, true);
+
+      const deflatedData = figBytes.subarray(
+        dataOffset + 4,
+        dataOffset + 4 + dataLength
+      );
+      const zstdData = new Uint8Array(
+        zstdCompressSync(inflateSync(deflatedData))
+      );
+
+      const rebuilt = new Uint8Array(dataOffset + 4 + zstdData.length);
+      rebuilt.set(figBytes.subarray(0, dataOffset));
+      new DataView(rebuilt.buffer).setUint32(dataOffset, zstdData.length, true);
+      rebuilt.set(zstdData, dataOffset + 4);
+
+      expect(decodeFigmaData(rebuilt).message).toEqual(FIXTURE_MESSAGE);
+    }
+  );
 });
 
 describe("parseClipboardHtml", () => {
