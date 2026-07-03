@@ -15,6 +15,7 @@ export type Scene = {
 };
 
 const CATEGORY_ORDER = [
+  "scratch",
   "typography",
   "color",
   "layout",
