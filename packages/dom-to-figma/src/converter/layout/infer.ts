@@ -7,7 +7,7 @@ import { sortNodesByStackingOrder } from "../dom";
  * applying these to a frame never moves pixels — callers fall back to
  * absolute positioning (`stackMode: "NONE"`) on `null`.
  */
-export type InferredStack = {
+type InferredStack = {
   stackMode: "HORIZONTAL" | "VERTICAL";
   stackSpacing: number;
   stackPrimaryAlignItems: StackJustifyValue;

@@ -34,7 +34,13 @@ import blockColumn from "../scripts/oracle-scenes/03-flow/block-column.html?raw"
 import blockHug from "../scripts/oracle-scenes/03-flow/block-hug.html?raw";
 import blockStretch from "../scripts/oracle-scenes/03-flow/block-stretch.html?raw";
 import cardMock from "../scripts/oracle-scenes/03-flow/card-mock.html?raw";
-import fixture from "./__fixtures__/oracle/batch-03-flow.json";
+import columnReverse from "../scripts/oracle-scenes/04-wrap/column-reverse.html?raw";
+import gridSingleCol from "../scripts/oracle-scenes/04-wrap/grid-single-col.html?raw";
+import gridUniform from "../scripts/oracle-scenes/04-wrap/grid-uniform.html?raw";
+import rowReverse from "../scripts/oracle-scenes/04-wrap/row-reverse.html?raw";
+import wrapRows from "../scripts/oracle-scenes/04-wrap/wrap-rows.html?raw";
+import wrapStretchGap from "../scripts/oracle-scenes/04-wrap/wrap-stretch-gap.html?raw";
+import fixture from "./__fixtures__/oracle/batch-04-final.json";
 import type { FigmaNodeChange } from "./converter/types";
 import { createFigmaConverter } from "./figma";
 
@@ -63,6 +69,12 @@ const SCENE_HTML: Record<string, string> = {
   "Absolute Badge": absoluteBadge,
   "Absolute In Block": absoluteInBlock,
   "Card Mock": cardMock,
+  "Wrap Rows": wrapRows,
+  "Wrap Stretch Gap": wrapStretchGap,
+  "Row Reverse": rowReverse,
+  "Column Reverse": columnReverse,
+  "Grid Uniform": gridUniform,
+  "Grid Single Col": gridSingleCol,
 };
 
 type FixtureNode = {
