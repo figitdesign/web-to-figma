@@ -18,44 +18,14 @@ import { resolve } from "node:path";
 import process from "node:process";
 import { parseClipboardHtml } from "../src/clipboard";
 import { decodeFigmaData } from "../src/decoder";
+import type { OracleNode as Node } from "./oracle-shared";
+import {
+  STACK_DEFAULTS as DEFAULTS,
+  TRACKED_STACK_FIELDS as TRACKED,
+  treeOrder,
+} from "./oracle-shared";
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../..");
-
-type Node = Record<string, unknown> & {
-  guid: { sessionID: number; localID: number };
-  parentIndex?: {
-    guid: { sessionID: number; localID: number };
-    position: string;
-  };
-  type?: string;
-  name?: string;
-};
-
-/** Fields Figma drops when they hold the default value. */
-const DEFAULTS: Record<string, unknown> = {
-  stackMode: "NONE",
-  stackSpacing: 0,
-  stackCounterSpacing: 0,
-  stackPrimaryAlignItems: "MIN",
-  stackCounterAlignItems: "MIN",
-  stackHorizontalPadding: 0,
-  stackVerticalPadding: 0,
-  stackPaddingRight: 0,
-  stackPaddingBottom: 0,
-  stackChildPrimaryGrow: 0,
-  stackWrap: "NO_WRAP",
-  stackPositioning: "AUTO",
-  stackPrimarySizing: "FIXED",
-  stackCounterSizing: "FIXED",
-};
-
-/** All stack-ish fields we track, defaults or not. */
-const TRACKED = new Set([
-  ...Object.keys(DEFAULTS),
-  "stackChildAlignSelf",
-  "stackPrimaryAlignContent",
-  "stackCounterAlignContent",
-]);
 
 const NUMERIC_TOLERANCE = 0.11;
 const GEOMETRY_TOLERANCE = 0.55;
@@ -71,58 +41,6 @@ function extractOutboxEnvelope(pageHtml: string): string {
     throw new Error("No embedded envelope found in outbox page");
   }
   return JSON.parse(match[1] as string) as string;
-}
-
-/**
- * Depth-first node list per canvas-level frame, children ordered by their
- * position strings (Figma's fractional indexing sorts lexicographically).
- * Multi-scene payloads have several canvas-level frames; DOCUMENT/CANVAS
- * nodes (including Figma's "Internal Only Canvas") never enter the walk.
- */
-function treeOrder(
-  changes: Array<Node>
-): Array<{ name: string; nodes: Array<Node> }> {
-  const key = (guid: { sessionID: number; localID: number }) =>
-    `${guid.sessionID}:${guid.localID}`;
-  const canvases = new Set(
-    changes.filter((c) => c.type === "CANVAS").map((c) => key(c.guid))
-  );
-  const byParent = new Map<string, Array<Node>>();
-  for (const change of changes) {
-    if (
-      !change.parentIndex ||
-      change.type === "DOCUMENT" ||
-      change.type === "CANVAS"
-    ) {
-      continue;
-    }
-    const parent = key(change.parentIndex.guid);
-    const bucket = byParent.get(parent) ?? [];
-    bucket.push(change);
-    byParent.set(parent, bucket);
-  }
-  for (const bucket of byParent.values()) {
-    bucket.sort((a, b) =>
-      (a.parentIndex?.position ?? "").localeCompare(
-        b.parentIndex?.position ?? ""
-      )
-    );
-  }
-
-  const roots = [...canvases].flatMap((c) => byParent.get(c) ?? []);
-  const out: Array<{ name: string; nodes: Array<Node> }> = [];
-  for (const root of roots) {
-    const nodes: Array<Node> = [];
-    const visit = (node: Node) => {
-      nodes.push(node);
-      for (const child of byParent.get(key(node.guid)) ?? []) {
-        visit(child);
-      }
-    };
-    visit(root);
-    out.push({ name: String(root.name ?? "?"), nodes });
-  }
-  return out;
 }
 
 function normalized(node: Node, field: string): unknown {
