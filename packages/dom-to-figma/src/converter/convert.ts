@@ -2,6 +2,7 @@ import type { ElementKind } from "./classify";
 import type { Position } from "./dom";
 import type { FontCache } from "./font-cache";
 import type { ImageCache } from "./image-cache";
+import type { InferredChildStack } from "./layout/infer";
 import { elementToFormNodeChange } from "./nodes/form";
 import { elementToFrameNodeChange } from "./nodes/frame";
 import { elementToGroupNodeChange } from "./nodes/group";
@@ -31,6 +32,8 @@ export type ConvertContext = {
   layout?: ConverterLayout;
   /** True when the direct parent frame became an inferred auto-layout stack. */
   parentIsAutoLayout?: boolean;
+  /** This node's fill/stretch overrides from the parent stack's inference. */
+  childStackSpec?: InferredChildStack;
   registerBlob: (blob: FigmaBlob) => number;
   fontCache: FontCache;
   imageCache: ImageCache;
@@ -44,6 +47,8 @@ export type ConversionResult = {
   frameTextGradient?: Array<FigmaPaint>;
   /** True when this element became an inferred auto-layout stack. */
   isAutoLayout?: boolean;
+  /** Fill/stretch overrides for this element's children, keyed by element. */
+  childStackSpecs?: ReadonlyMap<Element, InferredChildStack>;
 };
 
 export async function convertElement(
@@ -59,6 +64,7 @@ export async function convertElement(
     inheritedProperties,
     layout,
     parentIsAutoLayout,
+    childStackSpec,
     registerBlob,
     fontCache,
     imageCache,
@@ -90,12 +96,14 @@ export async function convertElement(
         position,
         layout,
         parentIsAutoLayout,
+        childStackSpec,
       });
       return {
         changes: [frameResult.nodeChange],
         hasChildren: true,
         frameTextGradient: frameResult.textGradient,
         isAutoLayout: frameResult.isAutoLayout,
+        childStackSpecs: frameResult.childStackSpecs,
       };
     }
 

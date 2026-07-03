@@ -191,6 +191,93 @@ describe("auto-layout inference for flex containers", () => {
     expect(child?.stackChildAlignSelf).toBeUndefined();
   });
 
+  it("marks a flex-grow child as fill-container", async () => {
+    const changes = await convertScene(
+      `<div style="width:320px;height:80px;display:flex;gap:20px">
+        <div style="width:100px;height:80px"></div>
+        <div style="flex:1 1 0;height:80px"></div>
+      </div>`
+    );
+
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID)?.stackMode).toBe(
+      "HORIZONTAL"
+    );
+    const fixed = byLocalId(changes, CONTAINER_LOCAL_ID + 1);
+    const filled = byLocalId(changes, CONTAINER_LOCAL_ID + 2);
+    expect(fixed?.stackChildPrimaryGrow).toBeUndefined();
+    expect(filled?.stackChildPrimaryGrow).toBe(1);
+  });
+
+  it("keeps unequal-ratio grow children fixed but still converts the stack", async () => {
+    // 2:1 grow ratios don't match Figma's equal-split fill model, so the
+    // children stay fixed at their final sizes; geometry is unaffected.
+    const changes = await convertScene(
+      `<div style="width:320px;height:80px;display:flex">
+        <div style="flex:2 1 0;height:80px"></div>
+        <div style="flex:1 1 0;height:80px"></div>
+      </div>`
+    );
+
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID)?.stackMode).toBe(
+      "HORIZONTAL"
+    );
+    expect(
+      byLocalId(changes, CONTAINER_LOCAL_ID + 1)?.stackChildPrimaryGrow
+    ).toBeUndefined();
+    expect(
+      byLocalId(changes, CONTAINER_LOCAL_ID + 2)?.stackChildPrimaryGrow
+    ).toBeUndefined();
+  });
+
+  it("marks stretched children and hugs content-sized containers", async () => {
+    // inline-flex shrink-wraps: both axes hug. Children have no explicit
+    // height, so the default `align-items: normal` stretches them.
+    const changes = await convertScene(
+      `<div style="display:inline-flex;gap:10px;padding:12px">
+        <div style="width:50px;height:60px"></div>
+        <div style="width:50px"></div>
+      </div>`
+    );
+
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID)).toMatchObject({
+      stackMode: "HORIZONTAL",
+      stackPrimarySizing: "RESIZE_TO_FIT",
+      stackCounterSizing: "RESIZE_TO_FIT",
+    });
+    const explicit = byLocalId(changes, CONTAINER_LOCAL_ID + 1);
+    const stretched = byLocalId(changes, CONTAINER_LOCAL_ID + 2);
+    expect(explicit?.stackChildAlignSelf).toBeUndefined();
+    expect(stretched?.stackChildAlignSelf).toBe("STRETCH");
+  });
+
+  it("hugs the primary axis of an auto-height column", async () => {
+    const changes = await convertScene(
+      `<div style="width:200px;display:flex;flex-direction:column;gap:8px;padding:10px">
+        <div style="width:100px;height:40px"></div>
+        <div style="width:100px;height:40px"></div>
+      </div>`
+    );
+
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID)).toMatchObject({
+      stackMode: "VERTICAL",
+      stackPrimarySizing: "RESIZE_TO_FIT",
+      stackCounterSizing: "FIXED",
+    });
+  });
+
+  it("keeps explicit sizes FIXED on both axes", async () => {
+    const changes = await convertScene(
+      `<div style="width:320px;height:200px;display:flex;gap:20px">
+        <div style="width:100px;height:80px"></div>
+      </div>`
+    );
+
+    expect(byLocalId(changes, CONTAINER_LOCAL_ID)).toMatchObject({
+      stackPrimarySizing: "FIXED",
+      stackCounterSizing: "FIXED",
+    });
+  });
+
   it("infers nested stacks independently", async () => {
     const changes = await convertScene(
       `<div style="width:320px;height:200px;display:flex;flex-direction:column;gap:10px">
@@ -229,11 +316,11 @@ describe("auto-layout fallbacks (stackMode stays NONE)", () => {
     expectNone(changes);
   });
 
-  it("bails on flex-grow children (phase 2)", async () => {
+  it("bails when a child's align-self differs from the container", async () => {
     const changes = await convertScene(
-      `<div style="width:320px;height:200px;display:flex">
-        <div style="width:100px;height:80px"></div>
-        <div style="flex:1;height:80px"></div>
+      `<div style="width:320px;height:200px;display:flex;align-items:flex-start">
+        <div style="width:60px;height:40px"></div>
+        <div style="width:60px;height:40px;align-self:flex-end"></div>
       </div>`
     );
     expectNone(changes);

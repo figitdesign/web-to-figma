@@ -14,6 +14,7 @@ import {
 } from "./dom";
 import type { FontCache } from "./font-cache";
 import type { ImageCache } from "./image-cache";
+import type { InferredChildStack } from "./layout/infer";
 import { nodeToTextNodeChange } from "./nodes/text";
 import type { FigmaBlob, FigmaGuid, FigmaNodeChange } from "./types";
 
@@ -47,13 +48,20 @@ export async function walkRoot(
   await walkNode(root, parentGuid, 0, EMPTY_INHERITED, ctx);
 }
 
+type ParentStackInfo = {
+  isAutoLayout: boolean;
+  childSpecs?: ReadonlyMap<Element, InferredChildStack>;
+};
+
+const NO_PARENT_STACK: ParentStackInfo = { isAutoLayout: false };
+
 async function walkNode(
   node: Node,
   parentGuid: FigmaGuid,
   childIndex: number,
   inheritedProperties: InheritedProperties,
   ctx: WalkContext,
-  parentIsAutoLayout = false
+  parentStack: ParentStackInfo = NO_PARENT_STACK
 ): Promise<boolean> {
   try {
     if (isTextNode(node)) {
@@ -86,7 +94,8 @@ async function walkNode(
       position,
       inheritedProperties,
       layout: ctx.layout,
-      parentIsAutoLayout,
+      parentIsAutoLayout: parentStack.isAutoLayout,
+      childStackSpec: parentStack.childSpecs?.get(node),
       registerBlob: ctx.registerBlob,
       fontCache: ctx.fontCache,
       imageCache: ctx.imageCache,
@@ -101,7 +110,10 @@ async function walkNode(
         guid,
         nextInheritedProperties(node, inheritedProperties, result),
         ctx,
-        result.isAutoLayout ?? false
+        {
+          isAutoLayout: result.isAutoLayout ?? false,
+          childSpecs: result.childStackSpecs,
+        }
       );
     }
 
@@ -117,7 +129,7 @@ async function walkChildren(
   parentGuid: FigmaGuid,
   inheritedProperties: InheritedProperties,
   ctx: WalkContext,
-  parentIsAutoLayout = false
+  parentStack: ParentStackInfo = NO_PARENT_STACK
 ) {
   const sortedNodes = sortNodesByStackingOrder(Array.from(element.childNodes));
 
@@ -129,7 +141,7 @@ async function walkChildren(
       childNodeIndex,
       inheritedProperties,
       ctx,
-      parentIsAutoLayout
+      parentStack
     );
     if (success) {
       childNodeIndex += 1;
