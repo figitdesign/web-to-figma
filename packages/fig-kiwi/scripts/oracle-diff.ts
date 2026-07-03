@@ -108,6 +108,10 @@ function diffRoot(
     return mismatches;
   }
 
+  const gotByKey = new Map(
+    gotTree.map((n) => [`${n.guid.sessionID}:${n.guid.localID}`, n])
+  );
+
   sentTree.forEach((sentNode, i) => {
     const gotNode = gotTree[i] as Node;
     const label = `[${sentRoot.name}] #${i} ${String(sentNode.name ?? sentNode.type)}`;
@@ -134,7 +138,8 @@ function diffRoot(
       if (
         a !== undefined &&
         b !== undefined &&
-        Math.abs(a - b) > GEOMETRY_TOLERANCE
+        Math.abs(a - b) > GEOMETRY_TOLERANCE &&
+        !growthExplainsSize(gotNode, gotByKey, axis, b)
       ) {
         mismatches.push({
           node: label,
@@ -174,6 +179,57 @@ function diffRoot(
   });
 
   return mismatches;
+}
+
+/**
+ * A grown (fill) or stretched child inside a stack is resized by Figma's
+ * layout engine on paste, so its size legitimately differs from what we sent
+ * pre-layout. Accept the got size when it equals the parent's inner size on
+ * that axis (the only value Figma's engine can produce for grow/stretch with
+ * a single grown child; multi-fill splits are verified by the sent side
+ * matching in the first place).
+ */
+function growthExplainsSize(
+  gotNode: Node,
+  gotByKey: ReadonlyMap<string, Node>,
+  axis: "x" | "y",
+  gotValue: number
+): boolean {
+  const parentGuid = gotNode.parentIndex?.guid;
+  const parent = parentGuid
+    ? gotByKey.get(`${parentGuid.sessionID}:${parentGuid.localID}`)
+    : undefined;
+  const parentMode = parent?.stackMode;
+  if (!parent || (parentMode !== "HORIZONTAL" && parentMode !== "VERTICAL")) {
+    return false;
+  }
+
+  const axisIsParentPrimary = (axis === "x") === (parentMode === "HORIZONTAL");
+  const grows =
+    (gotNode.stackChildPrimaryGrow as number | undefined) === 1 &&
+    axisIsParentPrimary;
+  const stretches =
+    gotNode.stackChildAlignSelf === "STRETCH" && !axisIsParentPrimary;
+  if (!(grows || stretches)) {
+    return false;
+  }
+
+  const parentSize = (parent.size as { x: number; y: number } | undefined)?.[
+    axis
+  ];
+  if (parentSize === undefined) {
+    return false;
+  }
+  const padLeading = (parent[
+    axis === "x" ? "stackHorizontalPadding" : "stackVerticalPadding"
+  ] ?? 0) as number;
+  const padTrailing = (parent[
+    axis === "x" ? "stackPaddingRight" : "stackPaddingBottom"
+  ] ?? 0) as number;
+  return (
+    Math.abs(gotValue - (parentSize - padLeading - padTrailing)) <=
+    GEOMETRY_TOLERANCE
+  );
 }
 
 function main() {

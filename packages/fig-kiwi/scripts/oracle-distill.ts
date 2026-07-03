@@ -34,13 +34,21 @@ type FixtureNode = {
   pos: { x: number; y: number } | null;
   /** Non-default tracked stack fields, as normalized by Figma. */
   stack: Record<string, unknown>;
+  /** Whether the parent is an auto-layout stack. Child fill/stretch fields
+   * are inert (and harness-geometry-dependent) when it isn't, so consumers
+   * skip them in comparisons. */
+  parentIsStack: boolean;
 };
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-function toFixtureNode(node: OracleNode, isRoot: boolean): FixtureNode {
+function toFixtureNode(
+  node: OracleNode,
+  isRoot: boolean,
+  parentIsStack: boolean
+): FixtureNode {
   const stack: Record<string, unknown> = {};
   for (const field of TRACKED_STACK_FIELDS) {
     const value = node[field];
@@ -58,6 +66,7 @@ function toFixtureNode(node: OracleNode, isRoot: boolean): FixtureNode {
         ? null
         : { x: round2(transform.m02), y: round2(transform.m12) },
     stack,
+    parentIsStack,
   };
 }
 
@@ -79,13 +88,29 @@ function main() {
   );
   const roots = treeOrder(decoded.message.nodeChanges as Array<OracleNode>);
 
+  const byKey = new Map(
+    (decoded.message.nodeChanges as Array<OracleNode>).map((n) => [
+      `${n.guid.sessionID}:${n.guid.localID}`,
+      n,
+    ])
+  );
+  const parentIsStack = (node: OracleNode): boolean => {
+    const guid = node.parentIndex?.guid;
+    const parent = guid ? byKey.get(`${guid.sessionID}:${guid.localID}`) : null;
+    return (
+      parent?.stackMode === "HORIZONTAL" || parent?.stackMode === "VERTICAL"
+    );
+  };
+
   const scenes = roots.map((root) => {
     const rootSize = root.nodes[0]?.size as { x: number; y: number };
     return {
       name: root.name,
       width: rootSize.x,
       height: rootSize.y,
-      nodes: root.nodes.map((node, i) => toFixtureNode(node, i === 0)),
+      nodes: root.nodes.map((node, i) =>
+        toFixtureNode(node, i === 0, parentIsStack(node))
+      ),
     };
   });
 

@@ -20,7 +20,14 @@ import nested from "../scripts/oracle-scenes/01-flex/nested.html?raw";
 import rowBasic from "../scripts/oracle-scenes/01-flex/row-basic.html?raw";
 import spaceBetween from "../scripts/oracle-scenes/01-flex/space-between.html?raw";
 import spaceEvenly from "../scripts/oracle-scenes/01-flex/space-evenly.html?raw";
-import batch01 from "./__fixtures__/oracle/batch-01-flex.json";
+import fillChild from "../scripts/oracle-scenes/02-sizing/fill-child.html?raw";
+import fillTwo from "../scripts/oracle-scenes/02-sizing/fill-two.html?raw";
+import growUnequal from "../scripts/oracle-scenes/02-sizing/grow-unequal.html?raw";
+import hugColumn from "../scripts/oracle-scenes/02-sizing/hug-column.html?raw";
+import hugRow from "../scripts/oracle-scenes/02-sizing/hug-row.html?raw";
+import nestedMix from "../scripts/oracle-scenes/02-sizing/nested-mix.html?raw";
+import stretchCross from "../scripts/oracle-scenes/02-sizing/stretch-cross.html?raw";
+import fixture from "./__fixtures__/oracle/batch-02-sizing.json";
 import type { FigmaNodeChange } from "./converter/types";
 import { createFigmaConverter } from "./figma";
 
@@ -35,6 +42,13 @@ const SCENE_HTML: Record<string, string> = {
   "Align Center End": alignCenterEnd,
   "Margin Spacing Border": marginSpacingBorder,
   Nested: nested,
+  "Hug Row": hugRow,
+  "Hug Column": hugColumn,
+  "Fill Child": fillChild,
+  "Fill Two": fillTwo,
+  "Stretch Cross": stretchCross,
+  "Grow Unequal": growUnequal,
+  "Nested Mix": nestedMix,
 };
 
 type FixtureNode = {
@@ -42,6 +56,7 @@ type FixtureNode = {
   size: { x: number; y: number } | null;
   pos: { x: number; y: number } | null;
   stack: Record<string, unknown>;
+  parentIsStack: boolean;
 };
 
 const GEOMETRY_TOLERANCE = 0.6;
@@ -82,8 +97,8 @@ function expectClose(
   ).toBe(true);
 }
 
-describe("oracle fixtures (batch-01-flex, Figma-vetted)", () => {
-  for (const scene of batch01.scenes) {
+describe(`oracle fixtures (${fixture.batch}, Figma-vetted)`, () => {
+  for (const scene of fixture.scenes) {
     it(`reproduces the accepted conversion of "${scene.name}"`, async () => {
       const html = SCENE_HTML[scene.name];
       expect(html, `scene html for "${scene.name}"`).toBeDefined();
@@ -117,11 +132,13 @@ describe("oracle fixtures (batch-01-flex, Figma-vetted)", () => {
             Record<string, unknown>;
           const label = `[${scene.name}] #${i} ${expectedNode.name}`;
 
-          // The wrapper node (#1) stands in for the capture's iframe body;
-          // its fill heuristics are harness artifacts, not scene semantics.
-          const isWrapperNode = i === 1;
-          expect(stackOf(actual, isWrapperNode)).toEqual(
-            isWrapperNode
+          // Child fill/stretch fields are placebo when the parent isn't a
+          // stack (legacy heuristics fire on harness geometry, e.g. the
+          // wrapper standing in for the capture's iframe body) — skip them
+          // there and compare them strictly inside real stacks.
+          const ignoreHarness = i === 1 || !expectedNode.parentIsStack;
+          expect(stackOf(actual, ignoreHarness)).toEqual(
+            ignoreHarness
               ? Object.fromEntries(
                   Object.entries(expectedNode.stack).filter(
                     ([field]) => !HARNESS_ONLY_FIELDS.has(field)
