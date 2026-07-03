@@ -20,7 +20,7 @@ import type {
   FigmaGuid,
   FigmaNodeChange,
 } from "./converter/types";
-import type { Classify, WalkContext } from "./converter/walk";
+import type { Classify, ConverterLayout, WalkContext } from "./converter/walk";
 import { walkRoot } from "./converter/walk";
 
 export type { ElementKind } from "./converter/classify";
@@ -39,7 +39,7 @@ export type {
 } from "./converter/nodes/text/primitives/font/loader";
 export { createFontsourceLoader } from "./converter/nodes/text/primitives/font/loader";
 export type { FigmaClipboard } from "./converter/types";
-export type { Classify } from "./converter/walk";
+export type { Classify, ConverterLayout } from "./converter/walk";
 
 export type FrameInput = {
   element: Element;
@@ -57,6 +57,12 @@ export type FigmaConverterConfig = {
   imageLoader?: ImageLoader;
   /** Override the default DOM-element classification. */
   classify?: Classify;
+  /**
+   * `"auto"` converts flex containers into Figma auto-layout frames when the
+   * layout can be reproduced exactly; anything else keeps absolute positions.
+   * Defaults to `"absolute"` (every frame absolutely positioned).
+   */
+  layout?: ConverterLayout;
 };
 
 export type SingleFrameInput = {
@@ -100,6 +106,7 @@ export function createFigmaConverter(
   const fontLoader = config.fontLoader ?? createFontsourceLoader();
   const imageLoader = config.imageLoader ?? createDirectImageLoader();
   const { classify } = config;
+  const layout = config.layout ?? "absolute";
 
   const fontCache = createFontCache(fontLoader);
   const imageCache = createImageCache(imageLoader);
@@ -117,6 +124,7 @@ export function createFigmaConverter(
 
     const walkContext: WalkContext = {
       classify,
+      layout,
       createGuid,
       registerBlob: (blob) => blobManager.registerBlob(blob),
       fontCache,

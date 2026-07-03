@@ -15,6 +15,7 @@ import type {
   FigmaNodeChange,
   FigmaPaint,
 } from "./types";
+import type { ConverterLayout } from "./walk";
 
 export type InheritedProperties = {
   textGradient?: Array<FigmaPaint>;
@@ -27,6 +28,9 @@ export type ConvertContext = {
   childIndex: number;
   position: Position;
   inheritedProperties: InheritedProperties;
+  layout?: ConverterLayout;
+  /** True when the direct parent frame became an inferred auto-layout stack. */
+  parentIsAutoLayout?: boolean;
   registerBlob: (blob: FigmaBlob) => number;
   fontCache: FontCache;
   imageCache: ImageCache;
@@ -38,6 +42,8 @@ export type ConversionResult = {
   hasChildren: boolean;
   /** Text gradient produced by a frame's `background-clip: text`, propagated to descendants. */
   frameTextGradient?: Array<FigmaPaint>;
+  /** True when this element became an inferred auto-layout stack. */
+  isAutoLayout?: boolean;
 };
 
 export async function convertElement(
@@ -51,6 +57,8 @@ export async function convertElement(
     childIndex,
     position,
     inheritedProperties,
+    layout,
+    parentIsAutoLayout,
     registerBlob,
     fontCache,
     imageCache,
@@ -80,11 +88,14 @@ export async function convertElement(
         parentGuid,
         childIndex,
         position,
+        layout,
+        parentIsAutoLayout,
       });
       return {
         changes: [frameResult.nodeChange],
         hasChildren: true,
         frameTextGradient: frameResult.textGradient,
+        isAutoLayout: frameResult.isAutoLayout,
       };
     }
 

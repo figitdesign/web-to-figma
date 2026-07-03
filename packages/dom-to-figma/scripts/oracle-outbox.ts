@@ -171,9 +171,13 @@ When every capture is in \`oracle/inbox/${batch}/\`, ping Claude.
 }
 
 async function main() {
-  const [batch, ...sceneRefs] = process.argv.slice(2);
+  const args = process.argv.slice(2);
+  const layout = args.includes("--layout=auto") ? "auto" : "absolute";
+  const [batch, ...sceneRefs] = args.filter((a) => !a.startsWith("--"));
   if (!batch || sceneRefs.length === 0) {
-    console.error("Usage: pnpm oracle:outbox <batch-name> <scene>...");
+    console.error(
+      "Usage: pnpm oracle:outbox [--layout=auto] <batch-name> <scene>..."
+    );
     process.exit(1);
   }
 
@@ -215,11 +219,11 @@ async function main() {
       await page.addScriptTag({ content: bundle });
 
       const envelope = await page.evaluate(
-        async ({ width, height, name }) => {
+        async ({ width, height, name, layoutMode }) => {
           const api = (
             window as unknown as {
               FigitDomToFigma: {
-                createFigmaConverter: () => {
+                createFigmaConverter: (config: { layout: string }) => {
                   convert: (input: {
                     element: Element;
                     width: number;
@@ -230,15 +234,17 @@ async function main() {
               };
             }
           ).FigitDomToFigma;
-          const result = await api.createFigmaConverter().convert({
-            element: document.body,
-            width,
-            height,
-            name,
-          });
+          const result = await api
+            .createFigmaConverter({ layout: layoutMode })
+            .convert({ element: document.body, width, height, name });
           return result.toClipboardHtml();
         },
-        { width: scene.width, height: scene.height, name: scene.name }
+        {
+          width: scene.width,
+          height: scene.height,
+          name: scene.name,
+          layoutMode: layout,
+        }
       );
       await page.close();
 

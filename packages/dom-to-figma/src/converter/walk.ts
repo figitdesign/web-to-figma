@@ -22,8 +22,13 @@ export type Classify = (
   defaultKind: ElementKind
 ) => ElementKind;
 
+/** `"auto"` infers Figma auto-layout for flex containers; `"absolute"` keeps
+ * every frame absolutely positioned (the historical behavior). */
+export type ConverterLayout = "absolute" | "auto";
+
 export type WalkContext = {
   classify?: Classify;
+  layout?: ConverterLayout;
   createGuid: () => FigmaGuid;
   registerBlob: (blob: FigmaBlob) => number;
   fontCache: FontCache;
@@ -47,7 +52,8 @@ async function walkNode(
   parentGuid: FigmaGuid,
   childIndex: number,
   inheritedProperties: InheritedProperties,
-  ctx: WalkContext
+  ctx: WalkContext,
+  parentIsAutoLayout = false
 ): Promise<boolean> {
   try {
     if (isTextNode(node)) {
@@ -79,6 +85,8 @@ async function walkNode(
       childIndex,
       position,
       inheritedProperties,
+      layout: ctx.layout,
+      parentIsAutoLayout,
       registerBlob: ctx.registerBlob,
       fontCache: ctx.fontCache,
       imageCache: ctx.imageCache,
@@ -92,7 +100,8 @@ async function walkNode(
         node,
         guid,
         nextInheritedProperties(node, inheritedProperties, result),
-        ctx
+        ctx,
+        result.isAutoLayout ?? false
       );
     }
 
@@ -107,7 +116,8 @@ async function walkChildren(
   element: Element,
   parentGuid: FigmaGuid,
   inheritedProperties: InheritedProperties,
-  ctx: WalkContext
+  ctx: WalkContext,
+  parentIsAutoLayout = false
 ) {
   const sortedNodes = sortNodesByStackingOrder(Array.from(element.childNodes));
 
@@ -118,7 +128,8 @@ async function walkChildren(
       parentGuid,
       childNodeIndex,
       inheritedProperties,
-      ctx
+      ctx,
+      parentIsAutoLayout
     );
     if (success) {
       childNodeIndex += 1;

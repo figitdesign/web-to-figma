@@ -1,4 +1,5 @@
 import type { Position } from "../../dom";
+import { inferAutoLayout } from "../../layout/infer";
 import { getNodeNameFromElement } from "../../naming";
 import {
   cssBackdropFilterToFigmaEffects,
@@ -15,6 +16,7 @@ import type {
   FigmaNodeChange,
   FigmaPaint,
 } from "../../types";
+import type { ConverterLayout } from "../../walk";
 
 type PositioningResult = {
   horizontalConstraint?: string;
@@ -100,18 +102,30 @@ type Params = {
   parentGuid: FigmaGuid;
   childIndex: number;
   position: Position;
+  layout?: ConverterLayout;
+  /** True when the parent frame became an inferred auto-layout stack. */
+  parentIsAutoLayout?: boolean;
 };
 
 type FrameResult = {
   nodeChange: FigmaFrameNodeChange;
   textGradient?: Array<FigmaPaint>;
+  /** Set when the frame became an inferred auto-layout stack, so the walker
+   * can tell its children. */
+  isAutoLayout: boolean;
 };
 
 export function elementToFrameNodeChange(
   element: Element,
   options: Params
 ): FrameResult {
-  const { guid, parentGuid, childIndex, position } = options;
+  const { guid, parentGuid, childIndex, position, layout, parentIsAutoLayout } =
+    options;
+
+  // Inferred auto-layout, spread onto the node change last so it overrides
+  // `stackMode: "NONE"` and the CSS-padding fields (inference folds borders
+  // into padding). `null` means "keep absolute positioning" — always safe.
+  const inferredStack = layout === "auto" ? inferAutoLayout(element) : null;
 
   const rect = element.getBoundingClientRect();
   const computedStyle = window.getComputedStyle(element);
@@ -238,13 +252,21 @@ export function elementToFrameNodeChange(
     ...(horizontalConstraint && { horizontalConstraint }),
     ...(verticalConstraint && { verticalConstraint }),
 
-    /* Auto Layout Child Properties */
-    ...(fillsParentHeight && { stackChildPrimaryGrow: 1 }),
-    ...(fillsParentWidth && { stackChildAlignSelf: "STRETCH" }),
+    /* Auto Layout Child Properties. Inference (phase 1) covers fixed-size
+       children only, so inside an inferred stack these fill heuristics would
+       make Figma grow/stretch children and shift the layout. */
+    ...(fillsParentHeight &&
+      !parentIsAutoLayout && { stackChildPrimaryGrow: 1 }),
+    ...(fillsParentWidth &&
+      !parentIsAutoLayout && { stackChildAlignSelf: "STRETCH" }),
+
+    /* Inferred Auto Layout (overrides stackMode and padding fields above) */
+    ...inferredStack,
   };
 
   return {
     nodeChange,
     textGradient,
+    isAutoLayout: inferredStack !== null,
   };
 }
