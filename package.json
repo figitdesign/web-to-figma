@@ -16,7 +16,8 @@
     "oracle:capture": "pnpm --filter @figit/fig-kiwi oracle:capture",
     "oracle:outbox": "pnpm --filter @figit/dom-to-figma oracle:outbox",
     "changeset": "changeset",
-    "release": "pnpm build && pnpm changeset publish"
+    "release": "pnpm build && pnpm changeset publish",
+    "oracle:diff": "pnpm --filter @figit/fig-kiwi oracle:diff"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.14",

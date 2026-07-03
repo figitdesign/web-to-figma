@@ -61,7 +61,8 @@
     "check-types": "tsc --noEmit",
     "lint": "biome check",
     "extract-schema": "tsx ./scripts/extract-schema.ts",
-    "oracle:capture": "tsx ./scripts/oracle-capture.ts"
+    "oracle:capture": "tsx ./scripts/oracle-capture.ts",
+    "oracle:diff": "tsx ./scripts/oracle-diff.ts"
   },
   "dependencies": {
     "fflate": "^0.8.2",

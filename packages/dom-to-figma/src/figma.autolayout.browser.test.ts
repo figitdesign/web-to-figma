@@ -3,7 +3,7 @@ import {
   createTestFontLoader,
   loadTestFontIntoBrowser,
 } from "./__fixtures__/loaders";
-import type { FigmaNodeChange } from "./converter/types";
+import type { FigmaFrameNodeChange, FigmaNodeChange } from "./converter/types";
 import type { ConverterLayout } from "./converter/walk";
 import { createFigmaConverter } from "./figma";
 
@@ -36,11 +36,14 @@ const convertScene = async (
 // (0 document, 1 canvas, 2 root frame).
 const CONTAINER_LOCAL_ID = 3;
 
+// Every node these tests look up is a frame; narrow so stack fields typecheck.
 const byLocalId = (
   changes: ReadonlyArray<FigmaNodeChange>,
   localID: number
-): FigmaNodeChange | undefined =>
-  changes.find((change) => change.guid.localID === localID);
+): FigmaFrameNodeChange | undefined =>
+  changes.find((change) => change.guid.localID === localID) as
+    | FigmaFrameNodeChange
+    | undefined;
 
 describe("auto-layout inference for flex containers", () => {
   it("maps a row with gap and padding to HORIZONTAL auto-layout", async () => {
@@ -61,6 +64,10 @@ describe("auto-layout inference for flex containers", () => {
       stackVerticalPadding: 30,
       stackPaddingRight: 40,
       stackPaddingBottom: 30,
+      // Explicit on purpose: pasting a stack without sizing modes makes
+      // Figma hug-to-content and shrink the frame (oracle batch-01).
+      stackPrimarySizing: "FIXED",
+      stackCounterSizing: "FIXED",
     });
   });
 

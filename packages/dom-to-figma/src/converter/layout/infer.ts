@@ -12,6 +12,11 @@ export type InferredStack = {
   stackSpacing: number;
   stackPrimaryAlignItems: StackJustifyValue;
   stackCounterAlignItems: StackAlignValue;
+  /** Both sizing modes must be explicit: pasting a stack without them makes
+   * Figma hug-to-content on the primary axis, shrinking the frame
+   * (established by oracle batch-01). Phase 2 adds hug/fill inference. */
+  stackPrimarySizing: "FIXED";
+  stackCounterSizing: "FIXED";
   /** Left padding. Includes the border width: Figma lays out from the frame
    * edge while CSS offsets children by border + padding. */
   stackHorizontalPadding: number;
@@ -143,6 +148,8 @@ export function inferAutoLayout(element: Element): InferredStack | null {
     stackSpacing: spacing,
     stackPrimaryAlignItems: justify,
     stackCounterAlignItems: align,
+    stackPrimarySizing: "FIXED",
+    stackCounterSizing: "FIXED",
     stackHorizontalPadding: round2(paddings.left),
     stackVerticalPadding: round2(paddings.top),
     stackPaddingRight: round2(paddings.right),
