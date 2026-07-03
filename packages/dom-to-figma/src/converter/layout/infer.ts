@@ -26,12 +26,7 @@ export type InferredStack = {
   stackPaddingBottom: number;
 };
 
-type StackJustifyValue =
-  | "MIN"
-  | "CENTER"
-  | "MAX"
-  | "SPACE_BETWEEN"
-  | "SPACE_EVENLY";
+type StackJustifyValue = "MIN" | "CENTER" | "MAX" | "SPACE_BETWEEN";
 type StackAlignValue = "MIN" | "CENTER" | "MAX";
 
 /** Max deviation (px) between reconstructed and measured child positions. */
@@ -47,8 +42,12 @@ const JUSTIFY_MAP: Record<string, StackJustifyValue> = {
   end: "MAX",
   right: "MAX",
   "space-between": "SPACE_BETWEEN",
-  "space-evenly": "SPACE_EVENLY",
-  // space-around has no Figma equivalent -> bail.
+  // The kiwi enum has SPACE_EVENLY but Figma's engine renders it as
+  // space-between (oracle batch-01). With spacing measured from real rects,
+  // CENTER reproduces both space-evenly (leading gap = g) and space-around
+  // (leading gap = g/2) exactly; verifyGeometry guards the equivalence.
+  "space-evenly": "CENTER",
+  "space-around": "CENTER",
 };
 
 const ALIGN_MAP: Record<string, StackAlignValue> = {
@@ -242,12 +241,6 @@ function verifyGeometry(
     case "SPACE_BETWEEN":
       spacing = count > 1 ? (inner - totalChildren) / (count - 1) : 0;
       break;
-    case "SPACE_EVENLY": {
-      const gap = (inner - totalChildren) / (count + 1);
-      spacing = gap;
-      cursor += gap;
-      break;
-    }
     default:
       break;
   }

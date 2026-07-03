@@ -115,6 +115,33 @@ describe("auto-layout inference for flex containers", () => {
     });
   });
 
+  it("maps space-evenly and space-around to CENTER with measured spacing", async () => {
+    // Figma stores SPACE_EVENLY but renders it as space-between (oracle
+    // batch-01), so both distributions ride on CENTER + real gap instead.
+    const evenly = await convertScene(
+      `<div style="width:320px;height:140px;display:flex;justify-content:space-evenly">
+        <div style="width:56px;height:44px"></div>
+        <div style="width:56px;height:44px"></div>
+        <div style="width:56px;height:44px"></div>
+      </div>`
+    );
+    expect(byLocalId(evenly, CONTAINER_LOCAL_ID)).toMatchObject({
+      stackPrimaryAlignItems: "CENTER",
+      stackSpacing: 38,
+    });
+
+    const around = await convertScene(
+      `<div style="width:320px;height:140px;display:flex;justify-content:space-around">
+        <div style="width:56px;height:44px"></div>
+        <div style="width:56px;height:44px"></div>
+      </div>`
+    );
+    expect(byLocalId(around, CONTAINER_LOCAL_ID)).toMatchObject({
+      stackPrimaryAlignItems: "CENTER",
+      stackSpacing: 104,
+    });
+  });
+
   it("derives spacing from uniform margins when there is no gap", async () => {
     const changes = await convertScene(
       `<div style="width:320px;height:200px;display:flex">
