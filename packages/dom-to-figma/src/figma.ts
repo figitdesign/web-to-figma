@@ -58,9 +58,10 @@ export type FigmaConverterConfig = {
   /** Override the default DOM-element classification. */
   classify?: Classify;
   /**
-   * `"auto"` converts flex containers into Figma auto-layout frames when the
-   * layout can be reproduced exactly; anything else keeps absolute positions.
-   * Defaults to `"absolute"` (every frame absolutely positioned).
+   * `"auto"` (default) converts containers into Figma auto-layout frames
+   * whenever the layout can be reproduced exactly, falling back to absolute
+   * positioning per node when it can't. `"absolute"` positions every frame
+   * absolutely, disabling auto-layout inference entirely.
    */
   layout?: ConverterLayout;
 };
@@ -106,7 +107,7 @@ export function createFigmaConverter(
   const fontLoader = config.fontLoader ?? createFontsourceLoader();
   const imageLoader = config.imageLoader ?? createDirectImageLoader();
   const { classify } = config;
-  const layout = config.layout ?? "absolute";
+  const layout = config.layout ?? "auto";
 
   const fontCache = createFontCache(fontLoader);
   const imageCache = createImageCache(imageLoader);

@@ -31,6 +31,20 @@ Walks a real DOM tree, reads computed styles, and produces what Figma reads on p
 
 Used in production by Sleek to copy designs straight from the browser into Figma.
 
+## Layout
+
+By default the converter infers **native Figma auto-layout**: flex containers, plain block flow, wrapping rows, and grids become real stacks (`stackMode`, spacing, padding, hug/fill/stretch sizing), and absolutely positioned children ride along as absolute-positioned layers. Inference is per-container and verified against the browser's measured geometry — any container it can't reproduce exactly falls back to absolute positioning, so the result is never worse than a fixed-position paste.
+
+```ts
+const figma = createFigmaConverter(); // layout: "auto" (default)
+```
+
+Pass `layout: "absolute"` to disable inference and position every frame absolutely (the pre-1.0 behavior):
+
+```ts
+const figma = createFigmaConverter({ layout: "absolute" });
+```
+
 ## Multi-frame canvas
 
 Pass `frames` instead of a single `element` to copy several DOM trees onto one Figma canvas:

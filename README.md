@@ -23,7 +23,7 @@ Paste in Figma with **Cmd+V** / **Ctrl+V**. Done.
 
 ## What it does
 
-Walks a real DOM tree, reads computed styles, and produces what Figma reads on paste. Text becomes editable text; images, vectors, gradients, shadows, borders, and form placeholders all carry over.
+Walks a real DOM tree, reads computed styles, and produces what Figma reads on paste. Text becomes editable text; images, vectors, gradients, shadows, borders, and form placeholders all carry over. Layouts arrive as **native Figma auto-layout** by default — flex, block flow, wrap, and grid become real stacks, with per-container fallback to absolute positioning when a layout can't be reproduced exactly. Opt out with `createFigmaConverter({ layout: "absolute" })`.
 
 Used in production by [Sleek](https://sleek.design) to copy generated designs straight from the browser into Figma.
 
