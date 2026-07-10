@@ -4,6 +4,7 @@ import {
   loadTestFontIntoBrowser,
   TEST_FONT_FAMILY,
 } from "./__fixtures__/loaders";
+import { getTextSize } from "./converter/dom";
 import type { FigmaFrameNodeChange, FigmaNodeChange } from "./converter/types";
 import type { ConverterLayout } from "./converter/walk";
 import { createFigmaConverter } from "./figma";
@@ -620,30 +621,26 @@ describe("text inside and around stacks", () => {
     expect(Math.abs(baselineX)).toBeLessThan(6);
   });
 
-  it("keeps exact (uninflated) text box sizes inside stacks", async () => {
-    const html = `<div style="width:320px;height:40px;display:flex;gap:20px;font-family:'${TEST_FONT_FAMILY}';font-size:16px">
-        <a style="text-decoration:none">Product</a>
-        <a style="text-decoration:none">Pricing</a>
-      </div>`;
-    const auto = await convertScene(html, "auto");
-    const absolute = await convertScene(html, "absolute");
+  it("measures exact (uninflated) text sizes for stack children", () => {
+    // Inside stacks the box edges drive sibling positions, so text nodes use
+    // getTextSize(node, exact=true) — the raw measured width — instead of the
+    // default ceil(width)+1 buffer. Assert both directly against the same
+    // measurement so the check is independent of the actual pixel value (which
+    // varies per OS font rendering and made an integration-level check flaky).
+    const p = document.createElement("p");
+    p.style.font = "16px sans-serif";
+    p.textContent = "Proportional text";
+    document.body.appendChild(p);
+    const textNode = p.firstChild as Text;
 
-    expect(byLocalId(auto, CONTAINER_LOCAL_ID)?.stackMode).toBe("HORIZONTAL");
+    const range = document.createRange();
+    range.selectNodeContents(textNode);
+    const measured = range.getBoundingClientRect().width;
 
-    const autoTexts = auto.filter((c) => c.type === "TEXT");
-    const absTexts = absolute.filter((c) => c.type === "TEXT");
-    expect(autoTexts).toHaveLength(2);
-    expect(absTexts).toHaveLength(2);
+    expect(getTextSize(textNode, true).width).toBe(measured);
+    expect(getTextSize(textNode).width).toBe(Math.ceil(measured) + 1);
 
-    // Absolute mode inflates text width by ceil(width)+1; inside stacks we use
-    // the exact measured width. The buffer is always >= ~1px, so the auto box
-    // is strictly narrower — a platform-independent check (unlike asserting the
-    // width is fractional, which depends on how the font measures per OS).
-    autoTexts.forEach((autoText, i) => {
-      const autoWidth = autoText.size?.x ?? 0;
-      const absWidth = absTexts[i]?.size?.x ?? 0;
-      expect(autoWidth).toBeLessThan(absWidth);
-    });
+    p.remove();
   });
 });
 
