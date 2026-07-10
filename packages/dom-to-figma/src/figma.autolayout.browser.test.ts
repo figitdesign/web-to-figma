@@ -621,23 +621,29 @@ describe("text inside and around stacks", () => {
   });
 
   it("keeps exact (uninflated) text box sizes inside stacks", async () => {
-    const changes = await convertScene(
-      `<div style="width:320px;height:40px;display:flex;gap:20px;font-family:'${TEST_FONT_FAMILY}';font-size:16px">
+    const html = `<div style="width:320px;height:40px;display:flex;gap:20px;font-family:'${TEST_FONT_FAMILY}';font-size:16px">
         <a style="text-decoration:none">Product</a>
         <a style="text-decoration:none">Pricing</a>
-      </div>`
-    );
+      </div>`;
+    const auto = await convertScene(html, "auto");
+    const absolute = await convertScene(html, "absolute");
 
-    expect(byLocalId(changes, CONTAINER_LOCAL_ID)?.stackMode).toBe(
-      "HORIZONTAL"
-    );
-    const texts = changes.filter((c) => c.type === "TEXT");
-    expect(texts).toHaveLength(2);
-    // The absolute-mode ceil(width)+1 buffer would make these integers; the
-    // exact measured widths of proportional text are fractional.
-    for (const text of texts) {
-      expect(Number.isInteger(text.size?.x)).toBe(false);
-    }
+    expect(byLocalId(auto, CONTAINER_LOCAL_ID)?.stackMode).toBe("HORIZONTAL");
+
+    const autoTexts = auto.filter((c) => c.type === "TEXT");
+    const absTexts = absolute.filter((c) => c.type === "TEXT");
+    expect(autoTexts).toHaveLength(2);
+    expect(absTexts).toHaveLength(2);
+
+    // Absolute mode inflates text width by ceil(width)+1; inside stacks we use
+    // the exact measured width. The buffer is always >= ~1px, so the auto box
+    // is strictly narrower — a platform-independent check (unlike asserting the
+    // width is fractional, which depends on how the font measures per OS).
+    autoTexts.forEach((autoText, i) => {
+      const autoWidth = autoText.size?.x ?? 0;
+      const absWidth = absTexts[i]?.size?.x ?? 0;
+      expect(autoWidth).toBeLessThan(absWidth);
+    });
   });
 });
 
