@@ -320,7 +320,7 @@ Outcome: every PR to this repo gets a deterministic Tier-0 parity check with a c
 - Integration (node vitest, spawns Playwright; tagged so CI can cache browsers as it already does):
   - Running `snapshot` on `00-smoke/two-boxes.html` produces all four artifact kinds; screenshot dimensions equal declared scene size; every trace `domPath` exists in ground-truth `elements`.
   - Determinism: two consecutive runs of a text-heavy scene produce byte-identical ground-truth JSON and identical screenshot hashes. (If flaky, fix the harness — this invariant is the foundation of everything downstream.)
-  - A scene with a webfont: ground truth is only captured after `fonts.ready` (assert the measured text width differs from a run with fonts blocked — proves the wait is effective).
+  - A scene with a webfont: ground truth is only captured after `fonts.ready` (assert the measured text width differs from a run with fonts blocked — proves the wait is effective). **Deferred:** the committed corpus is entirely system-font/no-image (hermetic by design), so there is no webfont scene to exercise this. Add this test alongside the first webfont fixture (the `fonts.ready` wait is already wired and covered indirectly by the determinism test).
 
 **Definition of done**: `oracle:parity` (without `--check`) runs the full committed corpus locally in < 3 minutes and writes a complete run dir.
 
@@ -615,7 +615,7 @@ Specified at lower resolution intentionally; re-plan when M3 is live.
 |---|---|---|---|
 | WS-1.1 Converter trace mode | M1 | done (commit cb3c86c) | — |
 | WS-1.2 Harness scaffold | M1 | done (commit 14ac60c) | — |
-| WS-1.3 Ground-truth runner | M1 | not started | — |
+| WS-1.3 Ground-truth runner | M1 | done (commit 8061404) | — |
 | WS-1.4 Tier-0 differ | M1 | not started | — |
 | WS-1.5 Report + ranking | M1 | not started | — |
 | WS-1.6 Scoreboard + ratchet + CI | M1 | not started | — |
