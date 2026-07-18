@@ -613,7 +613,7 @@ Specified at lower resolution intentionally; re-plan when M3 is live.
 
 | Workstream | Milestone | Status | PR |
 |---|---|---|---|
-| WS-1.1 Converter trace mode | M1 | not started | — |
+| WS-1.1 Converter trace mode | M1 | done (commit cb3c86c) | — |
 | WS-1.2 Harness scaffold | M1 | not started | — |
 | WS-1.3 Ground-truth runner | M1 | not started | — |
 | WS-1.4 Tier-0 differ | M1 | not started | — |
