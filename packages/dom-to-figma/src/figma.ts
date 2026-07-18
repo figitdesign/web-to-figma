@@ -15,6 +15,7 @@ import {
 } from "./converter/nodes/root";
 import type { FontLoader } from "./converter/nodes/text/primitives/font/loader";
 import { createFontsourceLoader } from "./converter/nodes/text/primitives/font/loader";
+import type { ConvertTrace, TraceEntry } from "./converter/trace";
 import type {
   FigmaClipboard,
   FigmaGuid,
@@ -38,6 +39,7 @@ export type {
   FontsourceLoaderOptions,
 } from "./converter/nodes/text/primitives/font/loader";
 export { createFontsourceLoader } from "./converter/nodes/text/primitives/font/loader";
+export type { ConvertTrace, TraceEntry } from "./converter/trace";
 export type { FigmaClipboard } from "./converter/types";
 export type { Classify, ConverterLayout } from "./converter/walk";
 
@@ -64,6 +66,13 @@ export type FigmaConverterConfig = {
    * absolutely, disabling auto-layout inference entirely.
    */
   layout?: ConverterLayout;
+  /**
+   * When `true`, `convert()` also returns a {@link ConvertTrace} mapping every
+   * emitted node back to its source DOM element. Off by default and adds no
+   * cost when disabled; does not change the payload bytes. Intended for the
+   * visual-parity harness, not production copies.
+   */
+  trace?: boolean;
 };
 
 export type SingleFrameInput = {
@@ -91,6 +100,8 @@ export type ConvertResult = {
   toClipboardItem(): ClipboardItem;
   /** Get the raw HTML envelope Figma reads on paste. */
   toClipboardHtml(): string;
+  /** DOM-to-node trace, present only when created with `{ trace: true }`. */
+  trace?: ConvertTrace;
 };
 
 export type FigmaConverter = {
@@ -108,6 +119,7 @@ export function createFigmaConverter(
   const imageLoader = config.imageLoader ?? createDirectImageLoader();
   const { classify } = config;
   const layout = config.layout ?? "auto";
+  const traceEnabled = config.trace ?? false;
 
   const fontCache = createFontCache(fontLoader);
   const imageCache = createImageCache(imageLoader);
@@ -123,6 +135,10 @@ export function createFigmaConverter(
       return { sessionID: 0, localID };
     };
 
+    const trace: ConvertTrace | undefined = traceEnabled
+      ? { rootGuid: ROOT_FRAME_GUID, entries: [] as Array<TraceEntry> }
+      : undefined;
+
     const walkContext: WalkContext = {
       classify,
       layout,
@@ -135,6 +151,11 @@ export function createFigmaConverter(
           nodeChanges.push(change);
         }
       },
+      recordTrace: trace
+        ? (entry) => {
+            trace.entries.push(entry);
+          }
+        : undefined,
     };
 
     const document =
@@ -153,6 +174,7 @@ export function createFigmaConverter(
       toClipboardItem: () =>
         toClipboardItem(composeClipboardHtml(encoded.base64)),
       toClipboardHtml: () => composeClipboardHtml(encoded.base64),
+      trace,
     };
   };
 

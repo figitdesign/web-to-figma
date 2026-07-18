@@ -73,6 +73,24 @@ type ConvertResult = {
 };
 ```
 
+## Trace mode
+
+Pass `trace: true` to also get a map from every emitted Figma node back to the DOM element it came from. It is off by default, adds no cost when disabled, and never changes the payload bytes — it exists for tooling (visual diffing, debugging) rather than production copies.
+
+```ts
+const figma = createFigmaConverter({ trace: true });
+const result = await figma.convert({ element, width: 1280, height: 800 });
+
+for (const entry of result.trace.entries) {
+  // entry.guid    → the emitted node's Figma GUID
+  // entry.domPath → ":scope > div:nth-child(2) > p:nth-child(1)"
+  // entry.rect    → source rect (getBoundingClientRect) at convert time
+  // entry.kind / entry.tag / entry.text
+}
+```
+
+`domPath` resolves the source element with `root.querySelector(domPath)` (the root element is `:scope`). Text nodes carry their owner element's path plus a `::text[i]` suffix, and each wrapped line segment of one text node shares that path. `result.trace` is `undefined` unless the converter was created with `{ trace: true }`.
+
 ## Customizing loaders
 
 The converter takes three optional hooks:

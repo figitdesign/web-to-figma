@@ -18,6 +18,8 @@ import type { FontCache } from "./font-cache";
 import type { ImageCache } from "./image-cache";
 import type { InferredChildStack } from "./layout/infer";
 import { nodeToTextNodeChange } from "./nodes/text";
+import type { TraceEntry, TraceRecorder } from "./trace";
+import { elementDomPath, textDomPath } from "./trace";
 import type { FigmaBlob, FigmaGuid, FigmaNodeChange } from "./types";
 
 export type Classify = (
@@ -37,10 +39,38 @@ export type WalkContext = {
   fontCache: FontCache;
   imageCache: ImageCache;
   appendChanges: (changes: ReadonlyArray<FigmaNodeChange>) => void;
+  /** Set only when the converter runs with `{ trace: true }`. */
+  recordTrace?: TraceRecorder;
 };
 
 const EMPTY_INHERITED: InheritedProperties = {};
 const VIEWBOX_SEPARATOR = /[\s,]+/;
+
+function rectFrom(rect: DOMRect): TraceEntry["rect"] {
+  return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+}
+
+/** Absolute rect of a whole text node, via a Range over its contents. */
+function textNodeRect(textNode: Text): TraceEntry["rect"] {
+  const range = document.createRange();
+  range.selectNodeContents(textNode);
+  return rectFrom(range.getBoundingClientRect());
+}
+
+/** Approximate absolute rect of one wrapped line segment (its position is
+ * measured relative to the text node's parent). */
+function segmentRect(
+  textNode: Text,
+  segment: TextLineSegment
+): TraceEntry["rect"] {
+  const origin = textNode.parentElement?.getBoundingClientRect();
+  return {
+    x: (origin?.x ?? 0) + segment.position.x,
+    y: (origin?.y ?? 0) + segment.position.y,
+    width: segment.size.width,
+    height: segment.size.height,
+  };
+}
 
 export async function walkRoot(
   root: Element,
@@ -65,6 +95,29 @@ type ParentStackInfo = {
 
 const NO_PARENT_STACK: ParentStackInfo = { isAutoLayout: false };
 
+/** Record a trace entry for an emitted element node and return its dom path
+ * (empty when tracing is disabled, so children can skip path work too). */
+function traceElement(
+  ctx: WalkContext,
+  node: Element,
+  kind: ElementKind,
+  guid: FigmaGuid,
+  parentDomPath: string
+): string {
+  if (!ctx.recordTrace) {
+    return "";
+  }
+  const domPath = elementDomPath(node, parentDomPath);
+  ctx.recordTrace({
+    guid,
+    kind,
+    tag: node.tagName.toLowerCase(),
+    domPath,
+    rect: rectFrom(node.getBoundingClientRect()),
+  });
+  return domPath;
+}
+
 /** Returns the number of node changes emitted for this DOM node (text nodes
  * can split into several). */
 async function walkNode(
@@ -73,7 +126,8 @@ async function walkNode(
   childIndex: number,
   inheritedProperties: InheritedProperties,
   ctx: WalkContext,
-  parentStack: ParentStackInfo = NO_PARENT_STACK
+  parentStack: ParentStackInfo = NO_PARENT_STACK,
+  parentDomPath = ""
 ): Promise<number> {
   try {
     if (isTextNode(node)) {
@@ -83,7 +137,8 @@ async function walkNode(
         childIndex,
         inheritedProperties,
         ctx,
-        parentStack.isAutoLayout
+        parentStack.isAutoLayout,
+        parentDomPath
       );
     }
     if (!isElementNode(node)) {
@@ -112,13 +167,17 @@ async function walkNode(
           relativeTo: node.parentElement,
         });
         if (segments) {
+          const ownerPath = ctx.recordTrace
+            ? `${elementDomPath(node, parentDomPath)}::text[0]`
+            : "";
           return await emitTextSegments(
             only,
             segments,
             parentGuid,
             childIndex,
             inheritedProperties,
-            ctx
+            ctx,
+            ownerPath
           );
         }
       }
@@ -144,6 +203,7 @@ async function walkNode(
     });
 
     ctx.appendChanges(result.changes);
+    const domPath = traceElement(ctx, node, kind, guid, parentDomPath);
 
     if (result.hasChildren) {
       await walkChildren(
@@ -155,7 +215,8 @@ async function walkNode(
           isAutoLayout: result.isAutoLayout ?? false,
           childSpecs: result.childStackSpecs,
           reverse: result.reverseChildren,
-        }
+        },
+        domPath
       );
     }
 
@@ -171,7 +232,8 @@ async function walkChildren(
   parentGuid: FigmaGuid,
   inheritedProperties: InheritedProperties,
   ctx: WalkContext,
-  parentStack: ParentStackInfo = NO_PARENT_STACK
+  parentStack: ParentStackInfo = NO_PARENT_STACK,
+  parentDomPath = ""
 ) {
   const sortedNodes = sortNodesByStackingOrder(Array.from(element.childNodes));
   if (parentStack.reverse) {
@@ -188,7 +250,8 @@ async function walkChildren(
       childNodeIndex,
       inheritedProperties,
       ctx,
-      parentStack
+      parentStack,
+      parentDomPath
     );
   }
 }
@@ -199,7 +262,8 @@ async function renderTextNode(
   childIndex: number,
   inheritedProperties: InheritedProperties,
   ctx: WalkContext,
-  parentIsAutoLayout = false
+  parentIsAutoLayout = false,
+  parentDomPath = ""
 ): Promise<number> {
   if (isTextEmpty(textNode)) {
     return 0;
@@ -213,13 +277,17 @@ async function renderTextNode(
   // box per rendered line instead.
   const segments = splitMidLineWrappedText(textNode);
   if (segments) {
+    const ownerPath = ctx.recordTrace
+      ? textDomPath(textNode, parentDomPath)
+      : "";
     return await emitTextSegments(
       textNode,
       segments,
       parentGuid,
       childIndex,
       inheritedProperties,
-      ctx
+      ctx,
+      ownerPath
     );
   }
 
@@ -238,6 +306,14 @@ async function renderTextNode(
   });
 
   ctx.appendChanges([change]);
+  ctx.recordTrace?.({
+    guid,
+    kind: "text",
+    tag: "#text",
+    domPath: textDomPath(textNode, parentDomPath),
+    rect: textNodeRect(textNode),
+    text: (textNode.textContent || "").trim().slice(0, 120),
+  });
   return 1;
 }
 
@@ -247,12 +323,14 @@ async function emitTextSegments(
   parentGuid: FigmaGuid,
   childIndex: number,
   inheritedProperties: InheritedProperties,
-  ctx: WalkContext
+  ctx: WalkContext,
+  ownerDomPath = ""
 ): Promise<number> {
   let emitted = 0;
   for (const segment of segments) {
+    const guid = ctx.createGuid();
     const change = await nodeToTextNodeChange(textNode, {
-      guid: ctx.createGuid(),
+      guid,
       parentGuid,
       childIndex: childIndex + emitted,
       position: segment.position,
@@ -263,6 +341,15 @@ async function emitTextSegments(
       fontCache: ctx.fontCache,
     });
     ctx.appendChanges([change]);
+    // All line segments of one text node share its owner path; distinct guids.
+    ctx.recordTrace?.({
+      guid,
+      kind: "text",
+      tag: "#text",
+      domPath: ownerDomPath,
+      rect: segmentRect(textNode, segment),
+      text: segment.text.slice(0, 120),
+    });
     emitted += 1;
   }
   return emitted;
