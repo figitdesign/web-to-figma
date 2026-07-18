@@ -1,6 +1,9 @@
+import { appendFileSync } from "node:fs";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
+import { renderStepSummary } from "./report-html";
+import { assembleReport, writeReport } from "./report-io";
 import { createRunDir } from "./run-dir";
 import { discoverScenes } from "./scenes";
 import { runSnapshot } from "./snapshot";
@@ -81,6 +84,42 @@ async function runSnapshotCommand(
   };
 }
 
+function runReportCommand(args: ReadonlyArray<string>): CliResult {
+  const { values } = parseArgs({
+    args: [...args],
+    options: {
+      "run-id": { type: "string", default: "local" },
+      commit: { type: "string", default: "unknown" },
+    },
+    allowPositionals: false,
+  });
+  const runId = values["run-id"] ?? "local";
+  const dir = createRunDir(runId);
+  const report = assembleReport(dir.root, {
+    runId,
+    commit: values.commit ?? "unknown",
+    createdAt: new Date().toISOString(),
+  });
+  writeReport(dir.root, report);
+
+  const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+  if (summaryPath) {
+    appendFileSync(summaryPath, renderStepSummary(report));
+  }
+
+  const top = report.classes
+    .slice(0, 3)
+    .map(
+      (c) => `  ${c.class} ×${c.count} (Σsev ${c.aggregateSeverity.toFixed(2)})`
+    )
+    .join("\n");
+  return {
+    code: 0,
+    out: `report → ${dir.root}/report.json\n${report.findings.length} findings across ${report.classes.length} classes\n${top}\n`,
+    err: "",
+  };
+}
+
 /** Parse and dispatch a CLI invocation. Returns the exit code and the text to
  * emit, so it can be unit-tested without spawning a process. */
 export async function run(argv: ReadonlyArray<string>): Promise<CliResult> {
@@ -94,6 +133,9 @@ export async function run(argv: ReadonlyArray<string>): Promise<CliResult> {
   }
   if (command === "snapshot") {
     return await runSnapshotCommand(argv.slice(1));
+  }
+  if (command === "report") {
+    return runReportCommand(argv.slice(1));
   }
   if (!COMMANDS.some((c) => c.name === command)) {
     return {

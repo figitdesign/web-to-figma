@@ -268,5 +268,21 @@ export async function runSnapshot(
       await browser.close();
     }
   }
+
+  // Run manifest the `report` command reads to assemble report.json.
+  writeFileSync(
+    resolve(options.outDir, "run.json"),
+    `${JSON.stringify(
+      {
+        layout: options.layout,
+        scenes: results.map((r) => ({
+          sceneId: r.sceneId,
+          stem: slug(r.sceneId),
+        })),
+      },
+      null,
+      2
+    )}\n`
+  );
   return results;
 }
