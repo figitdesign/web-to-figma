@@ -1,5 +1,9 @@
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
+import { createRunDir } from "./run-dir";
+import { discoverScenes } from "./scenes";
+import { runSnapshot } from "./snapshot";
 
 export type CliResult = { code: number; out: string; err: string };
 
@@ -35,9 +39,50 @@ function helpText(): string {
   ].join("\n");
 }
 
-/** Parse and dispatch a CLI invocation. Pure: returns the exit code and the
- * text to emit, so it can be unit-tested without spawning a process. */
-export function run(argv: ReadonlyArray<string>): CliResult {
+async function runSnapshotCommand(
+  args: ReadonlyArray<string>
+): Promise<CliResult> {
+  const { values } = parseArgs({
+    args: [...args],
+    options: {
+      layout: { type: "string", default: "auto" },
+      scene: { type: "string", multiple: true },
+      "run-id": { type: "string", default: "local" },
+      check: { type: "boolean", default: false },
+    },
+    allowPositionals: false,
+  });
+
+  const layout = values.layout === "absolute" ? "absolute" : "auto";
+  const all = discoverScenes();
+  const filter = values.scene ?? [];
+  const scenes =
+    filter.length > 0 ? all.filter((s) => filter.includes(s.id)) : all;
+  if (scenes.length === 0) {
+    return { code: 1, out: "", err: "No scenes matched the --scene filter.\n" };
+  }
+
+  const runId = values["run-id"] ?? "local";
+  const dir = createRunDir(runId);
+  const results = await runSnapshot({ scenes, layout, outDir: dir.root });
+
+  const rows = results.map(
+    (r) =>
+      `  ${r.sceneId}: ${r.nodeChanges} node changes, ${r.elements} elements`
+  );
+  const note = values.check
+    ? "\nnote: the tier-0 ratchet check lands in WS-1.6.\n"
+    : "";
+  return {
+    code: 0,
+    out: `snapshot (${layout}) → ${dir.root}\n${rows.join("\n")}\n${note}`,
+    err: "",
+  };
+}
+
+/** Parse and dispatch a CLI invocation. Returns the exit code and the text to
+ * emit, so it can be unit-tested without spawning a process. */
+export async function run(argv: ReadonlyArray<string>): Promise<CliResult> {
   const command = argv[0];
 
   if (command === "--help" || command === "-h") {
@@ -45,6 +90,9 @@ export function run(argv: ReadonlyArray<string>): CliResult {
   }
   if (command === undefined) {
     return { code: 1, out: "", err: `Missing command.\n\n${helpText()}` };
+  }
+  if (command === "snapshot") {
+    return await runSnapshotCommand(argv.slice(1));
   }
   if (!COMMANDS.some((c) => c.name === command)) {
     return {
@@ -68,7 +116,7 @@ function isMain(): boolean {
 }
 
 if (isMain()) {
-  const result = run(process.argv.slice(2));
+  const result = await run(process.argv.slice(2));
   if (result.out) {
     process.stdout.write(result.out);
   }

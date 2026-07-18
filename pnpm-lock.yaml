@@ -147,6 +147,19 @@ importers:
         version: 8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
 
   internal/oracle-harness:
+    dependencies:
+      '@figit/dom-to-figma':
+        specifier: workspace:*
+        version: link:../../packages/dom-to-figma
+      '@figit/fig-kiwi':
+        specifier: workspace:*
+        version: link:../../packages/fig-kiwi
+      playwright:
+        specifier: ^1.50.0
+        version: 1.59.1
+      tsdown:
+        specifier: ^0.21.0
+        version: 0.21.10(oxc-resolver@11.19.1(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0))(typescript@6.0.3)
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
