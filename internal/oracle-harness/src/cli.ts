@@ -66,16 +66,17 @@ async function runSnapshotCommand(
   const dir = createRunDir(runId);
   const results = await runSnapshot({ scenes, layout, outDir: dir.root });
 
+  const totalFindings = results.reduce((n, r) => n + r.tier0Findings, 0);
   const rows = results.map(
     (r) =>
-      `  ${r.sceneId}: ${r.nodeChanges} node changes, ${r.elements} elements`
+      `  ${r.sceneId}: ${r.nodeChanges} nodes, ${r.elements} elements, ${r.tier0Findings} tier-0 findings`
   );
   const note = values.check
     ? "\nnote: the tier-0 ratchet check lands in WS-1.6.\n"
     : "";
   return {
     code: 0,
-    out: `snapshot (${layout}) → ${dir.root}\n${rows.join("\n")}\n${note}`,
+    out: `snapshot (${layout}) → ${dir.root}\n${rows.join("\n")}\ntotal tier-0 findings: ${totalFindings}\n${note}`,
     err: "",
   };
 }

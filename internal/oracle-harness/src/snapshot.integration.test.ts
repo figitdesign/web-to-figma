@@ -1,6 +1,7 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import process from "node:process";
 import type { ConvertTrace } from "@figit/dom-to-figma";
 import type { Browser } from "playwright";
 import { chromium } from "playwright";
@@ -33,7 +34,10 @@ function readTrace(dir: string): ConvertTrace {
   ) as ConvertTrace;
 }
 
-describe("runSnapshot()", () => {
+// Launches Chromium + builds the converter bundle; excluded from the default
+// `pnpm test` to avoid oversubscribing CI alongside the other browser suites.
+// Run with `ORACLE_BROWSER=1`. Corpus coverage in CI comes from the parity job.
+describe.skipIf(process.env.ORACLE_BROWSER !== "1")("runSnapshot()", () => {
   let browser: Browser;
   let bundle: string;
   const tmpDirs: Array<string> = [];

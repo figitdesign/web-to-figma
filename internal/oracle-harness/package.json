@@ -8,7 +8,8 @@
     "cli": "tsx src/cli.ts",
     "check-types": "tsc --noEmit",
     "lint": "biome check",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "test:browser": "ORACLE_BROWSER=1 vitest run --passWithNoTests"
   },
   "dependencies": {
     "@figit/dom-to-figma": "workspace:*",

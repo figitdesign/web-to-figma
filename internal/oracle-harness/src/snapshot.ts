@@ -8,6 +8,8 @@ import { buildConverterBundle } from "./bundle";
 import type { GroundTruth, GroundTruthElement } from "./ground-truth";
 import { TRACKED_STYLES } from "./ground-truth";
 import type { Scene } from "./scenes";
+import type { PayloadNode } from "./tier0";
+import { diffTier0 } from "./tier0";
 
 // Disable animation/transition/caret and hide scrollbars so the render is
 // stable frame-to-frame. Injected after the scene content loads.
@@ -31,6 +33,7 @@ export type SnapshotSceneResult = {
   nodeChanges: number;
   traceEntries: number;
   elements: number;
+  tier0Findings: number;
 };
 
 export type SnapshotOptions = {
@@ -195,7 +198,14 @@ async function snapshotScene(
 
     // Fail fast here (not in Figma) if the payload can't round-trip.
     const decoded = decodeFigmaData(parseClipboardHtml(envelope).fig);
-    const nodeChanges = decoded.message.nodeChanges as Array<unknown>;
+    const nodeChanges = decoded.message.nodeChanges as Array<PayloadNode>;
+
+    const findings = diffTier0({
+      sceneId: scene.id,
+      nodes: nodeChanges,
+      trace,
+      groundTruth: elements,
+    });
 
     const stem = slug(scene.id);
     const screenshotPath = `ground-truth/${stem}.png`;
@@ -207,6 +217,11 @@ async function snapshotScene(
       trace,
       screenshotPath,
     });
+    mkdirSync(resolve(outDir, "diff"), { recursive: true });
+    writeFileSync(
+      resolve(outDir, "diff", `${stem}.tier0.json`),
+      `${JSON.stringify(findings, null, 2)}\n`
+    );
     await page.screenshot({
       path: resolve(outDir, screenshotPath),
       clip: { x: 0, y: 0, width: scene.width, height: scene.height },
@@ -217,6 +232,7 @@ async function snapshotScene(
       nodeChanges: nodeChanges.length,
       traceEntries: trace.entries.length,
       elements: elements.length,
+      tier0Findings: findings.length,
     };
   } finally {
     await page.close();

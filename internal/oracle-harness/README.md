@@ -22,5 +22,14 @@ pnpm --filter @figit/oracle-harness run cli <command>
 | `calibrate` | stub (WS-2.6) | Measure Figma's render noise floor. |
 | `guard` | stub (WS-3.2) | Enforce oracle PR path/diff rules. |
 
-Only scene discovery and run-directory management are implemented so far
-(WS-1.2 scaffold). Run artifacts land under the gitignored `oracle/runs/<runId>/`.
+Run artifacts land under the gitignored `oracle/runs/<runId>/`.
+
+## Tests
+
+`pnpm --filter @figit/oracle-harness test` runs the fast, hermetic unit tests
+(scene discovery, CLI dispatch, tier-0 differ). The browser-dependent
+integration tests (real Chromium + converter bundle + the `tsx` CLI path) are
+gated behind `ORACLE_BROWSER=1` — run them with `pnpm --filter
+@figit/oracle-harness test:browser`. They are excluded from the default run so
+they don't oversubscribe CI alongside the other packages' browser suites; the
+scheduled parity job exercises the same paths over the full corpus.
