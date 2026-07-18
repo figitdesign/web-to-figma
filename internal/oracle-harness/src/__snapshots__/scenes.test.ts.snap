@@ -1,0 +1,161 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
+[
+  {
+    "height": 200,
+    "id": "00-smoke/two-boxes",
+    "width": 320,
+  },
+  {
+    "height": 180,
+    "id": "01-flex/align-center-end",
+    "width": 320,
+  },
+  {
+    "height": 160,
+    "id": "01-flex/asymmetric-padding",
+    "width": 320,
+  },
+  {
+    "height": 240,
+    "id": "01-flex/column-basic",
+    "width": 200,
+  },
+  {
+    "height": 140,
+    "id": "01-flex/justify-center",
+    "width": 320,
+  },
+  {
+    "height": 140,
+    "id": "01-flex/justify-end",
+    "width": 320,
+  },
+  {
+    "height": 160,
+    "id": "01-flex/margin-spacing-border",
+    "width": 320,
+  },
+  {
+    "height": 220,
+    "id": "01-flex/nested",
+    "width": 320,
+  },
+  {
+    "height": 160,
+    "id": "01-flex/row-basic",
+    "width": 320,
+  },
+  {
+    "height": 140,
+    "id": "01-flex/space-between",
+    "width": 320,
+  },
+  {
+    "height": 140,
+    "id": "01-flex/space-evenly",
+    "width": 320,
+  },
+  {
+    "height": 80,
+    "id": "02-sizing/fill-child",
+    "width": 320,
+  },
+  {
+    "height": 80,
+    "id": "02-sizing/fill-two",
+    "width": 320,
+  },
+  {
+    "height": 80,
+    "id": "02-sizing/grow-unequal",
+    "width": 320,
+  },
+  {
+    "height": 160,
+    "id": "02-sizing/hug-column",
+    "width": 320,
+  },
+  {
+    "height": 120,
+    "id": "02-sizing/hug-row",
+    "width": 320,
+  },
+  {
+    "height": 140,
+    "id": "02-sizing/nested-mix",
+    "width": 320,
+  },
+  {
+    "height": 100,
+    "id": "02-sizing/stretch-cross",
+    "width": 320,
+  },
+  {
+    "height": 120,
+    "id": "03-flow/absolute-badge",
+    "width": 320,
+  },
+  {
+    "height": 180,
+    "id": "03-flow/absolute-in-block",
+    "width": 320,
+  },
+  {
+    "height": 160,
+    "id": "03-flow/block-center",
+    "width": 320,
+  },
+  {
+    "height": 220,
+    "id": "03-flow/block-column",
+    "width": 320,
+  },
+  {
+    "height": 150,
+    "id": "03-flow/block-hug",
+    "width": 320,
+  },
+  {
+    "height": 170,
+    "id": "03-flow/block-stretch",
+    "width": 320,
+  },
+  {
+    "height": 300,
+    "id": "03-flow/card-mock",
+    "width": 280,
+  },
+  {
+    "height": 220,
+    "id": "04-wrap/column-reverse",
+    "width": 200,
+  },
+  {
+    "height": 160,
+    "id": "04-wrap/grid-single-col",
+    "width": 200,
+  },
+  {
+    "height": 130,
+    "id": "04-wrap/grid-uniform",
+    "width": 320,
+  },
+  {
+    "height": 80,
+    "id": "04-wrap/row-reverse",
+    "width": 320,
+  },
+  {
+    "height": 110,
+    "id": "04-wrap/wrap-rows",
+    "width": 320,
+  },
+  {
+    "height": 200,
+    "id": "04-wrap/wrap-stretch-gap",
+    "width": 320,
+  },
+]
+`;
