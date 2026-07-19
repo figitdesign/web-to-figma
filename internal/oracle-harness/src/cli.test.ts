@@ -9,6 +9,7 @@ const SUBCOMMANDS = [
   "ledger",
   "calibrate",
   "guard",
+  "history",
 ];
 
 describe("cli run()", () => {

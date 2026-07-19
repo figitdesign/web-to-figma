@@ -24,6 +24,11 @@ import {
 import type { GuardLabel } from "./guard";
 import { checkGuard } from "./guard";
 import { collectGuardInput } from "./guard-io";
+import {
+  renderHistoryLine,
+  serializeHistoryLine,
+  summarizeRun,
+} from "./history";
 import type { LedgerEntry } from "./ledger";
 import { park, reconcile, recordAttempt, selectNextClass } from "./ledger";
 import {
@@ -83,6 +88,7 @@ const COMMANDS: ReadonlyArray<{ name: string; summary: string }> = [
   },
   { name: "calibrate", summary: "measure Figma's render noise floor" },
   { name: "guard", summary: "enforce oracle PR path/diff rules" },
+  { name: "history", summary: "append a run summary line to runs.ndjson" },
 ];
 
 function helpText(): string {
@@ -569,6 +575,33 @@ function runGuardCommand(args: ReadonlyArray<string>): CliResult {
   };
 }
 
+/** Append a one-line summary of a run to the rolling `runs.ndjson` history
+ * (WS-3.3) and, in CI, mirror it into the step summary. */
+function runHistoryCommand(args: ReadonlyArray<string>): CliResult {
+  const { values } = parseArgs({
+    args: [...args],
+    options: {
+      "run-id": { type: "string", default: "parity" },
+      path: { type: "string", default: "oracle/history/runs.ndjson" },
+    },
+    allowPositionals: false,
+  });
+  const record = summarizeRun(loadRunReport(values["run-id"] ?? "parity"));
+  const historyPath = absStatePath(values.path ?? "oracle/history/runs.ndjson");
+  mkdirSync(dirname(historyPath), { recursive: true });
+  appendFileSync(historyPath, serializeHistoryLine(record));
+
+  const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+  if (summaryPath) {
+    appendFileSync(summaryPath, `\n${renderHistoryLine(record)}\n`);
+  }
+  return {
+    code: EXIT.OK,
+    out: `history → ${historyPath}\n${renderHistoryLine(record)}\n`,
+    err: "",
+  };
+}
+
 async function runFigmaCommand(
   args: ReadonlyArray<string>
 ): Promise<CliResult> {
@@ -631,6 +664,9 @@ export async function run(argv: ReadonlyArray<string>): Promise<CliResult> {
   }
   if (command === "guard") {
     return runGuardCommand(argv.slice(1));
+  }
+  if (command === "history") {
+    return runHistoryCommand(argv.slice(1));
   }
   return {
     code: 1,

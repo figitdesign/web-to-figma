@@ -85,6 +85,26 @@ jobs:
       - name: Assemble report + step summary
         run: pnpm --filter @figit/oracle-harness run cli report --run-id "$RUN_ID" --commit "${{ github.sha }}"
 
+      # Rolling history: restore the prior runs.ndjson, append this run's line,
+      # re-upload. `history` also mirrors the line into the step summary.
+      - name: Restore run history
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: oracle-history
+          path: oracle/history
+
+      - name: Append run history
+        run: pnpm --filter @figit/oracle-harness run cli history --run-id "$RUN_ID"
+
+      - name: Upload run history
+        uses: actions/upload-artifact@v4
+        with:
+          name: oracle-history
+          path: oracle/history/runs.ndjson
+          retention-days: 90
+          overwrite: true
+
       - name: Upload run artifacts
         if: always()
         uses: actions/upload-artifact@v4
