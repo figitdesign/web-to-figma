@@ -629,7 +629,7 @@ Specified at lower resolution intentionally; re-plan when M3 is live.
 | WS-2.3 Tier-1 copy-back differ | M2 | done (commit 3b5bcb7); shared diff extracted to fig-kiwi; batch packing still pending | — |
 | WS-2.4 Tier-2 pixel pipeline | M2 | done (commit e093e43); Copy-as-PNG is 2×, downsampled to 1× | — |
 | WS-2.5 REST pixel fallback (optional) | M2 | not started | — |
-| WS-2.6 Calibration | M2 | not started | — |
+| WS-2.6 Calibration | M2 | done (commit 3dae76e); Figma render is deterministic (0%), 0.1% noise floor applied | — |
 | WS-3.1 fix-discrepancy command | M3 | not started | — |
 | WS-3.2 Scheduled workflow + guard | M3 | not started | — |
 | WS-3.3 Observability | M3 | not started | — |
