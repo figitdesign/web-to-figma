@@ -50,23 +50,43 @@ export function findingId(finding: Finding): string {
   return createHash("sha256").update(key).digest("hex").slice(0, ID_HEX_LENGTH);
 }
 
-/** Per-scene tier-0 rollup derived from that scene's raw findings. */
-export function buildSceneResult(
-  sceneId: string,
-  layout: "auto" | "absolute",
-  findings: ReadonlyArray<Finding>
-): SceneResult {
-  let maxDeltaPx = 0;
+function maxDelta(findings: ReadonlyArray<Finding>): number {
+  let max = 0;
   for (const finding of findings) {
-    if (finding.deltaPx !== undefined && finding.deltaPx > maxDeltaPx) {
-      maxDeltaPx = finding.deltaPx;
+    if (finding.deltaPx !== undefined && finding.deltaPx > max) {
+      max = finding.deltaPx;
     }
   }
-  return {
-    sceneId,
-    layout,
-    tier0: { findings: findings.length, maxDeltaPx },
+  return max;
+}
+
+/** Per-scene rollup derived from that scene's raw findings. Tier-1/2 are
+ * included only when those measurements ran. */
+export function buildSceneResult(input: {
+  sceneId: string;
+  layout: "auto" | "absolute";
+  tier0: ReadonlyArray<Finding>;
+  tier1?: ReadonlyArray<Finding>;
+  tier2?: { diffRatio: number; findings: ReadonlyArray<Finding> };
+}): SceneResult {
+  const result: SceneResult = {
+    sceneId: input.sceneId,
+    layout: input.layout,
+    tier0: { findings: input.tier0.length, maxDeltaPx: maxDelta(input.tier0) },
   };
+  if (input.tier1) {
+    result.tier1 = {
+      findings: input.tier1.length,
+      maxDeltaPx: maxDelta(input.tier1),
+    };
+  }
+  if (input.tier2) {
+    result.tier2 = {
+      diffRatio: input.tier2.diffRatio,
+      clusters: input.tier2.findings.length,
+    };
+  }
+  return result;
 }
 
 /**

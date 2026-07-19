@@ -9,23 +9,17 @@ import { dirname, isAbsolute, resolve } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
-import type { Page } from "playwright";
 import { loadEnv } from "./env";
 import { EXIT } from "./exit-codes";
-import {
-  cleanCanvas,
-  copyPng,
-  openFigma,
-  pastePayload,
-  waitForSettlement,
-} from "./figma/paste";
+import { openFigma } from "./figma/paste";
+import type { SceneCapture } from "./figma/run";
+import { captureScene } from "./figma/run";
 import type { SessionConfig } from "./figma/session";
 import {
   resolveSessionConfig,
   saveLoginSession,
   validateSession,
 } from "./figma/session";
-import type { GroundTruthElement } from "./ground-truth";
 import type { LedgerEntry } from "./ledger";
 import { park, reconcile, recordAttempt, selectNextClass } from "./ledger";
 import {
@@ -37,7 +31,6 @@ import {
 import { assertReport } from "./report";
 import { renderStepSummary } from "./report-html";
 import { assembleReport, writeReport } from "./report-io";
-import type { RunDir } from "./run-dir";
 import { createRunDir } from "./run-dir";
 import { discoverScenes } from "./scenes";
 import type { Scoreboard } from "./scoreboard";
@@ -47,8 +40,6 @@ import {
   serializeScoreboard,
 } from "./scoreboard";
 import { runSnapshot } from "./snapshot";
-import { diffTier1 } from "./tier1";
-import { diffTier2 } from "./tier2";
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../..");
 const BASELINE_PATH = resolve(
@@ -75,8 +66,7 @@ const COMMANDS: ReadonlyArray<{ name: string; summary: string }> = [
   },
   {
     name: "figma",
-    summary:
-      "drive Figma: login | validate | paste (tier-1/2 capture land next)",
+    summary: "drive Figma: login | validate | paste <scene> | run (corpus)",
   },
   {
     name: "report",
@@ -400,99 +390,63 @@ async function runFigmaValidate(): Promise<CliResult> {
 
 /** Capture Figma's rendered PNG and diff it against the DOM screenshot from a
  * prior snapshot run. Returns a one-line summary. */
-async function captureTier2(
-  page: Page,
-  dir: RunDir,
-  sceneId: string,
-  stem: string
-): Promise<string> {
-  const figmaPng = await copyPng(page);
-  writeFileSync(resolve(dir.figma, `${stem}.png`), figmaPng);
-
-  const domPngPath = resolve(dir.groundTruth, `${stem}.png`);
-  const gtPath = resolve(dir.groundTruth, `${stem}.json`);
-  if (!(existsSync(domPngPath) && existsSync(gtPath))) {
-    return "tier-2: skipped (no DOM screenshot — run snapshot first)";
+function captureLine(capture: SceneCapture): string {
+  if (!capture.settled) {
+    return `  ${capture.sceneId}: FAILED (${capture.note})`;
   }
-  const gt = JSON.parse(readFileSync(gtPath, "utf-8")) as {
-    elements: Array<GroundTruthElement>;
-  };
-  const result = diffTier2({
-    sceneId,
-    domPng: readFileSync(domPngPath),
-    figmaPng,
-    elements: gt.elements,
-  });
-  if ("error" in result) {
-    return `tier-2: skipped (${result.error})`;
-  }
-  writeFileSync(
-    resolve(dir.diff, `${stem}.tier2.json`),
-    `${JSON.stringify(result.findings, null, 2)}\n`
-  );
-  writeFileSync(resolve(dir.diff, `${stem}.diff.png`), result.diffPng);
-  return `tier-2: diffRatio ${(result.diffRatio * 100).toFixed(2)}%, ${result.findings.length} regions`;
+  const tier2 =
+    capture.tier2DiffRatio === null
+      ? capture.note || "tier-2 —"
+      : `tier-2 ${(capture.tier2DiffRatio * 100).toFixed(2)}% (${capture.tier2Regions} regions)`;
+  return `  ${capture.sceneId}: tier-1 ${capture.tier1Findings}, ${tier2}`;
 }
 
-async function runFigmaPaste(args: ReadonlyArray<string>): Promise<CliResult> {
-  const { values } = parseArgs({
-    args: [...args],
-    options: {
-      "run-id": { type: "string", default: "parity" },
-      scene: { type: "string" },
-    },
-    allowPositionals: false,
-  });
-  const sceneId = values.scene;
-  if (!sceneId) {
-    return { code: EXIT.ERROR, out: "", err: "paste requires --scene\n" };
-  }
-  const scene = discoverScenes().find((s) => s.id === sceneId);
-  if (!scene) {
-    return { code: EXIT.ERROR, out: "", err: `unknown scene ${sceneId}\n` };
-  }
+/** Open one Figma session and capture tier-1/2 for each scene that has a
+ * payload in the run dir (produced by a prior snapshot). */
+async function figmaCapture(
+  runId: string,
+  sceneIds: ReadonlyArray<string>
+): Promise<CliResult> {
   const resolved = resolveFigmaConfig();
   if (!resolved.ok) {
     return { code: EXIT.ERROR, out: "", err: resolved.message };
   }
-
-  const dir = createRunDir(values["run-id"] ?? "parity");
-  const stem = sceneId.replaceAll("/", "__");
-  const envelope = readFileSync(resolve(dir.payloads, `${stem}.html`), "utf-8");
+  const dir = createRunDir(runId);
+  const scenes = discoverScenes().filter(
+    (s) =>
+      sceneIds.includes(s.id) &&
+      existsSync(resolve(dir.payloads, `${s.id.replaceAll("/", "__")}.html`))
+  );
+  if (scenes.length === 0) {
+    return {
+      code: EXIT.ERROR,
+      out: "",
+      err: "no scenes with payloads in the run — run `snapshot` first\n",
+    };
+  }
 
   const session = await openFigma(resolved.config);
+  const captures: Array<SceneCapture> = [];
   try {
-    await cleanCanvas(session.page);
-    await pastePayload(session.page, envelope);
-    const settlement = await waitForSettlement(session.page, [scene.name]);
-    if (!settlement.ok) {
-      await session.page
-        .screenshot({ path: resolve(dir.figma, `${stem}.fail.png`) })
-        .catch(() => undefined);
-      return {
-        code: EXIT.PASTE_FAILED,
-        out: "",
-        err: `paste did not settle — expected [${scene.name}], got [${settlement.frames.join(", ")}]\n`,
-      };
+    for (const scene of scenes) {
+      const envelope = readFileSync(
+        resolve(dir.payloads, `${scene.id.replaceAll("/", "__")}.html`),
+        "utf-8"
+      );
+      captures.push(
+        await captureScene({ page: session.page, dir, scene, envelope })
+      );
     }
-    writeFileSync(
-      resolve(dir.figma, `${stem}.captured.html`),
-      settlement.capturedHtml
-    );
-    const tier1 = diffTier1(sceneId, envelope, settlement.capturedHtml);
-    writeFileSync(
-      resolve(dir.diff, `${stem}.tier1.json`),
-      `${JSON.stringify(tier1, null, 2)}\n`
-    );
-    const tier2Line = await captureTier2(session.page, dir, sceneId, stem);
-    return {
-      code: EXIT.OK,
-      out: `pasted ${sceneId} → settled in ${settlement.elapsedMs}ms, frames [${settlement.frames.join(", ")}]\ntier-1 findings: ${tier1.length}\n${tier2Line}\ncaptured → ${dir.figma}/${stem}.captured.html\n`,
-      err: "",
-    };
   } finally {
     await session.browser.close();
   }
+
+  const failed = captures.filter((c) => !c.settled).length;
+  return {
+    code: failed > 0 ? EXIT.PASTE_FAILED : EXIT.OK,
+    out: `figma capture → ${dir.root}\n${captures.map(captureLine).join("\n")}\n${captures.length} scenes, ${failed} failed\n`,
+    err: "",
+  };
 }
 
 async function runFigmaCommand(
@@ -505,13 +459,24 @@ async function runFigmaCommand(
   if (action === "validate") {
     return await runFigmaValidate();
   }
-  if (action === "paste") {
-    return await runFigmaPaste(args.slice(1));
+  if (action === "paste" || action === "run") {
+    const { values } = parseArgs({
+      args: [...args.slice(1)],
+      options: {
+        "run-id": { type: "string", default: "parity" },
+        scene: { type: "string", multiple: true },
+      },
+      allowPositionals: false,
+    });
+    const filter = values.scene ?? [];
+    const sceneIds =
+      filter.length > 0 ? filter : discoverScenes().map((s) => s.id);
+    return await figmaCapture(values["run-id"] ?? "parity", sceneIds);
   }
   return {
     code: EXIT.ERROR,
     out: "",
-    err: `unknown figma action '${action ?? ""}' (login|validate|paste)\n`,
+    err: `unknown figma action '${action ?? ""}' (login|validate|paste|run)\n`,
   };
 }
 

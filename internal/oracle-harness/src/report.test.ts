@@ -51,14 +51,36 @@ describe("findingId()", () => {
 });
 
 describe("buildSceneResult()", () => {
-  it("counts findings and tracks the max delta", () => {
-    const result = buildSceneResult("s1", "auto", [
-      finding({ deltaPx: 2 }),
-      finding({ deltaPx: 5, class: "geometry.y", field: "y" }),
-      finding({ class: "node.missing", deltaPx: undefined }),
-    ]);
+  it("counts findings and tracks the max delta across tiers", () => {
+    const result = buildSceneResult({
+      sceneId: "s1",
+      layout: "auto",
+      tier0: [
+        finding({ deltaPx: 2 }),
+        finding({ deltaPx: 5, class: "geometry.y", field: "y" }),
+        finding({ class: "node.missing", deltaPx: undefined }),
+      ],
+      tier1: [finding({ tier: 1, class: "kiwi.stackSpacing" })],
+      tier2: {
+        diffRatio: 0.02,
+        findings: [finding({ tier: 2, class: "pixel.region" })],
+      },
+    });
     expect(result.tier0.findings).toBe(3);
     expect(result.tier0.maxDeltaPx).toBe(5);
+    expect(result.tier1?.findings).toBe(1);
+    expect(result.tier2?.diffRatio).toBe(0.02);
+    expect(result.tier2?.clusters).toBe(1);
+  });
+
+  it("omits tier-1/2 when not measured", () => {
+    const result = buildSceneResult({
+      sceneId: "s1",
+      layout: "auto",
+      tier0: [],
+    });
+    expect(result.tier1).toBeUndefined();
+    expect(result.tier2).toBeUndefined();
   });
 });
 
@@ -100,7 +122,9 @@ describe("buildReport()", () => {
     const report = buildReport({
       ...META,
       tiersRun: [0],
-      scenes: [buildSceneResult("s1", "auto", [finding()])],
+      scenes: [
+        buildSceneResult({ sceneId: "s1", layout: "auto", tier0: [finding()] }),
+      ],
       rawFindings: [finding()],
     });
     expect(report.findings).toHaveLength(1);
