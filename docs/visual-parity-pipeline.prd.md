@@ -624,7 +624,7 @@ Specified at lower resolution intentionally; re-plan when M3 is live.
 | WS-1.6 Scoreboard + ratchet + CI | M1 | done (commit e0ced82) | — |
 | WS-1.7 Findings ledger + selection | M1 | done (commit c99bb9a) | — |
 | WS-2.1 Session bootstrap | M2 | done (commit d4f88a1) | — |
-| WS-2.2 Paste runner | M2 | not started | — |
+| WS-2.2 Paste runner | M2 | done (commit 3ed4506); single-scene paste, batch packing in WS-2.3 | — |
 | WS-2.3 Tier-1 copy-back differ | M2 | not started | — |
 | WS-2.4 Tier-2 pixel pipeline | M2 | not started | — |
 | WS-2.5 REST pixel fallback (optional) | M2 | not started | — |
