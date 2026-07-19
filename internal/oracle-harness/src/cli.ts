@@ -8,6 +8,14 @@ import { dirname, resolve } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
+import type { LedgerEntry } from "./ledger";
+import { park, reconcile, recordAttempt, selectNextClass } from "./ledger";
+import {
+  readLedger,
+  readRunCounter,
+  writeLedger,
+  writeRunCounter,
+} from "./ledger-io";
 import { assertReport } from "./report";
 import { renderStepSummary } from "./report-html";
 import { assembleReport, writeReport } from "./report-io";
@@ -43,6 +51,10 @@ const COMMANDS: ReadonlyArray<{ name: string; summary: string }> = [
     summary: "merge tier outputs into report.json and reconcile the ledger",
   },
   { name: "check", summary: "compare a run against the committed baseline" },
+  {
+    name: "ledger",
+    summary: "reconcile/select/status/park/attempt on the findings ledger",
+  },
   { name: "calibrate", summary: "measure Figma's render noise floor" },
   { name: "guard", summary: "enforce oracle PR path/diff rules" },
 ];
@@ -192,6 +204,112 @@ function runCheckCommand(args: ReadonlyArray<string>): CliResult {
   };
 }
 
+function ledgerStatusLine(entry: LedgerEntry): string {
+  const cool =
+    entry.cooldownUntilRun === null
+      ? ""
+      : ` cooldown→${entry.cooldownUntilRun}`;
+  return `  ${entry.class} [${entry.status}] sev ${entry.severity.toFixed(2)} attempts ${entry.attempts}${cool}`;
+}
+
+function runLedgerCommand(args: ReadonlyArray<string>): CliResult {
+  const [action, ...rest] = args;
+  const { values } = parseArgs({
+    args: [...rest],
+    options: {
+      "run-id": { type: "string", default: "parity" },
+      class: { type: "string" },
+      verdict: { type: "string" },
+      what: { type: "string" },
+      why: { type: "string" },
+      cooldown: { type: "string" },
+    },
+    allowPositionals: false,
+  });
+  const runId = values["run-id"] ?? "parity";
+
+  if (action === "status") {
+    const entries = readLedger();
+    if (entries.size === 0) {
+      return { code: 0, out: "ledger empty\n", err: "" };
+    }
+    const rows = [...entries.values()].map(ledgerStatusLine);
+    return { code: 0, out: `${rows.join("\n")}\n`, err: "" };
+  }
+
+  if (action === "select") {
+    const cls = selectNextClass(
+      loadRunReport(runId),
+      readLedger(),
+      readRunCounter()
+    );
+    return { code: 0, out: `${cls ?? "none"}\n`, err: "" };
+  }
+
+  if (action === "reconcile") {
+    const counter = readRunCounter() + 1;
+    const { entries, resolved } = reconcile(
+      readLedger(),
+      loadRunReport(runId),
+      { runId }
+    );
+    writeLedger(entries, resolved);
+    writeRunCounter(counter);
+    return {
+      code: 0,
+      out: `ledger reconciled (run ${counter}): ${entries.size} entries, ${resolved.length} resolved\n`,
+      err: "",
+    };
+  }
+
+  if (action === "park") {
+    if (!(values.class && values.verdict)) {
+      return { code: 1, out: "", err: "park requires --class and --verdict\n" };
+    }
+    const entries = readLedger();
+    const entry = entries.get(values.class);
+    if (!entry) {
+      return { code: 1, out: "", err: `no ledger entry for ${values.class}\n` };
+    }
+    entries.set(values.class, park(entry, values.verdict));
+    writeLedger(entries, []);
+    return { code: 0, out: `parked ${values.class}\n`, err: "" };
+  }
+
+  if (action === "attempt") {
+    if (!(values.class && values.what && values.why)) {
+      return {
+        code: 1,
+        out: "",
+        err: "attempt requires --class, --what and --why\n",
+      };
+    }
+    const entries = readLedger();
+    const entry = entries.get(values.class);
+    if (!entry) {
+      return { code: 1, out: "", err: `no ledger entry for ${values.class}\n` };
+    }
+    entries.set(
+      values.class,
+      recordAttempt(entry, {
+        runId,
+        whatTried: values.what,
+        whyFailed: values.why,
+        runCounter: readRunCounter(),
+        cooldownRuns: values.cooldown ? Number(values.cooldown) : undefined,
+      })
+    );
+    writeLedger(entries, []);
+    return { code: 0, out: `recorded attempt on ${values.class}\n`, err: "" };
+  }
+
+  return {
+    code: 1,
+    out: "",
+    err: `unknown ledger action '${action ?? ""}' (reconcile|select|status|park|attempt)\n`,
+  };
+}
+
 /** Parse and dispatch a CLI invocation. Returns the exit code and the text to
  * emit, so it can be unit-tested without spawning a process. */
 export async function run(argv: ReadonlyArray<string>): Promise<CliResult> {
@@ -211,6 +329,9 @@ export async function run(argv: ReadonlyArray<string>): Promise<CliResult> {
   }
   if (command === "check") {
     return runCheckCommand(argv.slice(1));
+  }
+  if (command === "ledger") {
+    return runLedgerCommand(argv.slice(1));
   }
   if (!COMMANDS.some((c) => c.name === command)) {
     return {

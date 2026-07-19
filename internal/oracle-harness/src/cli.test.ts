@@ -6,6 +6,7 @@ const SUBCOMMANDS = [
   "figma",
   "report",
   "check",
+  "ledger",
   "calibrate",
   "guard",
 ];
