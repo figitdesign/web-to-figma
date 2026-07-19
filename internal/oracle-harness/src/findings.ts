@@ -6,8 +6,12 @@
 export type Finding = {
   sceneId: string;
   tier: 0 | 1 | 2;
-  /** Dot-path discrepancy class from {@link DISCREPANCY_CLASSES}. */
-  class: DiscrepancyClass;
+  /**
+   * Discrepancy class. Tier-0/1 structural classes come from the closed
+   * {@link DISCREPANCY_CLASSES} vocabulary; tier-1 copy-back adds an open
+   * `kiwi.<field>` family for whichever field Figma changed on paste.
+   */
+  class: DiscrepancyClass | `kiwi.${string}`;
   /** Normalized magnitude, 0..1. */
   severity: number;
   /** `sessionID:localID` of the payload node, when the finding is node-scoped. */

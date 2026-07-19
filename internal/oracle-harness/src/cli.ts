@@ -42,6 +42,7 @@ import {
   serializeScoreboard,
 } from "./scoreboard";
 import { runSnapshot } from "./snapshot";
+import { diffTier1 } from "./tier1";
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../..");
 const BASELINE_PATH = resolve(
@@ -436,9 +437,14 @@ async function runFigmaPaste(args: ReadonlyArray<string>): Promise<CliResult> {
       resolve(dir.figma, `${stem}.captured.html`),
       settlement.capturedHtml
     );
+    const tier1 = diffTier1(sceneId, envelope, settlement.capturedHtml);
+    writeFileSync(
+      resolve(dir.diff, `${stem}.tier1.json`),
+      `${JSON.stringify(tier1, null, 2)}\n`
+    );
     return {
       code: EXIT.OK,
-      out: `pasted ${sceneId} → settled in ${settlement.elapsedMs}ms, frames [${settlement.frames.join(", ")}]\ncaptured → ${dir.figma}/${stem}.captured.html\n`,
+      out: `pasted ${sceneId} → settled in ${settlement.elapsedMs}ms, frames [${settlement.frames.join(", ")}]\ntier-1 findings: ${tier1.length}\ncaptured → ${dir.figma}/${stem}.captured.html\n`,
       err: "",
     };
   } finally {
