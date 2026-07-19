@@ -19,7 +19,7 @@
     "release": "pnpm build && pnpm changeset publish",
     "oracle:diff": "pnpm --filter @figit/fig-kiwi oracle:diff",
     "oracle:distill": "pnpm --filter @figit/fig-kiwi oracle:distill",
-    "oracle:parity": "pnpm --filter @figit/oracle-harness run cli snapshot --check",
+    "oracle:parity": "pnpm --filter @figit/oracle-harness run parity",
     "oracle:figma-run": "pnpm --filter @figit/oracle-harness run cli figma",
     "oracle:calibrate": "pnpm --filter @figit/oracle-harness run cli calibrate"
   },

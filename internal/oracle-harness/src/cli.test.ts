@@ -28,8 +28,8 @@ describe("cli run()", () => {
   });
 
   it("dispatches an unimplemented command to its stub", async () => {
-    // `check` is still a stub; `snapshot`/`report` now do real work.
-    const result = await run(["check"]);
+    // `calibrate` is still a stub; snapshot/report/check now do real work.
+    const result = await run(["calibrate"]);
     expect(result.code).not.toBe(0);
     expect(result.err).toContain("not implemented");
   });

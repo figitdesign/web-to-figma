@@ -24,6 +24,29 @@ pnpm --filter @figit/oracle-harness run cli <command>
 
 Run artifacts land under the gitignored `oracle/runs/<runId>/`.
 
+## The parity ratchet
+
+`pnpm oracle:parity` renders the corpus, runs the tier-0 diff, and compares the
+result against the committed baseline at `baseline/scoreboard.json`. It runs on
+every PR (the `parity` CI job) with no secrets.
+
+A scene may only **hold or improve** its metrics. The check fails when:
+
+- a scene's tier-0 findings increase, or its `maxDeltaPx` grows by > 0.25px;
+- (once wired) tier-1 findings increase or tier-2 `diffRatio` grows by > 0.002;
+- a baseline scene is missing from the run (delete it from the baseline in the
+  same PR), or a run scene is absent from the baseline (add it in the same PR).
+
+Regenerate the baseline **deliberately**, only when a change legitimately moves
+the numbers (a fix that reduces findings, or adding/removing scenes):
+
+```sh
+pnpm --filter @figit/oracle-harness run cli check --run-id parity --update
+```
+
+The diff to `baseline/scoreboard.json` then shows exactly what changed and
+belongs in the same PR. Never edit the baseline by hand to force a green check.
+
 ## Tests
 
 `pnpm --filter @figit/oracle-harness test` runs the fast, hermetic unit tests

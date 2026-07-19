@@ -6,6 +6,7 @@
   "description": "Visual-parity harness: measure DOM-to-Figma correspondence and drive autonomous fixes.",
   "scripts": {
     "cli": "tsx src/cli.ts",
+    "parity": "tsx src/cli.ts snapshot --run-id parity && tsx src/cli.ts report --run-id parity && tsx src/cli.ts check --run-id parity",
     "check-types": "tsc --noEmit",
     "lint": "biome check",
     "test": "vitest run --passWithNoTests",

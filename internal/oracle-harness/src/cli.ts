@@ -1,12 +1,30 @@
-import { appendFileSync } from "node:fs";
+import {
+  appendFileSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
+import { dirname, resolve } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
+import { assertReport } from "./report";
 import { renderStepSummary } from "./report-html";
 import { assembleReport, writeReport } from "./report-io";
 import { createRunDir } from "./run-dir";
 import { discoverScenes } from "./scenes";
+import type { Scoreboard } from "./scoreboard";
+import {
+  buildScoreboard,
+  checkScoreboard,
+  serializeScoreboard,
+} from "./scoreboard";
 import { runSnapshot } from "./snapshot";
+
+const BASELINE_PATH = resolve(
+  import.meta.dirname,
+  "../baseline/scoreboard.json"
+);
 
 export type CliResult = { code: number; out: string; err: string };
 
@@ -51,7 +69,6 @@ async function runSnapshotCommand(
       layout: { type: "string", default: "auto" },
       scene: { type: "string", multiple: true },
       "run-id": { type: "string", default: "local" },
-      check: { type: "boolean", default: false },
     },
     allowPositionals: false,
   });
@@ -74,12 +91,9 @@ async function runSnapshotCommand(
     (r) =>
       `  ${r.sceneId}: ${r.nodeChanges} nodes, ${r.elements} elements, ${r.tier0Findings} tier-0 findings`
   );
-  const note = values.check
-    ? "\nnote: the tier-0 ratchet check lands in WS-1.6.\n"
-    : "";
   return {
     code: 0,
-    out: `snapshot (${layout}) → ${dir.root}\n${rows.join("\n")}\ntotal tier-0 findings: ${totalFindings}\n${note}`,
+    out: `snapshot (${layout}) → ${dir.root}\n${rows.join("\n")}\ntotal tier-0 findings: ${totalFindings}\n`,
     err: "",
   };
 }
@@ -120,6 +134,64 @@ function runReportCommand(args: ReadonlyArray<string>): CliResult {
   };
 }
 
+function loadRunReport(runId: string) {
+  const dir = createRunDir(runId);
+  const report = JSON.parse(
+    readFileSync(resolve(dir.root, "report.json"), "utf-8")
+  );
+  assertReport(report);
+  return report;
+}
+
+function runCheckCommand(args: ReadonlyArray<string>): CliResult {
+  const { values } = parseArgs({
+    args: [...args],
+    options: {
+      "run-id": { type: "string", default: "parity" },
+      update: { type: "boolean", default: false },
+    },
+    allowPositionals: false,
+  });
+  const current = buildScoreboard(loadRunReport(values["run-id"] ?? "parity"));
+  const sceneCount = Object.keys(current.scenes).length;
+
+  if (values.update) {
+    mkdirSync(dirname(BASELINE_PATH), { recursive: true });
+    writeFileSync(BASELINE_PATH, serializeScoreboard(current));
+    return {
+      code: 0,
+      out: `baseline updated → ${BASELINE_PATH} (${sceneCount} scenes)\n`,
+      err: "",
+    };
+  }
+
+  const baseline = JSON.parse(
+    readFileSync(BASELINE_PATH, "utf-8")
+  ) as Scoreboard;
+  const result = checkScoreboard(current, baseline);
+  if (result.ok) {
+    const improvements =
+      result.improvements.length > 0
+        ? `\nimprovements:\n${result.improvements
+            .map((i) => `  ${i.sceneId} ${i.metric}: ${i.detail}`)
+            .join("\n")}\n`
+        : "";
+    return {
+      code: 0,
+      out: `parity check passed (${sceneCount} scenes)${improvements}\n`,
+      err: "",
+    };
+  }
+  const detail = result.regressions
+    .map((r) => `  ${r.sceneId} ${r.metric}: ${r.detail}`)
+    .join("\n");
+  return {
+    code: 1,
+    out: "",
+    err: `parity check FAILED — ${result.regressions.length} regression(s):\n${detail}\n`,
+  };
+}
+
 /** Parse and dispatch a CLI invocation. Returns the exit code and the text to
  * emit, so it can be unit-tested without spawning a process. */
 export async function run(argv: ReadonlyArray<string>): Promise<CliResult> {
@@ -136,6 +208,9 @@ export async function run(argv: ReadonlyArray<string>): Promise<CliResult> {
   }
   if (command === "report") {
     return runReportCommand(argv.slice(1));
+  }
+  if (command === "check") {
+    return runCheckCommand(argv.slice(1));
   }
   if (!COMMANDS.some((c) => c.name === command)) {
     return {

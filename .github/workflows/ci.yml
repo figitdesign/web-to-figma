@@ -42,3 +42,37 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+  parity:
+    name: Tier-0 parity ratchet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup
+
+      - name: Resolve Playwright version
+        run: echo "PLAYWRIGHT_VERSION=$(pnpm --filter @figit/dom-to-figma exec playwright --version | awk '{print $2}')" >> "$GITHUB_ENV"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ env.PLAYWRIGHT_VERSION }}
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @figit/dom-to-figma exec playwright install chromium --with-deps
+
+      # Renders the corpus, runs the tier-0 diff, and fails if any scene
+      # regresses against internal/oracle-harness/baseline/scoreboard.json.
+      # No secrets — safe on fork PRs.
+      - name: Parity ratchet
+        run: pnpm oracle:parity
+
+      - name: Upload run artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: parity-run
+          path: oracle/runs/parity
+          retention-days: 7
