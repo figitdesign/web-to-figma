@@ -1,5 +1,6 @@
 import {
   appendFileSync,
+  existsSync,
   mkdirSync,
   readFileSync,
   writeFileSync,
@@ -8,10 +9,12 @@ import { dirname, isAbsolute, resolve } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
+import type { Page } from "playwright";
 import { loadEnv } from "./env";
 import { EXIT } from "./exit-codes";
 import {
   cleanCanvas,
+  copyPng,
   openFigma,
   pastePayload,
   waitForSettlement,
@@ -22,6 +25,7 @@ import {
   saveLoginSession,
   validateSession,
 } from "./figma/session";
+import type { GroundTruthElement } from "./ground-truth";
 import type { LedgerEntry } from "./ledger";
 import { park, reconcile, recordAttempt, selectNextClass } from "./ledger";
 import {
@@ -33,6 +37,7 @@ import {
 import { assertReport } from "./report";
 import { renderStepSummary } from "./report-html";
 import { assembleReport, writeReport } from "./report-io";
+import type { RunDir } from "./run-dir";
 import { createRunDir } from "./run-dir";
 import { discoverScenes } from "./scenes";
 import type { Scoreboard } from "./scoreboard";
@@ -43,6 +48,7 @@ import {
 } from "./scoreboard";
 import { runSnapshot } from "./snapshot";
 import { diffTier1 } from "./tier1";
+import { diffTier2 } from "./tier2";
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../..");
 const BASELINE_PATH = resolve(
@@ -392,6 +398,42 @@ async function runFigmaValidate(): Promise<CliResult> {
   };
 }
 
+/** Capture Figma's rendered PNG and diff it against the DOM screenshot from a
+ * prior snapshot run. Returns a one-line summary. */
+async function captureTier2(
+  page: Page,
+  dir: RunDir,
+  sceneId: string,
+  stem: string
+): Promise<string> {
+  const figmaPng = await copyPng(page);
+  writeFileSync(resolve(dir.figma, `${stem}.png`), figmaPng);
+
+  const domPngPath = resolve(dir.groundTruth, `${stem}.png`);
+  const gtPath = resolve(dir.groundTruth, `${stem}.json`);
+  if (!(existsSync(domPngPath) && existsSync(gtPath))) {
+    return "tier-2: skipped (no DOM screenshot — run snapshot first)";
+  }
+  const gt = JSON.parse(readFileSync(gtPath, "utf-8")) as {
+    elements: Array<GroundTruthElement>;
+  };
+  const result = diffTier2({
+    sceneId,
+    domPng: readFileSync(domPngPath),
+    figmaPng,
+    elements: gt.elements,
+  });
+  if ("error" in result) {
+    return `tier-2: skipped (${result.error})`;
+  }
+  writeFileSync(
+    resolve(dir.diff, `${stem}.tier2.json`),
+    `${JSON.stringify(result.findings, null, 2)}\n`
+  );
+  writeFileSync(resolve(dir.diff, `${stem}.diff.png`), result.diffPng);
+  return `tier-2: diffRatio ${(result.diffRatio * 100).toFixed(2)}%, ${result.findings.length} regions`;
+}
+
 async function runFigmaPaste(args: ReadonlyArray<string>): Promise<CliResult> {
   const { values } = parseArgs({
     args: [...args],
@@ -442,9 +484,10 @@ async function runFigmaPaste(args: ReadonlyArray<string>): Promise<CliResult> {
       resolve(dir.diff, `${stem}.tier1.json`),
       `${JSON.stringify(tier1, null, 2)}\n`
     );
+    const tier2Line = await captureTier2(session.page, dir, sceneId, stem);
     return {
       code: EXIT.OK,
-      out: `pasted ${sceneId} → settled in ${settlement.elapsedMs}ms, frames [${settlement.frames.join(", ")}]\ntier-1 findings: ${tier1.length}\ncaptured → ${dir.figma}/${stem}.captured.html\n`,
+      out: `pasted ${sceneId} → settled in ${settlement.elapsedMs}ms, frames [${settlement.frames.join(", ")}]\ntier-1 findings: ${tier1.length}\n${tier2Line}\ncaptured → ${dir.figma}/${stem}.captured.html\n`,
       err: "",
     };
   } finally {

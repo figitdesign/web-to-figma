@@ -15,11 +15,14 @@
   "dependencies": {
     "@figit/dom-to-figma": "workspace:*",
     "@figit/fig-kiwi": "workspace:*",
+    "pixelmatch": "^6.0.0",
     "playwright": "^1.50.0",
+    "pngjs": "^7.0.0",
     "tsdown": "^0.21.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@types/pngjs": "^6.0.5",
     "tsx": "^4.19.2",
     "typescript": "catalog:",
     "vitest": "^4.1.5"

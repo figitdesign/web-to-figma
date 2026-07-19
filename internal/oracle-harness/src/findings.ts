@@ -21,6 +21,8 @@ export type Finding = {
   expected?: unknown;
   actual?: unknown;
   deltaPx?: number;
+  /** Tier-2 only: the diff cluster's bounding box in scene (1×) coords. */
+  clusterBBox?: { x: number; y: number; width: number; height: number };
 };
 
 /**
@@ -46,6 +48,7 @@ const DISCREPANCY_CLASSES = [
   "radius.topRight",
   "radius.bottomRight",
   "radius.bottomLeft",
+  "pixel.region",
 ] as const;
 
 type DiscrepancyClass = (typeof DISCREPANCY_CLASSES)[number];
