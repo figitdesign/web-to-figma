@@ -9,6 +9,7 @@ import { dirname, isAbsolute, resolve } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
+import { calibrate } from "./calibrate";
 import { loadEnv } from "./env";
 import { EXIT } from "./exit-codes";
 import { cleanCanvas, openFigma } from "./figma/paste";
@@ -464,6 +465,66 @@ async function figmaCapture(
   };
 }
 
+async function runCalibrateCommand(
+  args: ReadonlyArray<string>
+): Promise<CliResult> {
+  const { values } = parseArgs({
+    args: [...args],
+    options: {
+      "run-id": { type: "string", default: "parity" },
+      scene: { type: "string", multiple: true },
+    },
+    allowPositionals: false,
+  });
+  const resolved = resolveFigmaConfig();
+  if (!resolved.ok) {
+    return { code: EXIT.ERROR, out: "", err: resolved.message };
+  }
+  const dir = createRunDir(values["run-id"] ?? "parity");
+  const stem = (id: string) => id.replaceAll("/", "__");
+  const withPayload = discoverScenes().filter((s) =>
+    existsSync(resolve(dir.payloads, `${stem(s.id)}.html`))
+  );
+  const filter = values.scene ?? [];
+  // A few scenes are enough to characterize render determinism.
+  const chosen = (
+    filter.length > 0
+      ? withPayload.filter((s) => filter.includes(s.id))
+      : withPayload
+  ).slice(0, 3);
+  if (chosen.length === 0) {
+    return {
+      code: EXIT.ERROR,
+      out: "",
+      err: "no scenes with payloads — run `snapshot` first\n",
+    };
+  }
+  const scenes = chosen.map((scene) => ({
+    scene,
+    envelope: readFileSync(
+      resolve(dir.payloads, `${stem(scene.id)}.html`),
+      "utf-8"
+    ),
+  }));
+
+  const session = await openFigma(resolved.config);
+  let result: Awaited<ReturnType<typeof calibrate>>;
+  try {
+    result = await calibrate({ page: session.page, dir, scenes });
+    await cleanCanvas(session.page);
+  } finally {
+    await session.browser.close();
+  }
+  const rows = Object.entries(result.figmaRenderNoise).map(
+    ([id, n]) => `  ${id}: render noise ${(n * 100).toFixed(4)}%`
+  );
+  return {
+    code: EXIT.OK,
+    out: `calibration → ${dir.root}/calibration.json\n${rows.join("\n")}\nmax render noise: ${(result.maxRenderNoise * 100).toFixed(4)}%\nrecommended noise floor: ${(result.recommendedNoiseFloor * 100).toFixed(3)}%\n`,
+    err: "",
+  };
+}
+
 async function runFigmaCommand(
   args: ReadonlyArray<string>
 ): Promise<CliResult> {
@@ -520,6 +581,9 @@ export async function run(argv: ReadonlyArray<string>): Promise<CliResult> {
   }
   if (command === "ledger") {
     return runLedgerCommand(argv.slice(1));
+  }
+  if (command === "calibrate") {
+    return await runCalibrateCommand(argv.slice(1));
   }
   if (!COMMANDS.some((c) => c.name === command)) {
     return {

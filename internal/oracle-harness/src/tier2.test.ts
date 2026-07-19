@@ -18,6 +18,23 @@ function solidPng(
   return PNG.sync.write(png);
 }
 
+/** White PNG with an optional black block at the top-left. */
+function pngWithBlock(width: number, height: number, block?: number) {
+  const png = new PNG({ width, height });
+  png.data.fill(255);
+  if (block) {
+    for (let y = 0; y < block; y++) {
+      for (let x = 0; x < block; x++) {
+        const i = (y * width + x) * 4;
+        png.data[i] = 0;
+        png.data[i + 1] = 0;
+        png.data[i + 2] = 0;
+      }
+    }
+  }
+  return PNG.sync.write(png);
+}
+
 const WHITE: [number, number, number] = [255, 255, 255];
 const BLACK: [number, number, number] = [0, 0, 0];
 
@@ -49,6 +66,23 @@ describe("diffTier2()", () => {
       expect(size).toBeDefined();
       expect(size?.expected).toBe("20×10");
       expect(size?.actual).toBe("16×10");
+    }
+  });
+
+  it("emits no region findings below the noise floor", () => {
+    // dom 100×100 white; figma 200×200 (2×) with a 4×4 black block → after
+    // downsample a ~0.04% diff, under the 0.1% floor.
+    const result = diffTier2({
+      sceneId: "s",
+      domPng: pngWithBlock(100, 100),
+      figmaPng: pngWithBlock(200, 200, 4),
+      elements: [],
+    });
+    if (!("error" in result)) {
+      expect(result.diffRatio).toBeLessThan(0.001);
+      expect(result.findings.filter((f) => f.class === "pixel.region")).toEqual(
+        []
+      );
     }
   });
 

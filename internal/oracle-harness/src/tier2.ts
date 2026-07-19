@@ -9,6 +9,10 @@ import { cropTopLeft, decodePng, diffImages, downsample } from "./tier2/pixel";
 const SEVERITY_AREA_SCALE = 20;
 // Figma's "Copy as PNG" exports at a fixed 2× scale.
 const COPY_AS_PNG_SCALE = 2;
+// Figma's render is deterministic (WS-2.6 calibration), so any DOM-vs-Figma
+// diff is real — but below this ratio it's sub-pixel Chrome-vs-Figma AA (the
+// noisiest clean scene sits at ~0.02%). Sub-floor scenes get no region findings.
+const NOISE_FLOOR_RATIO = 0.001;
 
 export type Tier2Result = {
   diffRatio: number;
@@ -52,7 +56,12 @@ export function diffTier2(input: {
     cropTopLeft(figma, w, h),
     input.threshold
   );
-  const clusters = clusterMask(diff.mask, diff.width, diff.height);
+  // Below the noise floor the diff is sub-pixel AA — report the ratio but emit
+  // no region findings.
+  const clusters =
+    diff.diffRatio >= NOISE_FLOOR_RATIO
+      ? clusterMask(diff.mask, diff.width, diff.height)
+      : [];
   const sceneArea = diff.width * diff.height;
 
   const findings: Array<Finding> = clusters.map((cluster) => {

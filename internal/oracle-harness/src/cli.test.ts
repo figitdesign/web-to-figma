@@ -29,8 +29,8 @@ describe("cli run()", () => {
   });
 
   it("dispatches an unimplemented command to its stub", async () => {
-    // `calibrate` is still a stub; snapshot/report/check now do real work.
-    const result = await run(["calibrate"]);
+    // `guard` is still a stub; the rest now do real work.
+    const result = await run(["guard"]);
     expect(result.code).not.toBe(0);
     expect(result.err).toContain("not implemented");
   });
