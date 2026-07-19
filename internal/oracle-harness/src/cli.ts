@@ -11,6 +11,13 @@ import { parseArgs } from "node:util";
 import { loadEnv } from "./env";
 import { EXIT } from "./exit-codes";
 import {
+  cleanCanvas,
+  openFigma,
+  pastePayload,
+  waitForSettlement,
+} from "./figma/paste";
+import type { SessionConfig } from "./figma/session";
+import {
   resolveSessionConfig,
   saveLoginSession,
   validateSession,
@@ -62,7 +69,7 @@ const COMMANDS: ReadonlyArray<{ name: string; summary: string }> = [
   {
     name: "figma",
     summary:
-      "drive Figma: login | validate (paste + tier-1/2 capture land next)",
+      "drive Figma: login | validate | paste (tier-1/2 capture land next)",
   },
   {
     name: "report",
@@ -328,63 +335,134 @@ function runLedgerCommand(args: ReadonlyArray<string>): CliResult {
   };
 }
 
+type FigmaConfigResult =
+  | { ok: true; config: SessionConfig }
+  | { ok: false; message: string };
+
+/** Resolve session config from env and absolutize a relative state path. */
+function resolveFigmaConfig(): FigmaConfigResult {
+  const resolved = resolveSessionConfig(loadEnv());
+  if (!resolved.ok) {
+    const list = resolved.errors.map((e) => `  - ${e}`).join("\n");
+    return { ok: false, message: `Figma config incomplete:\n${list}\n` };
+  }
+  const { storageState } = resolved.config;
+  const config: SessionConfig =
+    storageState.kind === "path"
+      ? {
+          ...resolved.config,
+          storageState: {
+            kind: "path",
+            path: absStatePath(storageState.path),
+          },
+        }
+      : resolved.config;
+  return { ok: true, config };
+}
+
+async function runFigmaLogin(): Promise<CliResult> {
+  const raw = loadEnv().FIGMA_STORAGE_STATE?.trim();
+  // login writes a session file; inline/base64 states can't be a target.
+  const target =
+    raw && !(raw.startsWith("{") || raw.length > 200)
+      ? raw
+      : ".figma-storage-state.json";
+  await saveLoginSession(absStatePath(target));
+  return { code: EXIT.OK, out: "", err: "" };
+}
+
+async function runFigmaValidate(): Promise<CliResult> {
+  const resolved = resolveFigmaConfig();
+  if (!resolved.ok) {
+    return { code: EXIT.ERROR, out: "", err: resolved.message };
+  }
+  const result = await validateSession(resolved.config);
+  if (result.ok) {
+    return {
+      code: EXIT.OK,
+      out: `Figma session OK (file ${resolved.config.fileKey})\n`,
+      err: "",
+    };
+  }
+  return {
+    code: EXIT.SESSION_EXPIRED,
+    out: "",
+    err: `Figma session invalid: ${result.reason}\n`,
+  };
+}
+
+async function runFigmaPaste(args: ReadonlyArray<string>): Promise<CliResult> {
+  const { values } = parseArgs({
+    args: [...args],
+    options: {
+      "run-id": { type: "string", default: "parity" },
+      scene: { type: "string" },
+    },
+    allowPositionals: false,
+  });
+  const sceneId = values.scene;
+  if (!sceneId) {
+    return { code: EXIT.ERROR, out: "", err: "paste requires --scene\n" };
+  }
+  const scene = discoverScenes().find((s) => s.id === sceneId);
+  if (!scene) {
+    return { code: EXIT.ERROR, out: "", err: `unknown scene ${sceneId}\n` };
+  }
+  const resolved = resolveFigmaConfig();
+  if (!resolved.ok) {
+    return { code: EXIT.ERROR, out: "", err: resolved.message };
+  }
+
+  const dir = createRunDir(values["run-id"] ?? "parity");
+  const stem = sceneId.replaceAll("/", "__");
+  const envelope = readFileSync(resolve(dir.payloads, `${stem}.html`), "utf-8");
+
+  const session = await openFigma(resolved.config);
+  try {
+    await cleanCanvas(session.page);
+    await pastePayload(session.page, envelope);
+    const settlement = await waitForSettlement(session.page, [scene.name]);
+    if (!settlement.ok) {
+      await session.page
+        .screenshot({ path: resolve(dir.figma, `${stem}.fail.png`) })
+        .catch(() => undefined);
+      return {
+        code: EXIT.PASTE_FAILED,
+        out: "",
+        err: `paste did not settle — expected [${scene.name}], got [${settlement.frames.join(", ")}]\n`,
+      };
+    }
+    writeFileSync(
+      resolve(dir.figma, `${stem}.captured.html`),
+      settlement.capturedHtml
+    );
+    return {
+      code: EXIT.OK,
+      out: `pasted ${sceneId} → settled in ${settlement.elapsedMs}ms, frames [${settlement.frames.join(", ")}]\ncaptured → ${dir.figma}/${stem}.captured.html\n`,
+      err: "",
+    };
+  } finally {
+    await session.browser.close();
+  }
+}
+
 async function runFigmaCommand(
   args: ReadonlyArray<string>
 ): Promise<CliResult> {
   const action = args[0];
-  const env = loadEnv();
-
   if (action === "login") {
-    const raw = env.FIGMA_STORAGE_STATE?.trim();
-    // login writes a session file; inline/base64 states can't be a target.
-    const target =
-      raw && !(raw.startsWith("{") || raw.length > 200)
-        ? raw
-        : ".figma-storage-state.json";
-    await saveLoginSession(absStatePath(target));
-    return { code: EXIT.OK, out: "", err: "" };
+    return await runFigmaLogin();
   }
-
   if (action === "validate") {
-    const resolved = resolveSessionConfig(env);
-    if (!resolved.ok) {
-      const list = resolved.errors.map((e) => `  - ${e}`).join("\n");
-      return {
-        code: EXIT.ERROR,
-        out: "",
-        err: `Figma config incomplete:\n${list}\n`,
-      };
-    }
-    const { storageState } = resolved.config;
-    const config =
-      storageState.kind === "path"
-        ? {
-            ...resolved.config,
-            storageState: {
-              kind: "path" as const,
-              path: absStatePath(storageState.path),
-            },
-          }
-        : resolved.config;
-    const result = await validateSession(config);
-    if (result.ok) {
-      return {
-        code: EXIT.OK,
-        out: `Figma session OK (file ${resolved.config.fileKey})\n`,
-        err: "",
-      };
-    }
-    return {
-      code: EXIT.SESSION_EXPIRED,
-      out: "",
-      err: `Figma session invalid: ${result.reason}\n`,
-    };
+    return await runFigmaValidate();
   }
-
+  if (action === "paste") {
+    return await runFigmaPaste(args.slice(1));
+  }
   return {
     code: EXIT.ERROR,
     out: "",
-    err: `unknown figma action '${action ?? ""}' (login|validate)\n`,
+    err: `unknown figma action '${action ?? ""}' (login|validate|paste)\n`,
   };
 }
 

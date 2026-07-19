@@ -11,7 +11,7 @@ const FIGMA_USER_AGENT =
 const LAUNCH_ARGS = ["--disable-blink-features=AutomationControlled"];
 const VIEWPORT = { width: 1440, height: 900 };
 
-function launchFigmaBrowser(headless = true): Promise<Browser> {
+export function launchFigmaBrowser(headless = true): Promise<Browser> {
   return chromium.launch({ headless, args: LAUNCH_ARGS });
 }
 
@@ -107,7 +107,7 @@ function storageStateOption(state: ResolvedStorageState): StorageStateOption {
 
 /** Create a Figma-ready context: anti-detection UA + viewport, optionally
  * seeded with a saved session. Shared by validate, paste, and capture. */
-function newFigmaContext(
+export function newFigmaContext(
   browser: Browser,
   storageState?: ResolvedStorageState
 ): Promise<BrowserContext> {
