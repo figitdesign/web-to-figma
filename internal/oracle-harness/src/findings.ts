@@ -1,3 +1,5 @@
+import { SEVERITY_PX_SCALE } from "./tolerances";
+
 /**
  * A single localized discrepancy. Tier differs produce these without an `id`
  * or `artifacts`; the report layer (WS-1.5) assigns the stable content hash and
@@ -53,9 +55,6 @@ const DISCREPANCY_CLASSES = [
 ] as const;
 
 type DiscrepancyClass = (typeof DISCREPANCY_CLASSES)[number];
-
-/** Divisor mapping a pixel delta to a 0..1 severity (8px → severity 1). */
-const SEVERITY_PX_SCALE = 8;
 
 /** Map a pixel delta to a clamped 0..1 severity. */
 export function severityFromDelta(deltaPx: number): number {

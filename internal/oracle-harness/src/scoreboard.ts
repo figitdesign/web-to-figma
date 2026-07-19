@@ -1,10 +1,7 @@
 import type { Report } from "./report";
+import { DIFF_RATIO_EPSILON, MAX_DELTA_EPSILON_PX } from "./tolerances";
 
 const SCOREBOARD_SCHEMA_VERSION = 1;
-/** A scene may drift this far on maxDeltaPx before it counts as a regression. */
-const MAX_DELTA_EPSILON_PX = 0.25;
-/** tier-2 render noise floor; recalibrated in WS-2.6. */
-const DIFF_RATIO_EPSILON = 0.002;
 
 export type SceneScore = {
   tier0: { findings: number; maxDeltaPx: number };

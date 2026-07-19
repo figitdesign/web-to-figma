@@ -28,10 +28,9 @@ describe("cli run()", () => {
     expect((await run([])).code).not.toBe(0);
   });
 
-  it("dispatches an unimplemented command to its stub", async () => {
-    // `guard` is still a stub; the rest now do real work.
+  it("rejects `guard` without a label", async () => {
     const result = await run(["guard"]);
     expect(result.code).not.toBe(0);
-    expect(result.err).toContain("not implemented");
+    expect(result.err).toContain("--label");
   });
 });

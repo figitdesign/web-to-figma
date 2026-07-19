@@ -9,4 +9,5 @@ export const EXIT = {
   PASTE_FAILED: 4,
   EXPORT_FAILED: 5,
   REGRESSION: 6,
+  GUARD_REJECTED: 7,
 } as const;

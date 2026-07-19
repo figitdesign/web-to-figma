@@ -3,16 +3,10 @@ import type { GroundTruthElement } from "./ground-truth";
 import { attributeCluster } from "./tier2/attribute";
 import { clusterMask } from "./tier2/cluster";
 import { cropTopLeft, decodePng, diffImages, downsample } from "./tier2/pixel";
+import { NOISE_FLOOR_RATIO, SEVERITY_AREA_SCALE } from "./tolerances";
 
-// Fraction of the scene a cluster covers → severity 1 (a 5%-area region is
-// already a severe visual break).
-const SEVERITY_AREA_SCALE = 20;
 // Figma's "Copy as PNG" exports at a fixed 2× scale.
 const COPY_AS_PNG_SCALE = 2;
-// Figma's render is deterministic (WS-2.6 calibration), so any DOM-vs-Figma
-// diff is real — but below this ratio it's sub-pixel Chrome-vs-Figma AA (the
-// noisiest clean scene sits at ~0.02%). Sub-floor scenes get no region findings.
-const NOISE_FLOOR_RATIO = 0.001;
 
 export type Tier2Result = {
   diffRatio: number;

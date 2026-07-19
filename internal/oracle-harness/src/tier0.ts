@@ -2,6 +2,7 @@ import type { ConvertTrace } from "@figit/dom-to-figma";
 import type { Finding } from "./findings";
 import { severityFromDelta } from "./findings";
 import type { GroundTruthElement } from "./ground-truth";
+import { GEOMETRY_TOLERANCE_PX } from "./tolerances";
 
 type Guid = { sessionID: number; localID: number };
 
@@ -35,7 +36,6 @@ export type Tier0Input = {
   geometryTolerancePx?: number;
 };
 
-const DEFAULT_GEOMETRY_TOLERANCE_PX = 0.55;
 const TEXT_SUFFIX = /::text\[\d+]$/;
 const IDENTITY: Transform = {
   m00: 1,
@@ -172,7 +172,7 @@ function pushGeometryFindings(
  * element with no node) and node.extra (a node whose DOM source is absent).
  */
 export function diffTier0(input: Tier0Input): Array<Finding> {
-  const tolerance = input.geometryTolerancePx ?? DEFAULT_GEOMETRY_TOLERANCE_PX;
+  const tolerance = input.geometryTolerancePx ?? GEOMETRY_TOLERANCE_PX;
   const findings: Array<Finding> = [];
 
   const byKey = new Map<string, PayloadNode>();

@@ -21,6 +21,9 @@ import {
   saveLoginSession,
   validateSession,
 } from "./figma/session";
+import type { GuardLabel } from "./guard";
+import { checkGuard } from "./guard";
+import { collectGuardInput } from "./guard-io";
 import type { LedgerEntry } from "./ledger";
 import { park, reconcile, recordAttempt, selectNextClass } from "./ledger";
 import {
@@ -525,6 +528,47 @@ async function runCalibrateCommand(
   };
 }
 
+/** Enforce the mechanical rules on an autonomous PR branch (WS-3.2). Reads the
+ * diff against `--base` (default origin/main) and any ledger status flips from
+ * git, then applies the label's allowlist. Exit 7 on any violation. */
+function runGuardCommand(args: ReadonlyArray<string>): CliResult {
+  const { values } = parseArgs({
+    args: [...args],
+    options: {
+      label: { type: "string" },
+      base: { type: "string", default: "origin/main" },
+    },
+    allowPositionals: false,
+  });
+  const label = values.label;
+  if (label !== "oracle-fix" && label !== "oracle-ledger") {
+    return {
+      code: EXIT.ERROR,
+      out: "",
+      err: "guard requires --label <oracle-fix|oracle-ledger>\n",
+    };
+  }
+  const input = collectGuardInput({
+    label: label as GuardLabel,
+    base: values.base ?? "origin/main",
+    repoRoot: REPO_ROOT,
+  });
+  const result = checkGuard(input);
+  if (result.ok) {
+    return {
+      code: EXIT.OK,
+      out: `guard passed (${label}): ${input.changedFiles.length} files in scope\n`,
+      err: "",
+    };
+  }
+  const detail = result.violations.map((v) => `  - ${v}`).join("\n");
+  return {
+    code: EXIT.GUARD_REJECTED,
+    out: "",
+    err: `guard REJECTED (${label}) — ${result.violations.length} violation(s):\n${detail}\n`,
+  };
+}
+
 async function runFigmaCommand(
   args: ReadonlyArray<string>
 ): Promise<CliResult> {
@@ -585,19 +629,13 @@ export async function run(argv: ReadonlyArray<string>): Promise<CliResult> {
   if (command === "calibrate") {
     return await runCalibrateCommand(argv.slice(1));
   }
-  if (!COMMANDS.some((c) => c.name === command)) {
-    return {
-      code: 1,
-      out: "",
-      err: `Unknown command: ${command}\n\n${helpText()}`,
-    };
+  if (command === "guard") {
+    return runGuardCommand(argv.slice(1));
   }
-
-  // Stub until the owning workstream lands.
   return {
     code: 1,
     out: "",
-    err: `"${command}" is not implemented yet — see docs/visual-parity-pipeline.prd.md.\n`,
+    err: `Unknown command: ${command}\n\n${helpText()}`,
   };
 }
 
