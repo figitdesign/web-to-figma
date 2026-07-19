@@ -73,7 +73,7 @@ What exists and is reused — implementers should read these files before writin
 - **Trace map** — sidecar metadata linking every emitted Figma node GUID to its source DOM element (WS-1.1).
 - **Ground truth** — per-element rects/styles + a screenshot captured from the browser rendering of a scene (WS-1.3).
 - **Tier 0** — local diff: payload vs. ground truth. No Figma. Milliseconds. Catches converter measurement/translation bugs.
-- **Tier 1** — structural diff: Figma's post-paste node geometry (REST file read, and optionally clipboard copy-back) vs. ground truth. Catches Figma reinterpretation (auto-layout re-flow, font metric differences, default normalization).
+- **Tier 1** — structural diff: the kiwi payload we **sent** vs. the kiwi payload Figma **returns when the rendered frame is copied back** (same format both sides), compared with the existing `oracle-diff` logic. Catches Figma reinterpretation (auto-layout re-flow, font metric differences, default normalization). No REST.
 - **Tier 2** — pixel diff: Figma's PNG export of the pasted frame vs. the browser screenshot. The parity *score*.
 - **Finding** — one localized discrepancy (scene, node, field/region, expected vs. actual, severity).
 - **Discrepancy class** — a family of findings sharing a root-cause signature (e.g. `text.lineHeight`, `layout.stackSpacing`), used for ranking and for the one-class-per-PR rule.
@@ -97,9 +97,9 @@ What exists and is reused — implementers should read these files before writin
   Figma runner (Playwright on figma.com, dedicated account + scratch file)
         │  1. clean page   2. paste payload   3. wait for import
         ▼
-  ┌─ REST GET /v1/files/:key ──────► Tier 1a: Figma-computed geometry ⟷ ground truth
-  ├─ (optional) copy-back capture ─► Tier 1b: existing oracle:diff (sent ⟷ normalized payload)
-  └─ REST GET /v1/images/:key ─────► Tier 2: Figma PNG ⟷ browser screenshot
+  ├─ select frame → Copy (Cmd+C) ──► Tier 1: kiwi copy-back ⟷ sent kiwi (via oracle-diff)
+  └─ select frame → Copy as PNG ───► Tier 2: Figma rendered PNG ⟷ browser screenshot
+     (REST GET /v1/images is an optional token-gated Tier-2 fallback only)
                                               │ pixel diff → clusters → node attribution
                                               ▼
                     report.json + scoreboard + findings ledger + artifacts
@@ -424,20 +424,22 @@ Rationale: without a persisted, deduplicated, cross-run memory of discrepancies,
 
 ## 8. Milestone M2 — Figma-in-the-loop (Tiers 1 & 2)
 
-Outcome: a headless-scheduled runner gets the corpus into a real Figma file, extracts Figma's geometry and rendered pixels, and the report gains Tier 1/2 findings with node attribution. Requires secrets (§11); none of this runs on PRs.
+Outcome: a Playwright-driven, logged-in Figma session pastes the corpus into a real scratch file, lets Figma's engine render and re-lay-it-out, and captures — **from the same rendered frame, through the clipboard** — two things: the **kiwi structure Figma produced** (structural truth) and its **rendered pixels** (visual truth). The report gains Tier 1/2 findings. Requires the login session + file key (§11); **no REST token on the primary path**; none of this runs on PRs.
 
-### WS-2.1 Figma session + secrets bootstrap
+**Why clipboard copy-back, not REST.** Figma's REST `GET /v1/files/:key` returns Figma's own REST JSON schema — a *different serialization* from the **kiwi clipboard format** the entire pipeline speaks (what `@figit/fig-kiwi` encodes/decodes and what `oracle-diff` compares). Diffing against REST would mean re-mapping a foreign schema and would silently lose the kiwi-specific fields `oracle-diff` already tracks (stack / auto-layout properties). The clipboard **copy-back returns kiwi** — Figma's post-render result *in our exact format* — so it diffs cleanly with the existing `oracle:capture` / `oracle:diff` machinery. This milestone is that manual loop, automated: Playwright is the human who pastes, then copies the rendered frame back. (The REST *file-content* objection is about structure only; REST *image* export returns a plain PNG and remains an optional Tier-2 pixel fallback — see WS-2.5.)
+
+### WS-2.1 Figma session bootstrap
 
 **Steps**
 
-1. Dedicated Figma account (decision D-1, §15) and one scratch file; record its file key. The runner treats page 1 of that file as a disposable buffer.
-2. `cli figma login`: launches headed Chromium, human signs in once, saves Playwright `storageState` JSON to a local path, prints instructions to store it (base64) as the `FIGMA_STORAGE_STATE` secret. Document expected session lifetime and the re-login procedure in the harness README.
-3. Config resolution in `src/figma/session.ts`: `FIGMA_STORAGE_STATE` (inline JSON or path), `FIGMA_FILE_KEY`, `FIGMA_TOKEN` (REST personal access token, `file_read` scope). Fail fast with a checklist message if any is missing.
-4. Session validation: open the file URL, assert the canvas surface appears within 60s, else exit with a distinct `SESSION_EXPIRED` code (the scheduled workflow surfaces this as a distinguishable failure — it means "re-login", not "parity broke").
+1. Dedicated Figma account (decision D-1, §15) and one scratch file; record its key in `FIGMA_FILE_KEY`. The runner treats page 1 as a disposable buffer.
+2. `cli figma login`: launches headed Chromium, human signs in once, saves Playwright `storageState` to the path in `FIGMA_STORAGE_STATE` (default `.figma-storage-state.json`, gitignored). Prints how to store it (base64) as a CI secret later. Document session lifetime and the re-login procedure in the README.
+3. Config resolution in `src/figma/session.ts`: `FIGMA_STORAGE_STATE` (inline JSON or path) and `FIGMA_FILE_KEY` are **required**; `FIGMA_TOKEN` is **optional**, read only when the Tier-2 REST fallback (WS-2.5) is enabled. Fail fast with a checklist message if a required var is missing.
+4. Session validation: open the file URL, assert the canvas surface appears within 60s, else exit with a distinct `SESSION_EXPIRED` code (a distinguishable failure — it means "re-login", not "parity broke").
 
 **Tests**
 
-- Unit: config resolution (env permutations, inline vs. path storage state, missing-var messages).
+- Unit: config resolution (env permutations, inline vs. path storage state, missing-var messages, token-optional).
 - Live smoke (`FIGMA_ORACLE_LIVE=1` gate, excluded from PR CI): `figma login --validate-only` against stored state exits 0.
 
 ### WS-2.2 Paste runner
@@ -447,9 +449,9 @@ Outcome: a headless-scheduled runner gets the corpus into a real Figma file, ext
 **Steps**
 
 1. Build the batch payload: run the WS-1.3 snapshot output through the existing `--single` multi-frame packing (reuse the outbox's packing code via the shared module — **Verify:** frame names must be unique per scene id, since Tier 1 pairs by name exactly as `oracle-diff.ts:74-77` does).
-2. Cleanup **at run start** (previous run's canvas stays for postmortem): focus canvas, Select All, Delete, verify via REST that the page has zero children (poll with timeout).
-3. Paste, primary strategy: dispatch a synthetic `ClipboardEvent("paste")` on `document` with a `DataTransfer` carrying the envelope as `text/html`. Fallback strategy (behind `--paste=clipboard`): write the real clipboard via `navigator.clipboard.write` with granted permissions, then `keyboard.press("ControlOrMeta+V")`. Implement both; the runner tries primary and falls back automatically. Log which path worked into the run metadata.
-4. Import settlement: poll `GET /v1/files/:key` until the page's top-level frame names equal the expected scene set (timeout 180s — image/font ingestion is asynchronous). Record settle time in run metadata.
+2. Cleanup **at run start** (previous run's canvas stays for postmortem): focus canvas, Select All, Delete; confirm the page is empty by a copy-back that decodes to zero frames (poll with timeout) — no REST.
+3. Paste, primary strategy: write the kiwi envelope to the real clipboard (`navigator.clipboard.write`, `text/html`, permissions granted for figma.com) then `keyboard.press("ControlOrMeta+V")`. Fallback strategy (behind `--paste=synthetic`): dispatch a synthetic `ClipboardEvent("paste")` on `document` carrying a `DataTransfer`. Implement both; the runner tries primary and falls back automatically. Log which path worked into the run metadata.
+4. Import settlement: poll by attempting a copy-back (Select All → Copy → decode) until the page's top-level frame names equal the expected scene set (timeout 180s — image/font ingestion is asynchronous). Record settle time in run metadata.
 5. Every step emits structured progress logs and, on failure, a full-page screenshot into the run dir — this runner is the flakiest component and must be diagnosable from CI artifacts alone.
 
 **Tests**
@@ -458,33 +460,34 @@ Outcome: a headless-scheduled runner gets the corpus into a real Figma file, ext
 - Unit: expected-frame-set computation from a scene manifest.
 - Live smoke (gated): paste `00-smoke` batch into the scratch file; assert settlement finds both frames; cleanup empties the page. This is the M2 canary test — the scheduled workflow runs it before the full corpus.
 
-### WS-2.3 Tier 1a — REST geometry differ
+### WS-2.3 Tier 1 — clipboard copy-back structural differ (primary)
 
-**Where**: `internal/oracle-harness/src/figma/rest.ts` + `src/tier1.ts` (pure diff, same shape as WS-1.4).
+**Where**: `internal/oracle-harness/src/figma/copyback.ts` + a shared kiwi-diff module + `src/tier1.ts`.
+
+This is the load-bearing M2 workstream and the reason REST is dropped: it compares **what we sent** (our kiwi batch payload) against **what Figma returned** (the kiwi payload from copying the rendered frame) — both in the same format — reusing the proven `oracle-diff` comparison.
 
 **Steps**
 
-1. REST client: `GET /v1/files/:key` (with `geometry=paths` **only if needed** — bounding boxes come free), auth via `X-Figma-Token`. Respect rate limits: single fetch per run, exponential backoff on 429.
-2. Extract per-node `{ name, type, absoluteBoundingBox }`, normalize to each scene frame's origin.
-3. Pair REST nodes ⟷ ground truth: root frames by name; within a frame, by tree order (mirroring `oracle-diff.ts` pairing — Figma preserves child order on paste). Where the trace is available, cross-check pairing by geometry proximity and emit a `pairing.ambiguous` finding rather than mis-attributing.
-4. Diff rects with the same tolerances/classes as Tier 0 (`geometry.*` with `tier: 1`). A node matching in Tier 0 but not Tier 1 is, by construction, a **Figma reinterpretation** — the report notes this explicitly per finding (`notes: "tier0 clean; divergence introduced by Figma layout"`), which is the single most valuable diagnostic sentence for the fixing agent.
-5. Record one sanitized real REST response for `00-smoke` as a committed fixture (strip user/file identifiers).
+1. After settlement, Select All → Copy in the driven page; read `text/html` from the clipboard — this is the **kiwi payload Figma produced** after rendering. Write it to `figma/<batch>.captured.html` (the same format `oracle:capture` writes, so the existing inbox tooling stays compatible).
+2. Decode both sides via `decodeFigmaData(parseClipboardHtml(...).fig)`: the sent batch payload vs. Figma's capture. Pair top-level frames by **name** and nodes by **tree order**, normalizing default-valued fields — **reuse `oracle-diff.ts`'s comparison** (extract its pairing + `TRACKED_STACK_FIELDS`/`STACK_DEFAULTS` logic into a shared module both `oracle-diff` and the harness consume; do not duplicate).
+3. Translate each mismatch into a `tier: 1` Finding, class `kiwi.<field>` (e.g. `kiwi.stackSpacing`, `kiwi.size`, `kiwi.stackPrimaryAlignItems`), carrying sent/got values. Extend the `DISCREPANCY_CLASSES` vocabulary with the `kiwi.*` family. A node clean at Tier 0 but divergent here is, by construction, a **Figma reinterpretation** — flag that on the finding; it's the single most valuable diagnostic line for the fixing agent.
+4. Per-scene Tier-1 metrics (finding count, max geometry delta) feed the scoreboard slot WS-1.6 already reserved (`SceneScore.tier1`).
 
 **Tests**
 
-- Unit: response parsing + normalization against the committed fixture.
-- Unit: pairing (reordered siblings, renamed frame → `frame.missing` finding, ambiguous geometry → `pairing.ambiguous`).
-- Unit: tier-1 diff classes/tolerances (same style as WS-1.4 tests).
-- Live (gated): full `00-smoke` chain paste → REST → tier1 produces zero findings (or the known-and-baselined set).
+- Unit: mismatch → finding translation against committed sent/captured fixture pairs — a clean pair yields no findings; a pair with a known `stackSpacing` delta yields exactly one `kiwi.stackSpacing`.
+- Unit: frame-name pairing (renamed / missing frame → `frame.missing`; extra frame → `frame.extra`).
+- Unit: default-value normalization (an omitted field on one side equals its default on the other → no finding).
+- Live (gated): full `00-smoke` paste → copy-back → tier1 produces zero findings (or the known, baselined set).
 
-### WS-2.4 Tier 2 — pixel export, diff, attribution
+### WS-2.4 Tier 2 — rendered pixels, diff, attribution
 
-**Where**: `internal/oracle-harness/src/tier2/{pixel,cluster,attribute}.ts` (all pure; PNG I/O at the CLI edge).
+**Where**: `internal/oracle-harness/src/figma/pixels.ts` (capture) + `src/tier2/{pixel,cluster,attribute}.ts` (diff pure; image I/O at the edge).
 
 **Steps**
 
-1. Export: `GET /v1/images/:key?ids=<frameIds>&format=png&scale=1` (one batched call), download PNGs to `figma/<sceneId>.png`.
-2. Align: both images are `scale=1` / `dpr=1` at declared scene size; assert dimensions match within 1px (pad/crop by the documented 1px slack; larger mismatch → scene-level `error`, not a pixel diff).
+1. Capture Figma's pixels **in-browser**: select each rendered frame and use Figma's "Copy as PNG" to place the rendered image on the clipboard, read the image, save `figma/<sceneId>.png`. **Verify** the exact interaction (menu item / shortcut) against the live UI in WS-2.x rather than assuming — Figma's shortcuts drift. If it proves unavailable or flaky headless, use the WS-2.5 fallback. This keeps the primary path token-free and symmetric with the Tier-1 copy-back (same select-then-copy gesture on the same frame).
+2. Align: the browser DOM screenshot (WS-1.3) and the Figma PNG are both `dpr=1` at the declared scene size; assert dimensions match within 1px (pad/crop by the documented 1px slack; larger mismatch → scene-level `error`, not a pixel diff).
 3. Diff with `pixelmatch` (`includeAA: false`, threshold 0.1 initial — calibrated in WS-2.6): produce `diffRatio`, diff PNG.
 4. Cluster: connected components over the diff mask on an 8px grid; emit per-cluster bbox; ignore clusters < 16px² (AA noise floor, calibrated).
 5. Attribute: for each cluster, the deepest trace/ground-truth node whose rect covers ≥ 60% of the cluster bbox; emit `pixel.region` findings carrying `clusterBBox`, the attributed `domPath`/`guid`, and cropped image pairs (dom/figma) as artifacts.
@@ -496,23 +499,23 @@ Outcome: a headless-scheduled runner gets the corpus into a real Figma file, ext
 - Attribution unit tests with synthetic rect trees: nested nodes → deepest wins; cluster spanning siblings → attributed to their common parent.
 - Live (gated): `00-smoke` end-to-end produces a diffRatio below the calibrated threshold.
 
-### WS-2.5 Tier 1b — automated copy-back (stretch, keep optional)
+### WS-2.5 Tier 2 fallback — REST image export (optional, token-gated)
 
-Reuse of the existing deep-forensics path: after settlement, Select All → Copy in the driven page, read `text/html` from the clipboard (clipboard-read permission granted for figma.com), write captures to `oracle/inbox/<batch>/` in exactly the format `oracle:capture` produces, then run the existing `oracle:diff` and translate its mismatches into `tier: 1` findings (class `kiwi.<field>`).
+Build **only if** in-browser "Copy as PNG" (WS-2.4 step 1) proves unreliable headless. The REST *file-content* objection does **not** apply here — `GET /v1/images/:key?ids=<frameIds>&format=png&scale=1` returns a plain PNG, no structural format mismatch. Requires `FIGMA_TOKEN` (read-only) and the pasted frames' REST node ids (Figma re-ids on paste; resolve them by frame name via a single `GET /v1/files/:key?depth=1` page listing, or from the selected node's URL). Gate behind `--pixels=rest`; the primary path stays clipboard-only and token-free.
 
-Build only after WS-2.2–2.4 are stable; it shares their session plumbing. If clipboard read proves unreliable in headless CI, keep this as a local-only command — the REST path (WS-2.3) already covers scheduled needs. **Tests**: unit-test the mismatch→finding translation against `oracle-diff` output fixtures; live test gated.
+**Tests**: unit-test the image-URL builder and the name→node-id resolver against a committed sanitized page-listing fixture; live test gated.
 
 ### WS-2.6 Calibration
 
 **Steps**
 
-1. `cli calibrate`: paste the same batch twice into the scratch file (sequentially), export both, diff Figma-vs-Figma → the **render noise floor** per scene; also diff repeated browser screenshots → browser noise (should be 0).
+1. `cli calibrate`: paste the same batch twice into the scratch file (sequentially), capture both via the Tier-2 pixel mechanism, diff Figma-vs-Figma → the **render noise floor** per scene; also diff repeated browser screenshots → browser noise (should be 0).
 2. Emit `calibration.json` (p50/p95 noise per scene class: text-heavy vs. geometric) and recommend: pixelmatch threshold, cluster noise floor, ratchet epsilon. Update the constants in `severity.ts` / `check` from its output in a reviewed PR.
 3. Document the calibration procedure and cadence (re-run when Figma ships renderer changes — detectable as a fleet-wide diffRatio jump with no repo change; the scheduled workflow flags this pattern explicitly instead of opening a fix PR).
 
 **Tests**: unit-test the stats aggregation on fixture data; the command itself is live-gated.
 
-**M2 exit criteria**: scheduled workflow (see WS-3.2, runnable manually before M3 via `workflow_dispatch`) completes corpus → Figma → report with Tiers 0–2 populated, artifacts uploaded, zero human touches; calibration constants committed; live canary (`00-smoke`) green on three consecutive runs.
+**M2 exit criteria**: the `figma` runner completes corpus → paste → copy-back (Tier 1) + pixel capture (Tier 2) → report, artifacts uploaded, zero human touches after the one-time login; calibration constants committed; live canary (`00-smoke`) green on three consecutive runs. No REST token required on the primary path.
 
 ## 9. Milestone M3 — Autonomous loop
 
@@ -543,7 +546,7 @@ Outcome: on a daily cron, the pipeline measures, an agent fixes the top discrepa
 **Steps**
 
 1. Workflow triggers: `schedule` (one daily cron to start; adding entries = raising N) and `workflow_dispatch` (with `tiers` input for manual partial runs). **Never** `pull_request`/`push`. `concurrency: { group: oracle, cancel-in-progress: false }`.
-2. Job `measure` (environment: `oracle`; secrets: `FIGMA_STORAGE_STATE`, `FIGMA_FILE_KEY`, `FIGMA_TOKEN`): checkout `main`, pnpm install, build, run live canary (`00-smoke`), then full `figma` run Tiers 0–2, `report`, upload run dir artifact (14-day retention), write step summary. Distinct failure surface for `SESSION_EXPIRED` (notifies for human re-login rather than counting as a pipeline failure).
+2. Job `measure` (environment: `oracle`; secrets: `FIGMA_STORAGE_STATE`, `FIGMA_FILE_KEY`, plus `FIGMA_TOKEN` only if the REST pixel fallback is enabled): checkout `main`, pnpm install, build, run live canary (`00-smoke`), then full `figma` run Tiers 0–2, `report`, upload run dir artifact (14-day retention), write step summary. Distinct failure surface for `SESSION_EXPIRED` (notifies for human re-login rather than counting as a pipeline failure).
 3. Job `fix` (needs `measure`; secrets: `ANTHROPIC_API_KEY`, `ORACLE_GH_TOKEN`): download the report artifact, run headless Claude Code (`claude -p "/fix-discrepancy <report path>"` with `--permission-mode acceptEdits`, bounded `--max-turns`, model per decision D-4), on a branch `oracle/fix-<class>-<runid>`. The PR is opened with `ORACLE_GH_TOKEN` (fine-grained: `contents: write`, `pull_requests: write`, this repo only) so that normal CI runs on it. Skip the job entirely when the report has zero classes above a severity floor — "nothing to fix" is a successful outcome, logged in the summary.
 4. `cli guard` — runs in **PR CI** (extend the `parity` job), branching on PR label:
    - `oracle-fix` (code fix): diff touches only allowed paths (`packages/*/src`, `packages/*/scripts/oracle-scenes`, `apps/playground/src/corpus`, harness baseline + ledger, changesets, tests); ≥ 1 scene file added or modified; baseline diff is non-regressive (reuses `check`); severity/tolerance constant files unchanged; any ledger change is a `resolved` deletion only (a fix PR must not create/edit `parked` entries).
@@ -579,11 +582,11 @@ Specified at lower resolution intentionally; re-plan when M3 is live.
 
 ## 11. Security & operations
 
-- **Secrets** — GitHub Environment `oracle`: `FIGMA_STORAGE_STATE`, `FIGMA_FILE_KEY`, `FIGMA_TOKEN`, `ANTHROPIC_API_KEY`, `ORACLE_GH_TOKEN`. Never available to `pull_request`-triggered workflows. PR-facing jobs (Tier-0 `parity`, `guard`) use no secrets by design.
-- **Least privilege**: `ORACLE_GH_TOKEN` is a fine-grained PAT (or GitHub App) scoped to this repo, `contents: write` + `pull_requests: write` only. `FIGMA_TOKEN` is read-only (`file_read`).
+- **Secrets** — GitHub Environment `oracle`: `FIGMA_STORAGE_STATE`, `FIGMA_FILE_KEY`, `ANTHROPIC_API_KEY`, `ORACLE_GH_TOKEN`, and **`FIGMA_TOKEN` only if** the Tier-2 REST fallback (WS-2.5) is enabled. Never available to `pull_request`-triggered workflows. PR-facing jobs (Tier-0 `parity`, `guard`) use no secrets by design.
+- **Least privilege**: `ORACLE_GH_TOKEN` is a fine-grained PAT (or GitHub App) scoped to this repo, `contents: write` + `pull_requests: write` only. `FIGMA_STORAGE_STATE` is a live login session — treat it as a full credential. `FIGMA_TOKEN` (if used at all) is read-only (`file_read`).
 - **Trigger discipline**: the agent and Figma jobs run only on `schedule`/`workflow_dispatch` from `main`. Untrusted (fork) code never executes adjacent to secrets.
 - **Prompt-injection surface**: the agent's inputs are repo-controlled files (scenes, report.json). Live-fetched web content must never enter the corpus directly (M4 freezes pages into committed fixtures). Report fields derived from scene content (e.g. `text`) are data, not instructions — the command file says so explicitly.
-- **Figma ToS posture**: UI automation of figma.com is a gray zone. Mitigations: dedicated account, one paste interaction per run, low frequency (N ≤ a few/day), REST for all reads. Degraded mode if automation is ever blocked: the runner pauses after building the batch and a human performs the single paste — everything else stays automated.
+- **Figma ToS posture**: UI automation of figma.com is a gray zone. Mitigations: dedicated account, one paste + one copy-back per run, low frequency (N ≤ a few/day). Capture is via the browser clipboard, not REST. Degraded mode if automation is ever blocked: the runner pauses after building the batch and a human performs the single paste + copy-back — everything else stays automated.
 - **Runner**: GitHub-hosted Ubuntu with `xvfb-run` for the headed-fallback paste path. If Figma challenges datacenter IPs / sessions rot too fast, fall back to a self-hosted runner (decision D-5).
 - **Spend controls**: `--max-turns` cap on the agent, one class per run, skip-below-severity-floor, concurrency group prevents overlap.
 
@@ -620,11 +623,11 @@ Specified at lower resolution intentionally; re-plan when M3 is live.
 | WS-1.5 Report + ranking | M1 | done (commit 1fa8535) | — |
 | WS-1.6 Scoreboard + ratchet + CI | M1 | done (commit e0ced82) | — |
 | WS-1.7 Findings ledger + selection | M1 | done (commit c99bb9a) | — |
-| WS-2.1 Session + secrets | M2 | not started | — |
+| WS-2.1 Session bootstrap | M2 | not started | — |
 | WS-2.2 Paste runner | M2 | not started | — |
-| WS-2.3 Tier-1 REST differ | M2 | not started | — |
+| WS-2.3 Tier-1 copy-back differ | M2 | not started | — |
 | WS-2.4 Tier-2 pixel pipeline | M2 | not started | — |
-| WS-2.5 Copy-back (stretch) | M2 | not started | — |
+| WS-2.5 REST pixel fallback (optional) | M2 | not started | — |
 | WS-2.6 Calibration | M2 | not started | — |
 | WS-3.1 fix-discrepancy command | M3 | not started | — |
 | WS-3.2 Scheduled workflow + guard | M3 | not started | — |
@@ -633,7 +636,7 @@ Specified at lower resolution intentionally; re-plan when M3 is live.
 
 ## 15. Decisions needed (human, before the marked milestone)
 
-- **D-1 (M2)**: Figma account for the runner (fresh dedicated account recommended; free tier suffices for paste + REST read of own file). Provide file key + REST token + one interactive login for `figma login`.
+- **D-1 (M2)**: Figma account for the runner (fresh dedicated account recommended; free tier suffices for paste + copy-back of own file). Provide the scratch file key + one interactive login for `figma login`. **A REST token is not needed** on the primary path — only if the Tier-2 REST pixel fallback (WS-2.5) is later enabled.
 - **D-2 (M2)**: GitHub Environment `oracle` creation + the five secrets (§11); fine-grained PAT vs. GitHub App for PR opening (PAT is simpler; App gives a nicer bot identity — recommend starting with PAT).
 - **D-3 (M2)**: export scale 1 (recommended default) vs. 2.
 - **D-4 (M3)**: agent model + `--max-turns` budget for the scheduled fix job.
