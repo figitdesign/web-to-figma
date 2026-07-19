@@ -47,13 +47,24 @@ async function focusCanvas(page: Page): Promise<void> {
   await page.waitForTimeout(300);
 }
 
-/** Select all and delete — the scratch page is a disposable buffer. */
+const CLEAN_MAX_ATTEMPTS = 6;
+
+/** Clear the scratch page (a disposable buffer) and verify it's empty via a
+ * copy-back — select-all + delete is unreliable in a long loop (residual frames
+ * from earlier scenes otherwise contaminate later captures). Escape first to
+ * leave any text-edit mode where the shortcuts mean something else. */
 export async function cleanCanvas(page: Page): Promise<void> {
-  await focusCanvas(page);
-  await page.keyboard.press("ControlOrMeta+a");
-  await page.waitForTimeout(200);
-  await page.keyboard.press("Delete");
-  await page.waitForTimeout(600);
+  for (let attempt = 0; attempt < CLEAN_MAX_ATTEMPTS; attempt++) {
+    await page.keyboard.press("Escape");
+    await focusCanvas(page);
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.waitForTimeout(200);
+    await page.keyboard.press("Delete");
+    await page.waitForTimeout(400);
+    if (extractTopFrameNames(await copyBack(page)).length === 0) {
+      return;
+    }
+  }
 }
 
 /** Write the kiwi envelope to the clipboard and paste it into the canvas. */
