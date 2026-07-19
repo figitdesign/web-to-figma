@@ -8,6 +8,13 @@ import { dirname, resolve } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
+import { loadEnv } from "./env";
+import { EXIT } from "./exit-codes";
+import {
+  resolveSessionConfig,
+  saveLoginSession,
+  validateSession,
+} from "./figma/session";
 import type { LedgerEntry } from "./ledger";
 import { park, reconcile, recordAttempt, selectNextClass } from "./ledger";
 import {
@@ -45,7 +52,11 @@ const COMMANDS: ReadonlyArray<{ name: string; summary: string }> = [
     name: "snapshot",
     summary: "render scenes, capture ground truth + payload, run tier-0 diff",
   },
-  { name: "figma", summary: "paste into Figma, capture tier-1/2 findings" },
+  {
+    name: "figma",
+    summary:
+      "drive Figma: login | validate (paste + tier-1/2 capture land next)",
+  },
   {
     name: "report",
     summary: "merge tier outputs into report.json and reconcile the ledger",
@@ -310,6 +321,55 @@ function runLedgerCommand(args: ReadonlyArray<string>): CliResult {
   };
 }
 
+async function runFigmaCommand(
+  args: ReadonlyArray<string>
+): Promise<CliResult> {
+  const action = args[0];
+  const env = loadEnv();
+
+  if (action === "login") {
+    const raw = env.FIGMA_STORAGE_STATE?.trim();
+    // login writes a session file; inline/base64 states can't be a target.
+    const statePath =
+      raw && !(raw.startsWith("{") || raw.length > 200)
+        ? raw
+        : ".figma-storage-state.json";
+    await saveLoginSession(statePath);
+    return { code: EXIT.OK, out: "", err: "" };
+  }
+
+  if (action === "validate") {
+    const resolved = resolveSessionConfig(env);
+    if (!resolved.ok) {
+      const list = resolved.errors.map((e) => `  - ${e}`).join("\n");
+      return {
+        code: EXIT.ERROR,
+        out: "",
+        err: `Figma config incomplete:\n${list}\n`,
+      };
+    }
+    const result = await validateSession(resolved.config);
+    if (result.ok) {
+      return {
+        code: EXIT.OK,
+        out: `Figma session OK (file ${resolved.config.fileKey})\n`,
+        err: "",
+      };
+    }
+    return {
+      code: EXIT.SESSION_EXPIRED,
+      out: "",
+      err: `Figma session invalid: ${result.reason}\n`,
+    };
+  }
+
+  return {
+    code: EXIT.ERROR,
+    out: "",
+    err: `unknown figma action '${action ?? ""}' (login|validate)\n`,
+  };
+}
+
 /** Parse and dispatch a CLI invocation. Returns the exit code and the text to
  * emit, so it can be unit-tested without spawning a process. */
 export async function run(argv: ReadonlyArray<string>): Promise<CliResult> {
@@ -323,6 +383,9 @@ export async function run(argv: ReadonlyArray<string>): Promise<CliResult> {
   }
   if (command === "snapshot") {
     return await runSnapshotCommand(argv.slice(1));
+  }
+  if (command === "figma") {
+    return await runFigmaCommand(argv.slice(1));
   }
   if (command === "report") {
     return runReportCommand(argv.slice(1));
