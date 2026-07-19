@@ -618,7 +618,7 @@ Specified at lower resolution intentionally; re-plan when M3 is live.
 | WS-1.3 Ground-truth runner | M1 | done (commit 8061404) | — |
 | WS-1.4 Tier-0 differ | M1 | done — geometry + missing/extra (commit 463efac); fills/text/radius to follow | — |
 | WS-1.5 Report + ranking | M1 | done (commit 1fa8535) | — |
-| WS-1.6 Scoreboard + ratchet + CI | M1 | not started | — |
+| WS-1.6 Scoreboard + ratchet + CI | M1 | done (commit e0ced82) | — |
 | WS-1.7 Findings ledger + selection | M1 | not started | — |
 | WS-2.1 Session + secrets | M2 | not started | — |
 | WS-2.2 Paste runner | M2 | not started | — |
