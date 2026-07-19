@@ -5,186 +5,403 @@
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "01-flex/align-center-end": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "01-flex/asymmetric-padding": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "01-flex/column-basic": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "01-flex/justify-center": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "01-flex/justify-end": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "01-flex/margin-spacing-border": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "01-flex/nested": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "01-flex/row-basic": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "01-flex/space-between": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "01-flex/space-evenly": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "02-sizing/fill-child": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "02-sizing/fill-two": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "02-sizing/grow-unequal": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "02-sizing/hug-column": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "02-sizing/hug-row": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "02-sizing/nested-mix": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "02-sizing/stretch-cross": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "03-flow/absolute-badge": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "03-flow/absolute-in-block": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "03-flow/block-center": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "03-flow/block-column": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "03-flow/block-hug": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "03-flow/block-stretch": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "03-flow/card-mock": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0.00017857142857142857
       }
     },
     "04-wrap/column-reverse": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "04-wrap/grid-single-col": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "04-wrap/grid-uniform": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "04-wrap/row-reverse": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "04-wrap/wrap-rows": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "04-wrap/wrap-stretch-gap": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     }
   }
