@@ -38,15 +38,32 @@ function captureTier2(
       note: "tier-2 skipped: no snapshot",
     };
   }
+  if (figmaPng.length === 0) {
+    return {
+      diffRatio: null,
+      regions: null,
+      note: "tier-2 skipped: no png captured",
+    };
+  }
   const gt = JSON.parse(readFileSync(gtPath, "utf-8")) as {
     elements: Array<GroundTruthElement>;
   };
-  const result = diffTier2({
-    sceneId,
-    domPng: readFileSync(domPngPath),
-    figmaPng,
-    elements: gt.elements,
-  });
+  let result: ReturnType<typeof diffTier2>;
+  try {
+    result = diffTier2({
+      sceneId,
+      domPng: readFileSync(domPngPath),
+      figmaPng,
+      elements: gt.elements,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      diffRatio: null,
+      regions: null,
+      note: `tier-2 skipped: ${message}`,
+    };
+  }
   if ("error" in result) {
     return {
       diffRatio: null,

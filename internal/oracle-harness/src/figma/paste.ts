@@ -102,31 +102,39 @@ async function copyBack(page: Page): Promise<string> {
   });
 }
 
+const COPY_PNG_MAX_ATTEMPTS = 4;
+
 /** Select all and "Copy as PNG" (Cmd+Shift+C), returning the rendered image.
- * Figma exports this at a fixed 2× scale. */
+ * Figma exports this at a fixed 2× scale. The clipboard image occasionally
+ * doesn't land, so retry until it does. */
 export async function copyPng(page: Page): Promise<Buffer> {
-  await focusCanvas(page);
-  await page.keyboard.press("ControlOrMeta+a");
-  await page.waitForTimeout(300);
-  await page.keyboard.press("ControlOrMeta+Shift+c");
-  await page.waitForTimeout(1500);
-  const base64 = await page.evaluate(async () => {
-    const items = await navigator.clipboard.read();
-    for (const item of items) {
-      if (item.types.includes("image/png")) {
-        const bytes = new Uint8Array(
-          await (await item.getType("image/png")).arrayBuffer()
-        );
-        let binary = "";
-        for (const b of bytes) {
-          binary += String.fromCharCode(b);
+  for (let attempt = 0; attempt < COPY_PNG_MAX_ATTEMPTS; attempt++) {
+    await focusCanvas(page);
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.waitForTimeout(300);
+    await page.keyboard.press("ControlOrMeta+Shift+c");
+    await page.waitForTimeout(1500);
+    const base64 = await page.evaluate(async () => {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        if (item.types.includes("image/png")) {
+          const bytes = new Uint8Array(
+            await (await item.getType("image/png")).arrayBuffer()
+          );
+          let binary = "";
+          for (const b of bytes) {
+            binary += String.fromCharCode(b);
+          }
+          return btoa(binary);
         }
-        return btoa(binary);
       }
+      return "";
+    });
+    if (base64.length > 0) {
+      return Buffer.from(base64, "base64");
     }
-    return "";
-  });
-  return Buffer.from(base64, "base64");
+  }
+  return Buffer.alloc(0);
 }
 
 type Settlement = {

@@ -157,5 +157,30 @@ exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
     "id": "04-wrap/wrap-stretch-gap",
     "width": 320,
   },
+  {
+    "height": 240,
+    "id": "05-exotic/dotted-borders",
+    "width": 360,
+  },
+  {
+    "height": 240,
+    "id": "05-exotic/gradients-effects",
+    "width": 360,
+  },
+  {
+    "height": 240,
+    "id": "05-exotic/rotated",
+    "width": 360,
+  },
+  {
+    "height": 240,
+    "id": "05-exotic/text-in-box",
+    "width": 360,
+  },
+  {
+    "height": 240,
+    "id": "05-exotic/weird-shapes",
+    "width": 360,
+  },
 ]
 `;

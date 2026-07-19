@@ -11,7 +11,7 @@ import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { loadEnv } from "./env";
 import { EXIT } from "./exit-codes";
-import { openFigma } from "./figma/paste";
+import { cleanCanvas, openFigma } from "./figma/paste";
 import type { SceneCapture } from "./figma/run";
 import { captureScene } from "./figma/run";
 import type { SessionConfig } from "./figma/session";
@@ -429,14 +429,29 @@ async function figmaCapture(
   const captures: Array<SceneCapture> = [];
   try {
     for (const scene of scenes) {
-      const envelope = readFileSync(
-        resolve(dir.payloads, `${scene.id.replaceAll("/", "__")}.html`),
-        "utf-8"
-      );
-      captures.push(
-        await captureScene({ page: session.page, dir, scene, envelope })
-      );
+      try {
+        const envelope = readFileSync(
+          resolve(dir.payloads, `${scene.id.replaceAll("/", "__")}.html`),
+          "utf-8"
+        );
+        captures.push(
+          await captureScene({ page: session.page, dir, scene, envelope })
+        );
+      } catch (error) {
+        // One scene's failure must not abort the whole corpus run.
+        const message = error instanceof Error ? error.message : String(error);
+        captures.push({
+          sceneId: scene.id,
+          settled: false,
+          tier1Findings: 0,
+          tier2DiffRatio: null,
+          tier2Regions: null,
+          note: `error: ${message}`,
+        });
+      }
     }
+    // Leave the scratch file empty so frames never accumulate across runs.
+    await cleanCanvas(session.page);
   } finally {
     await session.browser.close();
   }

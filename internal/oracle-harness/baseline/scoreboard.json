@@ -403,6 +403,71 @@
       "tier2": {
         "diffRatio": 0
       }
+    },
+    "05-exotic/dotted-borders": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0.01579861111111111
+      }
+    },
+    "05-exotic/gradients-effects": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0.2646412037037037
+      }
+    },
+    "05-exotic/rotated": {
+      "tier0": {
+        "findings": 1,
+        "maxDeltaPx": 0.6676559448242188
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0.14274305555555555
+      }
+    },
+    "05-exotic/text-in-box": {
+      "tier0": {
+        "findings": 28,
+        "maxDeltaPx": 4.65625
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0.03497685185185185
+      }
+    },
+    "05-exotic/weird-shapes": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0.07180555555555555
+      }
     }
   }
 }
