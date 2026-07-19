@@ -1,6 +1,19 @@
 import { Buffer } from "node:buffer";
 import process from "node:process";
+import type { Browser, BrowserContext } from "playwright";
 import { chromium } from "playwright";
+
+// figma.com's CloudFront WAF 403s the default headless fingerprint. A realistic
+// user-agent plus disabling the automation flag gets the editor to load. Every
+// Figma browser context in the harness must go through the factories below.
+const FIGMA_USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
+const LAUNCH_ARGS = ["--disable-blink-features=AutomationControlled"];
+const VIEWPORT = { width: 1440, height: 900 };
+
+function launchFigmaBrowser(headless = true): Promise<Browser> {
+  return chromium.launch({ headless, args: LAUNCH_ARGS });
+}
 
 export type ResolvedStorageState =
   | { kind: "path"; path: string }
@@ -92,6 +105,19 @@ function storageStateOption(state: ResolvedStorageState): StorageStateOption {
     : (state.state as unknown as { cookies: []; origins: [] });
 }
 
+/** Create a Figma-ready context: anti-detection UA + viewport, optionally
+ * seeded with a saved session. Shared by validate, paste, and capture. */
+function newFigmaContext(
+  browser: Browser,
+  storageState?: ResolvedStorageState
+): Promise<BrowserContext> {
+  return browser.newContext({
+    userAgent: FIGMA_USER_AGENT,
+    viewport: VIEWPORT,
+    ...(storageState ? { storageState: storageStateOption(storageState) } : {}),
+  });
+}
+
 const DEFAULT_TIMEOUT_MS = 60_000;
 
 export type ValidationResult = { ok: boolean; reason?: string };
@@ -102,11 +128,9 @@ export async function validateSession(
   config: SessionConfig,
   timeoutMs: number = DEFAULT_TIMEOUT_MS
 ): Promise<ValidationResult> {
-  const browser = await chromium.launch();
+  const browser = await launchFigmaBrowser();
   try {
-    const context = await browser.newContext({
-      storageState: storageStateOption(config.storageState),
-    });
+    const context = await newFigmaContext(browser, config.storageState);
     const page = await context.newPage();
     await page.goto(fileUrl(config.fileKey), {
       waitUntil: "domcontentloaded",
@@ -141,9 +165,9 @@ function waitForEnter(): Promise<void> {
 /** Headed interactive login: the human signs in once, then the session is
  * saved to `statePath`. Local-only (needs a display and stdin). */
 export async function saveLoginSession(statePath: string): Promise<void> {
-  const browser = await chromium.launch({ headless: false });
+  const browser = await launchFigmaBrowser(false);
   try {
-    const context = await browser.newContext();
+    const context = await newFigmaContext(browser);
     const page = await context.newPage();
     await page.goto("https://www.figma.com/login");
     process.stdout.write(

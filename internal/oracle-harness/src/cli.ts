@@ -4,7 +4,7 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
@@ -36,10 +36,17 @@ import {
 } from "./scoreboard";
 import { runSnapshot } from "./snapshot";
 
+const REPO_ROOT = resolve(import.meta.dirname, "../../..");
 const BASELINE_PATH = resolve(
   import.meta.dirname,
   "../baseline/scoreboard.json"
 );
+
+/** Resolve a relative session-state path against the repo root, so it works
+ * regardless of the cwd the CLI is invoked from. */
+function absStatePath(raw: string): string {
+  return isAbsolute(raw) ? raw : resolve(REPO_ROOT, raw);
+}
 
 export type CliResult = { code: number; out: string; err: string };
 
@@ -330,11 +337,11 @@ async function runFigmaCommand(
   if (action === "login") {
     const raw = env.FIGMA_STORAGE_STATE?.trim();
     // login writes a session file; inline/base64 states can't be a target.
-    const statePath =
+    const target =
       raw && !(raw.startsWith("{") || raw.length > 200)
         ? raw
         : ".figma-storage-state.json";
-    await saveLoginSession(statePath);
+    await saveLoginSession(absStatePath(target));
     return { code: EXIT.OK, out: "", err: "" };
   }
 
@@ -348,7 +355,18 @@ async function runFigmaCommand(
         err: `Figma config incomplete:\n${list}\n`,
       };
     }
-    const result = await validateSession(resolved.config);
+    const { storageState } = resolved.config;
+    const config =
+      storageState.kind === "path"
+        ? {
+            ...resolved.config,
+            storageState: {
+              kind: "path" as const,
+              path: absStatePath(storageState.path),
+            },
+          }
+        : resolved.config;
+    const result = await validateSession(config);
     if (result.ok) {
       return {
         code: EXIT.OK,
