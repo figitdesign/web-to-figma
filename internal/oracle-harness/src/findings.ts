@@ -49,6 +49,7 @@ const DISCREPANCY_CLASSES = [
   "radius.bottomRight",
   "radius.bottomLeft",
   "pixel.region",
+  "pixel.size",
 ] as const;
 
 type DiscrepancyClass = (typeof DISCREPANCY_CLASSES)[number];

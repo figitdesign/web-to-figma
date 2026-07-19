@@ -2,11 +2,13 @@ import type { Finding } from "./findings";
 import type { GroundTruthElement } from "./ground-truth";
 import { attributeCluster } from "./tier2/attribute";
 import { clusterMask } from "./tier2/cluster";
-import { decodePng, diffImages, downsample } from "./tier2/pixel";
+import { cropTopLeft, decodePng, diffImages, downsample } from "./tier2/pixel";
 
 // Fraction of the scene a cluster covers → severity 1 (a 5%-area region is
 // already a severe visual break).
 const SEVERITY_AREA_SCALE = 20;
+// Figma's "Copy as PNG" exports at a fixed 2× scale.
+const COPY_AS_PNG_SCALE = 2;
 
 export type Tier2Result = {
   diffRatio: number;
@@ -16,9 +18,9 @@ export type Tier2Result = {
 
 /**
  * Tier-2: compare the browser's DOM screenshot (1×) against Figma's rendered
- * PNG (Copy-as-PNG, 2×). Downsamples Figma to match, diffs, clusters the
- * differing pixels, and attributes each cluster to a DOM element. Returns an
- * error when the two images can't be size-aligned.
+ * PNG (Copy-as-PNG, 2×). The Figma export crops to content bounds and can hug
+ * narrower than the DOM frame, so we align at the top-left, diff the overlap,
+ * and emit a `pixel.size` finding for any dimension delta rather than skipping.
  */
 export function diffTier2(input: {
   sceneId: string;
@@ -28,16 +30,28 @@ export function diffTier2(input: {
   threshold?: number;
 }): Tier2Result | { error: string } {
   const dom = decodePng(input.domPng);
+  // Derive the scale from height (the frame height Figma respects) but fall
+  // back to the known Copy-as-PNG scale.
   const figmaRaw = decodePng(input.figmaPng);
-  const factor = dom.width > 0 ? Math.round(figmaRaw.width / dom.width) : 0;
-  const figma = factor >= 1 ? downsample(figmaRaw, factor) : figmaRaw;
-  if (figma.width !== dom.width || figma.height !== dom.height) {
+  const factor =
+    dom.height > 0
+      ? Math.max(1, Math.round(figmaRaw.height / dom.height))
+      : COPY_AS_PNG_SCALE;
+  const figma = downsample(figmaRaw, factor);
+
+  const w = Math.min(dom.width, figma.width);
+  const h = Math.min(dom.height, figma.height);
+  if (w === 0 || h === 0) {
     return {
-      error: `size mismatch: dom ${dom.width}×${dom.height} vs figma ${figma.width}×${figma.height}`,
+      error: `no overlap: dom ${dom.width}×${dom.height} vs figma ${figma.width}×${figma.height}`,
     };
   }
 
-  const diff = diffImages(dom, figma, input.threshold);
+  const diff = diffImages(
+    cropTopLeft(dom, w, h),
+    cropTopLeft(figma, w, h),
+    input.threshold
+  );
   const clusters = clusterMask(diff.mask, diff.width, diff.height);
   const sceneArea = diff.width * diff.height;
 
@@ -53,6 +67,17 @@ export function diffTier2(input: {
       clusterBBox: cluster,
     };
   });
+
+  if (dom.width !== figma.width || dom.height !== figma.height) {
+    findings.push({
+      sceneId: input.sceneId,
+      tier: 2,
+      class: "pixel.size",
+      severity: 1,
+      expected: `${dom.width}×${dom.height}`,
+      actual: `${figma.width}×${figma.height}`,
+    });
+  }
 
   return { diffRatio: diff.diffRatio, findings, diffPng: diff.diffPng };
 }

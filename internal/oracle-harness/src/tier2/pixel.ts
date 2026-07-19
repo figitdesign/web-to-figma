@@ -43,6 +43,25 @@ export function downsample(src: PngData, factor: number): PngData {
   return { width, height, data };
 }
 
+/** Copy the top-left `width`×`height` region into a new image. */
+export function cropTopLeft(
+  src: PngData,
+  width: number,
+  height: number
+): PngData {
+  const data = new Uint8Array(width * height * RGBA);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const di = (y * width + x) * RGBA;
+      const si = (y * src.width + x) * RGBA;
+      for (let c = 0; c < RGBA; c++) {
+        data[di + c] = src.data[si + c] ?? 0;
+      }
+    }
+  }
+  return { width, height, data };
+}
+
 export type PixelDiff = {
   diffRatio: number;
   /** 1 per differing pixel, row-major, length width*height. */
