@@ -8,6 +8,10 @@ coverage
 .env.*
 !.env.example
 
+# Figma login session for the parity pipeline (a live credential)
+.figma-storage-state.json
+*.storage-state.json
+
 # IDE
 .vscode/*
 !.vscode/extensions.json
