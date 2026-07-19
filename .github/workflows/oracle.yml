@@ -1,0 +1,174 @@
+name: Oracle
+
+# The outer loop of the visual-parity pipeline (docs/visual-parity-pipeline.prd.md
+# §WS-3.2). It runs ONLY on a schedule or manual dispatch from `main` — never on
+# pull_request/push — so untrusted fork code never executes next to the secrets.
+on:
+  schedule:
+    # 06:00 UTC daily. Adding cron entries raises N (runs/day).
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      max_turns:
+        description: "Agent turn budget for the fix job"
+        required: false
+        default: "80"
+      model:
+        description: "Agent model (Claude Code --model)"
+        required: false
+        default: "claude-opus-4-8"
+
+# Never overlap runs: a second run must not paste into the shared Figma file
+# while the first is mid-capture, and must not race the ledger.
+concurrency:
+  group: oracle
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # ── Measure ──────────────────────────────────────────────────────────────
+  # Convert the corpus, drive real Figma, diff Tiers 0–2, emit report.json.
+  # Read-only w.r.t. the repo: it opens no PRs and commits nothing.
+  measure:
+    name: Measure parity (Tiers 0–2)
+    runs-on: ubuntu-latest
+    environment: oracle
+    env:
+      RUN_ID: run-${{ github.run_id }}
+      FIGMA_FILE_KEY: ${{ secrets.FIGMA_FILE_KEY }}
+      # Base64-of-JSON storageState; the harness classifies and decodes it.
+      FIGMA_STORAGE_STATE: ${{ secrets.FIGMA_STORAGE_STATE }}
+      # Optional — only the WS-2.5 REST pixel fallback reads it.
+      FIGMA_TOKEN: ${{ secrets.FIGMA_TOKEN }}
+    outputs:
+      run_id: ${{ env.RUN_ID }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+
+      - uses: ./.github/actions/setup
+
+      - name: Resolve Playwright version
+        run: echo "PLAYWRIGHT_VERSION=$(pnpm --filter @figit/dom-to-figma exec playwright --version | awk '{print $2}')" >> "$GITHUB_ENV"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ env.PLAYWRIGHT_VERSION }}
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @figit/dom-to-figma exec playwright install chromium --with-deps
+
+      # Canary: a live session check that fails with a distinct, self-explanatory
+      # surface when the stored Figma login has expired (exit 3), so a human
+      # re-logs in rather than treating it as a pipeline regression.
+      - name: Validate Figma session
+        run: |
+          set +e
+          pnpm --filter @figit/oracle-harness run cli figma validate
+          code=$?
+          if [ "$code" -eq 3 ]; then
+            echo "::error title=Figma session expired::Run \`cli figma login\` locally and update the FIGMA_STORAGE_STATE secret (base64)."
+          fi
+          exit $code
+
+      - name: Snapshot corpus (Tier 0)
+        run: pnpm --filter @figit/oracle-harness run cli snapshot --run-id "$RUN_ID"
+
+      - name: Capture Figma (Tiers 1–2)
+        run: pnpm --filter @figit/oracle-harness run cli figma run --run-id "$RUN_ID"
+
+      - name: Assemble report + step summary
+        run: pnpm --filter @figit/oracle-harness run cli report --run-id "$RUN_ID" --commit "${{ github.sha }}"
+
+      - name: Upload run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oracle-run-${{ github.run_id }}
+          path: oracle/runs/${{ env.RUN_ID }}
+          retention-days: 14
+
+  # ── Fix ──────────────────────────────────────────────────────────────────
+  # Run the /fix-discrepancy agent against the report; it selects one class,
+  # fixes the converter (or records a ledger note), self-checks with `cli guard`,
+  # and opens a labelled PR. All committed-file changes land in that reviewed PR.
+  fix:
+    name: Fix top discrepancy
+    needs: measure
+    runs-on: ubuntu-latest
+    environment: oracle
+    env:
+      RUN_ID: ${{ needs.measure.outputs.run_id }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      # Fine-grained token (contents+PRs, this repo only) so the opened PR runs
+      # normal CI. GITHUB_TOKEN would suppress downstream workflow triggers.
+      GH_TOKEN: ${{ secrets.ORACLE_GH_TOKEN }}
+      AGENT_MODEL: ${{ inputs.model || 'claude-opus-4-8' }}
+      AGENT_MAX_TURNS: ${{ inputs.max_turns || '80' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          # Full history so `cli guard` can diff against main and read merge-base.
+          fetch-depth: 0
+          token: ${{ secrets.ORACLE_GH_TOKEN }}
+
+      - uses: ./.github/actions/setup
+
+      - name: Resolve Playwright version
+        run: echo "PLAYWRIGHT_VERSION=$(pnpm --filter @figit/dom-to-figma exec playwright --version | awk '{print $2}')" >> "$GITHUB_ENV"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ env.PLAYWRIGHT_VERSION }}
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @figit/dom-to-figma exec playwright install chromium --with-deps
+
+      - name: Download run report
+        uses: actions/download-artifact@v4
+        with:
+          name: oracle-run-${{ github.run_id }}
+          path: oracle/runs/${{ env.RUN_ID }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "oracle-bot"
+          git config user.email "oracle-bot@users.noreply.github.com"
+
+      # Materialize cross-run memory: new classes become `open`, recurring ones
+      # refresh, vanished ones resolve. Its file changes ride into the agent's PR.
+      - name: Reconcile ledger
+        run: pnpm --filter @figit/oracle-harness run cli ledger reconcile --run-id "$RUN_ID"
+
+      # Ledger-aware selection already skips parked/cooled-down classes; `none`
+      # means nothing is workable and the fix step is a successful no-op.
+      - name: Select target class
+        id: select
+        run: |
+          CLASS=$(pnpm --silent --filter @figit/oracle-harness run cli ledger select --run-id "$RUN_ID" | tail -n1 | tr -d '[:space:]')
+          echo "class=$CLASS" >> "$GITHUB_OUTPUT"
+          echo "Selected class: ${CLASS:-<none>}"
+
+      - name: Install Claude Code
+        if: steps.select.outputs.class != 'none' && steps.select.outputs.class != ''
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Fix and open PR
+        if: steps.select.outputs.class != 'none' && steps.select.outputs.class != ''
+        run: |
+          claude -p "/fix-discrepancy oracle/runs/$RUN_ID/report.json" \
+            --permission-mode acceptEdits \
+            --max-turns "$AGENT_MAX_TURNS" \
+            --model "$AGENT_MODEL"
+
+      - name: Nothing to fix
+        if: steps.select.outputs.class == 'none' || steps.select.outputs.class == ''
+        run: echo "No workable discrepancy class this run — nothing to fix." >> "$GITHUB_STEP_SUMMARY"
