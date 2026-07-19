@@ -17,6 +17,7 @@ import type {
   FigmaNodeChange,
   FigmaPaint,
 } from "../../types";
+import type { FigmaSize, FigmaTransform } from "../../types/core";
 import type { ConverterLayout } from "../../walk";
 
 type PositioningResult = {
@@ -85,6 +86,56 @@ function getPositioningInfo(
   }
 
   return { horizontalConstraint, verticalConstraint, positionOverride };
+}
+
+/**
+ * A CSS `transform` (rotate/skew/scale) is invisible to `getBoundingClientRect`,
+ * which returns the axis-aligned bounding box — so without this the node would
+ * be a flattened, enlarged rectangle. Rebuild the node from its untransformed
+ * size (`offsetWidth/Height`) plus a Figma matrix derived from the computed
+ * transform, positioning the node's center at the element's center. Assumes the
+ * default `transform-origin: center` (the untransformed center equals the
+ * rendered bbox center for center-origin transforms).
+ */
+function getTransformOverride(
+  element: Element,
+  rect: DOMRect,
+  computedStyle: CSSStyleDeclaration
+): { size: FigmaSize; transform: FigmaTransform } | null {
+  const value = computedStyle.transform;
+  if (!value || value === "none") {
+    return null;
+  }
+  const matrix = new DOMMatrix(value);
+  const { a, b, c, d } = matrix;
+  // Pure translation (or identity) is already handled by positioning.
+  if (!matrix.is2D || (a === 1 && b === 0 && c === 0 && d === 1)) {
+    return null;
+  }
+  const el = element as HTMLElement;
+  const width = el.offsetWidth;
+  const height = el.offsetHeight;
+  if (!(width && height)) {
+    return null;
+  }
+  const parentRect = element.parentElement?.getBoundingClientRect();
+  const parentLeft = parentRect?.left ?? 0;
+  const parentTop = parentRect?.top ?? 0;
+  const centerX = rect.left + rect.width / 2 - parentLeft;
+  const centerY = rect.top + rect.height / 2 - parentTop;
+  const halfW = width / 2;
+  const halfH = height / 2;
+  return {
+    size: { x: width, y: height },
+    transform: {
+      m00: a,
+      m01: c,
+      m02: centerX - (a * halfW + c * halfH),
+      m10: b,
+      m11: d,
+      m12: centerY - (b * halfW + d * halfH),
+    },
+  };
 }
 
 function getFillProperties(element: Element, rect: DOMRect) {
@@ -189,6 +240,7 @@ export function elementToFrameNodeChange(
   const { horizontalConstraint, verticalConstraint, positionOverride } =
     getPositioningInfo(element, rect, computedStyle);
   const finalPosition = positionOverride ?? position;
+  const transformOverride = getTransformOverride(element, rect, computedStyle);
 
   const { fillsParentHeight, fillsParentWidth } = getFillProperties(
     element,
@@ -263,18 +315,17 @@ export function elementToFrameNodeChange(
     frameMaskDisabled: !hasOverflowHidden,
 
     /* Size and Position */
-    size: {
-      x: width,
-      y: height,
-    },
-    transform: {
-      m00: 1.0,
-      m01: 0.0,
-      m02: finalPosition.x,
-      m10: 0.0,
-      m11: 1.0,
-      m12: finalPosition.y,
-    },
+    size: transformOverride ? transformOverride.size : { x: width, y: height },
+    transform: transformOverride
+      ? transformOverride.transform
+      : {
+          m00: 1.0,
+          m01: 0.0,
+          m02: finalPosition.x,
+          m10: 0.0,
+          m11: 1.0,
+          m12: finalPosition.y,
+        },
 
     /* Layout */
     stackMode: "NONE",

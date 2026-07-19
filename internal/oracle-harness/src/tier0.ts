@@ -98,7 +98,9 @@ function pathFromRoot(
   return null;
 }
 
-/** Reconstruct a node's absolute rect in scene coords (frame root at origin). */
+/** Reconstruct a node's absolute axis-aligned bounding box in scene coords
+ * (frame root at origin). Handles rotation/skew by transforming the four
+ * corners and taking their bounds — matching `getBoundingClientRect`. */
 function absoluteRect(
   node: PayloadNode,
   byKey: Map<string, PayloadNode>,
@@ -113,7 +115,25 @@ function absoluteRect(
     abs = compose(abs, link.transform ?? IDENTITY);
   }
   const size = node.size ?? { x: 0, y: 0 };
-  return { x: abs.m02, y: abs.m12, width: size.x, height: size.y };
+  const xs: Array<number> = [];
+  const ys: Array<number> = [];
+  for (const [lx, ly] of [
+    [0, 0],
+    [size.x, 0],
+    [0, size.y],
+    [size.x, size.y],
+  ] as const) {
+    xs.push(abs.m00 * lx + abs.m01 * ly + abs.m02);
+    ys.push(abs.m10 * lx + abs.m11 * ly + abs.m12);
+  }
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  return {
+    x: minX,
+    y: minY,
+    width: Math.max(...xs) - minX,
+    height: Math.max(...ys) - minY,
+  };
 }
 
 function pushGeometryFindings(

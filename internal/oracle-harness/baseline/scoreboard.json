@@ -432,15 +432,15 @@
     },
     "05-exotic/rotated": {
       "tier0": {
-        "findings": 1,
-        "maxDeltaPx": 0.6676559448242188
+        "findings": 0,
+        "maxDeltaPx": 0
       },
       "tier1": {
         "findings": 0,
         "maxDeltaPx": 0
       },
       "tier2": {
-        "diffRatio": 0.14274305555555555
+        "diffRatio": 0
       }
     },
     "05-exotic/text-in-box": {
