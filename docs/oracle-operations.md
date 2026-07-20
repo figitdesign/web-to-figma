@@ -20,9 +20,26 @@ CI or shared anywhere.
 > `.figma-storage-state.json` is gitignored and is a full login — treat it like
 > a password.
 
-## 2. Running the pipeline
+## 2. The loop — one command
 
-Run these in order; each proves more of the loop.
+```
+pnpm oracle:loop
+```
+
+Runs the whole thing end to end (`scripts/oracle-loop.sh`): validate the Figma
+session → snapshot (Tier 0) → drive Figma (Tiers 1–2) → report + reconcile the
+ledger + append history → select the top workable class → run the
+`/fix-discrepancy` agent on it (`claude -p`, `acceptEdits`, bounded turns) →
+re-verify the tier-0 ratchet. It ends by printing the dirty working tree: you
+review, then commit or discard. Tunables via env: `ORACLE_AGENT_MODEL`,
+`ORACLE_MAX_TURNS`, `ORACLE_RUN_ID`.
+
+Any step failing kills the loop loudly (`set -euo pipefail`); "nothing
+workable to fix" is a successful exit.
+
+## 3. Running the pieces individually
+
+Useful for debugging one stage or doing a measure-only run.
 
 1. **Tier-0, no credentials:**
 
@@ -65,7 +82,7 @@ Run these in order; each proves more of the loop.
 
    Appends a one-line summary to the gitignored `oracle/history/runs.ndjson`.
 
-## 3. When a credential expires
+## 4. When a credential expires
 
 | Symptom | Fix |
 | --- | --- |

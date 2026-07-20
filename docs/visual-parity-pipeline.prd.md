@@ -521,7 +521,7 @@ Build **only if** in-browser "Copy as PNG" (WS-2.4 step 1) proves unreliable hea
 
 Outcome: a human triggers a run, an agent fixes the top discrepancy class under supervision, and the human reviews the working tree and commits.
 
-> **Scope decision (2026-07-20).** M3 was originally specified — and briefly built — as an *autonomous* loop: a scheduled workflow that measured in CI, ran the agent headless, and opened labelled PRs gated by a `cli guard` job. That machinery (`oracle.yml`, `cli guard`, the `oracle-fix`/`oracle-ledger` labels, the CI-secret provisioning) has been **removed by decision**: the pipeline runs only locally, with the human in control of what gets done and committed. The workstreams below reflect the local model.
+> **Scope decision (2026-07-20).** M3 was originally specified — and briefly built — as an *unattended* loop: a scheduled GitHub Actions workflow that measured in CI, ran the agent headless, and opened labelled PRs gated by a `cli guard` job. The CI trigger and PR machinery (`oracle.yml`, `cli guard`, the `oracle-fix`/`oracle-ledger` labels, the CI-secret provisioning) have been **removed by decision** — but the end-to-end loop itself lives on as `pnpm oracle:loop` (`scripts/oracle-loop.sh`): the same measure → select → fix → verify orchestration, triggered by the human, watched by the human, and ending in an uncommitted working tree the human reviews. The workstreams below reflect that local model.
 
 ### WS-3.1 `/fix-discrepancy` command
 
@@ -541,9 +541,20 @@ Outcome: a human triggers a run, an agent fixes the top discrepancy class under 
 
 **Tests**: commands are prose; the enforcement is human review of the working tree plus a **drill**: run the command manually once against an M2 report with a seeded known bug (introduce a deliberate off-by-line-height in a branch, run the pipeline, verify the agent produces a correct fix). The drill is the acceptance test for this workstream.
 
-### WS-3.2 Scheduled workflow + guard — REMOVED
+### WS-3.2 Loop orchestration (local script; CI trigger removed)
 
-Built (a scheduled `oracle.yml` measure+fix workflow, a `cli guard` allowlist gate, and `oracle-fix`/`oracle-ledger` PR labels), then removed on 2026-07-20 when the pipeline was made local-only: with a human invoking the agent and reviewing every change before commit, the mechanical PR gate and the CI secret provisioning it required are unnecessary. If unattended operation is ever revisited, resurrect this workstream from git history (commits `1eed1d9`, `d45101e`, and the removal commit) rather than re-designing from scratch — and note the review findings fixed along the way (fail-open on git errors, rename-bypass of the un-park rule, label-trigger gaps).
+**Where**: `scripts/oracle-loop.sh`, exposed as `pnpm oracle:loop`.
+
+One command runs the whole loop end to end, so the agent can be evaluated back to back against real measurements:
+
+1. **Measure**: `figma validate` (exit 3 = expired login, not a regression) → `snapshot` (Tier 0) → `figma run` (Tiers 1–2) → `report --commit $(git rev-parse HEAD)` → `ledger reconcile` → `history`.
+2. **Select**: `ledger select` picks the top workable class (parked/cooled-down skipped); `none` ends the loop successfully.
+3. **Fix**: `claude -p "/fix-discrepancy <report>"` with `--permission-mode acceptEdits`, bounded `--max-turns` (env `ORACLE_MAX_TURNS`, default 80) and model (env `ORACLE_AGENT_MODEL`). The agent never commits, pushes, or opens PRs.
+4. **Verify**: full `oracle:parity` re-runs the tier-0 ratchet after the fix; the script ends by printing the dirty working tree for the human to review and commit.
+
+The script runs under `set -euo pipefail`, so any crashed step fails the loop loudly instead of degrading into a silent "nothing to fix".
+
+*History note:* this workstream first shipped as a scheduled `oracle.yml` measure+fix workflow plus a `cli guard` PR gate; the CI trigger, labels, guard, and secret provisioning were removed on 2026-07-20 (with a human watching each run and reviewing each diff, they were unnecessary). If unattended operation is ever revisited, resurrect from git history (commits `1eed1d9`, `d45101e`, and the removal commit) rather than re-designing — and note the review findings fixed along the way (fail-open on git errors, rename-bypass of the un-park rule, label-trigger gaps).
 
 ### WS-3.3 Observability
 
@@ -614,7 +625,7 @@ Specified at lower resolution intentionally; re-plan when M3 is live.
 | WS-2.5 REST pixel fallback (optional) | M2 | not started | — |
 | WS-2.6 Calibration | M2 | done (commit 3dae76e); Figma render is deterministic (0%), 0.1% noise floor applied | — |
 | WS-3.1 fix-discrepancy command | M3 | done (commit 8c770fa); rewritten local-only 2026-07-20 (no PRs/labels; human commits) | — |
-| WS-3.2 Scheduled workflow + guard | M3 | **removed** 2026-07-20 — built (commits 1eed1d9, d45101e) then deleted with the local-only decision; see §9 scope note | — |
+| WS-3.2 Loop orchestration | M3 | done — local `pnpm oracle:loop` (measure → select → fix → verify); the CI trigger + guard it originally shipped as were removed 2026-07-20, see §9 scope note | — |
 | WS-3.3 Observability | M3 | done — exit-code taxonomy, report step summary, `cli history` → local runs.ndjson + summary line | — |
 | WS-4.x Corpus scale-out | M4 | deferred | — |
 
