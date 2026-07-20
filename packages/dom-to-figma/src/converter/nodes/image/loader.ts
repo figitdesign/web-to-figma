@@ -142,7 +142,92 @@ function canvasToBlob(
   });
 }
 
+/**
+ * SHA-1 the bytes for Figma's blob identifier. Prefers `crypto.subtle` when
+ * present, but that API is gated to secure contexts — it is absent on plain
+ * `about:blank`/`http:` pages — so fall back to a pure-JS digest to keep image
+ * conversion working everywhere the converter runs.
+ */
 async function sha1(buffer: ArrayBuffer): Promise<Array<number>> {
-  const hashBuffer = await crypto.subtle.digest("SHA-1", buffer);
-  return Array.from(new Uint8Array(hashBuffer));
+  const subtle = globalThis.crypto?.subtle;
+  if (subtle) {
+    const hashBuffer = await subtle.digest("SHA-1", buffer);
+    return Array.from(new Uint8Array(hashBuffer));
+  }
+  return sha1Fallback(buffer);
+}
+
+function sha1Fallback(buffer: ArrayBuffer): Array<number> {
+  const bytes = new Uint8Array(buffer);
+  const bitLen = bytes.length * 8;
+  // Pad to a multiple of 64 bytes: 0x80, zeros, then the 64-bit big-endian length.
+  const totalLen = (((bytes.length + 8) >> 6) + 1) << 6;
+  const block = new Uint8Array(totalLen);
+  block.set(bytes);
+  block[bytes.length] = 0x80;
+  const view = new DataView(block.buffer);
+  view.setUint32(totalLen - 8, Math.floor(bitLen / 2 ** 32), false);
+  view.setUint32(totalLen - 4, bitLen >>> 0, false);
+
+  let h0 = 0x67_45_23_01;
+  let h1 = 0xef_cd_ab_89;
+  let h2 = 0x98_ba_dc_fe;
+  let h3 = 0x10_32_54_76;
+  let h4 = 0xc3_d2_e1_f0;
+  const w = new Uint32Array(80);
+
+  for (let offset = 0; offset < totalLen; offset += 64) {
+    for (let t = 0; t < 16; t += 1) {
+      w[t] = view.getUint32(offset + t * 4, false);
+    }
+    for (let t = 16; t < 80; t += 1) {
+      const x =
+        (w[t - 3] ?? 0) ^ (w[t - 8] ?? 0) ^ (w[t - 14] ?? 0) ^ (w[t - 16] ?? 0);
+      w[t] = (x << 1) | (x >>> 31);
+    }
+
+    let a = h0;
+    let b = h1;
+    let c = h2;
+    let d = h3;
+    let e = h4;
+    for (let t = 0; t < 80; t += 1) {
+      let f: number;
+      let k: number;
+      if (t < 20) {
+        f = (b & c) | (~b & d);
+        k = 0x5a_82_79_99;
+      } else if (t < 40) {
+        f = b ^ c ^ d;
+        k = 0x6e_d9_eb_a1;
+      } else if (t < 60) {
+        f = (b & c) | (b & d) | (c & d);
+        k = 0x8f_1b_bc_dc;
+      } else {
+        f = b ^ c ^ d;
+        k = 0xca_62_c1_d6;
+      }
+      const tmp = (((a << 5) | (a >>> 27)) + f + e + k + (w[t] ?? 0)) | 0;
+      e = d;
+      d = c;
+      c = (b << 30) | (b >>> 2);
+      b = a;
+      a = tmp;
+    }
+
+    h0 = (h0 + a) | 0;
+    h1 = (h1 + b) | 0;
+    h2 = (h2 + c) | 0;
+    h3 = (h3 + d) | 0;
+    h4 = (h4 + e) | 0;
+  }
+
+  const out = new Uint8Array(20);
+  const outView = new DataView(out.buffer);
+  outView.setUint32(0, h0 >>> 0, false);
+  outView.setUint32(4, h1 >>> 0, false);
+  outView.setUint32(8, h2 >>> 0, false);
+  outView.setUint32(12, h3 >>> 0, false);
+  outView.setUint32(16, h4 >>> 0, false);
+  return Array.from(out);
 }
