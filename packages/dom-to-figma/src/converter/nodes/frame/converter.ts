@@ -1,4 +1,5 @@
 import type { Position } from "../../dom";
+import { isElementNode, isTextEmpty, isTextNode } from "../../dom";
 import type { InferredChildStack } from "../../layout/infer";
 import { inferAutoLayout } from "../../layout/infer";
 import { getNodeNameFromElement } from "../../naming";
@@ -96,6 +97,13 @@ function getPositioningInfo(
  * transform, positioning the node's center at the element's center. Assumes the
  * default `transform-origin: center` (the untransformed center equals the
  * rendered bbox center for center-origin transforms).
+ *
+ * Leaf elements only: in Figma the matrix applies to the whole subtree, but
+ * descendants are measured in transformed screen space (bounding-box diffs),
+ * so a matrix on a parent would transform them a second time and their sizes
+ * would be the enlarged bboxes. Until descendants are measured in the parent's
+ * untransformed local space, a transformed element with convertible children
+ * keeps the flattened-bbox behavior.
  */
 function getTransformOverride(
   element: Element,
@@ -111,6 +119,11 @@ function getTransformOverride(
   // Pure translation (or identity) is already handled by positioning.
   if (!matrix.is2D || (a === 1 && b === 0 && c === 0 && d === 1)) {
     return null;
+  }
+  for (const child of element.childNodes) {
+    if (isElementNode(child) || (isTextNode(child) && !isTextEmpty(child))) {
+      return null;
+    }
   }
   const el = element as HTMLElement;
   const width = el.offsetWidth;
