@@ -21,7 +21,8 @@
     "oracle:distill": "pnpm --filter @figit/fig-kiwi oracle:distill",
     "oracle:parity": "pnpm --filter @figit/oracle-harness run parity",
     "oracle:figma-run": "pnpm --filter @figit/oracle-harness run cli figma",
-    "oracle:calibrate": "pnpm --filter @figit/oracle-harness run cli calibrate"
+    "oracle:calibrate": "pnpm --filter @figit/oracle-harness run cli calibrate",
+    "oracle:refresh-figma": "bash scripts/oracle-refresh-figma.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.14",

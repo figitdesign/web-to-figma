@@ -12,7 +12,7 @@ it. The scheduled workflow reads them; PR-facing jobs never can.
 
 | Secret | What it is | How to generate |
 | --- | --- | --- |
-| `FIGMA_STORAGE_STATE` | The Figma login session (a credential), base64-encoded | `pnpm --filter @figit/oracle-harness cli figma login` (opens a browser, you sign in once) → it writes `.figma-storage-state.json` → `base64 -i .figma-storage-state.json \| pbcopy` → paste as the secret |
+| `FIGMA_STORAGE_STATE` | The Figma login session (a credential), base64-encoded | **`pnpm oracle:refresh-figma`** — signs you in locally and pushes the session straight to the secret via `gh` (needs `gh auth login` once + repo admin). Manual alternative: `cli figma login` → `base64 < .figma-storage-state.json \| pbcopy` → paste. |
 | `FIGMA_FILE_KEY` | The scratch Figma file's key | Copy from the file URL: `figma.com/file/<THIS>/…` |
 | `CLAUDE_CODE_OAUTH_TOKEN` | Your Claude subscription token (no API bill) | `claude setup-token` locally → copy the printed token. _To use the metered API instead, store `ANTHROPIC_API_KEY` and swap the one line noted in `oracle.yml`._ |
 | `ORACLE_GH_TOKEN` | Fine-grained PAT so the agent can open PRs that trigger CI | _github.com → Settings → Developer settings → Fine-grained tokens._ Scope: **this repo only**, permissions **Contents: Read/write** + **Pull requests: Read/write**. Set an expiry (e.g. 90d) and calendar a renewal. |
@@ -73,7 +73,7 @@ Watch the repo (or the `oracle-alert` label) so those issues reach your inbox.
 
 | Symptom | Fix |
 | --- | --- |
-| `oracle-alert` issue says **Figma session expired** (measure job, exit 3) | `pnpm --filter @figit/oracle-harness cli figma login` → base64 the new file → update the `FIGMA_STORAGE_STATE` secret → re-run the workflow |
+| `oracle-alert` issue says **Figma session expired** (measure job, exit 3) | `pnpm oracle:refresh-figma` (re-login + push in one step) → re-run the workflow |
 | `oracle-alert` issue says **Claude token expired** (fix job auth error) | `claude setup-token` → update the `CLAUDE_CODE_OAUTH_TOKEN` secret → re-run |
 | PRs stop appearing / push denied | The `ORACLE_GH_TOKEN` PAT expired — regenerate it with the same scopes and update the secret |
 
