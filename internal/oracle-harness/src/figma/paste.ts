@@ -27,19 +27,26 @@ export async function openFigma(
   timeoutMs: number = OPEN_TIMEOUT_MS
 ): Promise<FigmaSession> {
   const browser = await launchFigmaBrowser();
-  const context = await newFigmaContext(browser, config.storageState);
-  await context.grantPermissions(["clipboard-read", "clipboard-write"], {
-    origin: "https://www.figma.com",
-  });
-  const page = await context.newPage();
-  await page.goto(fileUrl(config.fileKey), {
-    waitUntil: "domcontentloaded",
-    timeout: timeoutMs,
-  });
-  await page.waitForSelector("canvas", { timeout: timeoutMs });
-  await page.waitForTimeout(EDITOR_SETTLE_MS);
-  await page.addScriptTag({ content: NAME_SHIM });
-  return { browser, context, page };
+  try {
+    const context = await newFigmaContext(browser, config.storageState);
+    await context.grantPermissions(["clipboard-read", "clipboard-write"], {
+      origin: "https://www.figma.com",
+    });
+    const page = await context.newPage();
+    await page.goto(fileUrl(config.fileKey), {
+      waitUntil: "domcontentloaded",
+      timeout: timeoutMs,
+    });
+    await page.waitForSelector("canvas", { timeout: timeoutMs });
+    await page.waitForTimeout(EDITOR_SETTLE_MS);
+    await page.addScriptTag({ content: NAME_SHIM });
+    return { browser, context, page };
+  } catch (error) {
+    // The caller only gets the session (and its finally-close) on success, so
+    // an open failure (WAF 403, load timeout) must not leak the browser.
+    await browser.close().catch(() => undefined);
+    throw error;
+  }
 }
 
 async function focusCanvas(page: Page): Promise<void> {
@@ -54,6 +61,7 @@ const CLEAN_MAX_ATTEMPTS = 6;
  * from earlier scenes otherwise contaminate later captures). Escape first to
  * leave any text-edit mode where the shortcuts mean something else. */
 export async function cleanCanvas(page: Page): Promise<void> {
+  let residual: Array<string> = [];
   for (let attempt = 0; attempt < CLEAN_MAX_ATTEMPTS; attempt++) {
     await page.keyboard.press("Escape");
     await focusCanvas(page);
@@ -61,10 +69,17 @@ export async function cleanCanvas(page: Page): Promise<void> {
     await page.waitForTimeout(200);
     await page.keyboard.press("Delete");
     await page.waitForTimeout(400);
-    if (extractTopFrameNames(await copyBack(page)).length === 0) {
+    residual = extractTopFrameNames(await copyBack(page));
+    if (residual.length === 0) {
       return;
     }
   }
+  // Failing loudly beats pasting the next scene onto leftovers: settlement
+  // only checks that expected frames are present, so a dirty canvas would be
+  // measured as a valid (and wildly wrong) capture.
+  throw new Error(
+    `canvas failed to clear after ${CLEAN_MAX_ATTEMPTS} attempts; residual frames: [${residual.join(", ")}]`
+  );
 }
 
 /** Write the kiwi envelope to the clipboard and paste it into the canvas. */

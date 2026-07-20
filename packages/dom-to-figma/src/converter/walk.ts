@@ -57,16 +57,18 @@ function textNodeRect(textNode: Text): TraceEntry["rect"] {
   return rectFrom(range.getBoundingClientRect());
 }
 
-/** Approximate absolute rect of one wrapped line segment (its position is
- * measured relative to the text node's parent). */
+/** Approximate absolute rect of one wrapped line segment. `origin` must be
+ * the element the segment positions were measured against — the `relativeTo`
+ * passed to `splitMidLineWrappedText` (for the inline-element shortcut that is
+ * the span's parent, not the text node's parent). */
 function segmentRect(
-  textNode: Text,
+  origin: Element | null,
   segment: TextLineSegment
 ): TraceEntry["rect"] {
-  const origin = textNode.parentElement?.getBoundingClientRect();
+  const originRect = origin?.getBoundingClientRect();
   return {
-    x: (origin?.x ?? 0) + segment.position.x,
-    y: (origin?.y ?? 0) + segment.position.y,
+    x: (originRect?.x ?? 0) + segment.position.x,
+    y: (originRect?.y ?? 0) + segment.position.y,
     width: segment.size.width,
     height: segment.size.height,
   };
@@ -177,6 +179,7 @@ async function walkNode(
             childIndex,
             inheritedProperties,
             ctx,
+            node.parentElement,
             ownerPath
           );
         }
@@ -287,6 +290,7 @@ async function renderTextNode(
       childIndex,
       inheritedProperties,
       ctx,
+      textNode.parentElement,
       ownerPath
     );
   }
@@ -324,6 +328,7 @@ async function emitTextSegments(
   childIndex: number,
   inheritedProperties: InheritedProperties,
   ctx: WalkContext,
+  segmentOrigin: Element | null,
   ownerDomPath = ""
 ): Promise<number> {
   let emitted = 0;
@@ -347,7 +352,7 @@ async function emitTextSegments(
       kind: "text",
       tag: "#text",
       domPath: ownerDomPath,
-      rect: segmentRect(textNode, segment),
+      rect: segmentRect(segmentOrigin, segment),
       text: segment.text.slice(0, 120),
     });
     emitted += 1;

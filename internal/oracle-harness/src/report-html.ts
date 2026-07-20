@@ -58,7 +58,7 @@ export function renderStepSummary(report: Report): string {
   const lines = [
     `## Parity report — ${report.runId}`,
     "",
-    `commit \`${report.commit}\` · ${report.scenes.length} scenes · ${report.findings.length} tier-0 findings`,
+    `commit \`${report.commit}\` · ${report.scenes.length} scenes · ${report.findings.length} findings`,
     "",
   ];
   if (report.classes.length > 0) {
