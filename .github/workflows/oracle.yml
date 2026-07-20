@@ -1,12 +1,11 @@
 name: Oracle
 
 # The outer loop of the visual-parity pipeline (docs/visual-parity-pipeline.prd.md
-# §WS-3.2). It runs ONLY on a schedule or manual dispatch from `main` — never on
-# pull_request/push — so untrusted fork code never executes next to the secrets.
+# §WS-3.2). Manual-trigger only for now — the whole loop is run locally via the
+# `cli` commands while the corpus is being built out. Re-enable unattended runs by
+# adding a `schedule:` trigger here (e.g. `- cron: "0 6 * * *"`). It never runs on
+# pull_request/push, so untrusted fork code never executes next to the secrets.
 on:
-  schedule:
-    # 06:00 UTC daily. Adding cron entries raises N (runs/day).
-    - cron: "0 6 * * *"
   workflow_dispatch:
     inputs:
       max_turns:
