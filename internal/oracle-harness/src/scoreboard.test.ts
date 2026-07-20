@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { SceneScore, Scoreboard } from "./scoreboard";
-import { checkScoreboard, serializeScoreboard } from "./scoreboard";
+import {
+  checkScoreboard,
+  serializeScoreboard,
+  updateBaseline,
+} from "./scoreboard";
 
 function board(scenes: Record<string, SceneScore>): Scoreboard {
   return { schemaVersion: 1, scenes };
@@ -73,5 +77,40 @@ describe("serializeScoreboard()", () => {
     const order = [...json.matchAll(/"(alpha|mid|zed)":/g)].map((m) => m[1]);
     expect(order).toEqual(["alpha", "mid", "zed"]);
     expect(json.endsWith("}\n")).toBe(true);
+  });
+});
+
+describe("updateBaseline()", () => {
+  const FULL: SceneScore = {
+    tier0: { findings: 0, maxDeltaPx: 0 },
+    tier1: { findings: 1, maxDeltaPx: 0.4 },
+    tier2: { diffRatio: 0.01 },
+  };
+
+  it("preserves tiers the run did not measure", () => {
+    // A tier-0-only run must not erase the committed tier-1/2 entries.
+    const next = updateBaseline(board({ a: CLEAN }), board({ a: FULL }));
+    expect(next.scenes.a).toEqual(FULL);
+  });
+
+  it("overwrites tiers the run did measure", () => {
+    const next = updateBaseline(
+      board({ a: { ...CLEAN, tier2: { diffRatio: 0.002 } } }),
+      board({ a: FULL })
+    );
+    expect(next.scenes.a?.tier2).toEqual({ diffRatio: 0.002 });
+    expect(next.scenes.a?.tier1).toEqual(FULL.tier1);
+  });
+
+  it("adds new scenes with only the tiers measured", () => {
+    const next = updateBaseline(board({ b: CLEAN }), board({ a: FULL }));
+    expect(next.scenes.b).toEqual(CLEAN);
+  });
+
+  it("drops scenes absent from the run and handles a missing baseline", () => {
+    expect(
+      updateBaseline(board({ b: CLEAN }), board({ a: FULL })).scenes.a
+    ).toBeUndefined();
+    expect(updateBaseline(board({ b: CLEAN }), null).scenes.b).toEqual(CLEAN);
   });
 });

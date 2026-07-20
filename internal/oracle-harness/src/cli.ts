@@ -44,6 +44,7 @@ import {
   buildScoreboard,
   checkScoreboard,
   serializeScoreboard,
+  updateBaseline,
 } from "./scoreboard";
 import { runSnapshot } from "./snapshot";
 
@@ -196,8 +197,14 @@ function runCheckCommand(args: ReadonlyArray<string>): CliResult {
   const sceneCount = Object.keys(current.scenes).length;
 
   if (values.update) {
+    const previous = existsSync(BASELINE_PATH)
+      ? (JSON.parse(readFileSync(BASELINE_PATH, "utf-8")) as Scoreboard)
+      : null;
     mkdirSync(dirname(BASELINE_PATH), { recursive: true });
-    writeFileSync(BASELINE_PATH, serializeScoreboard(current));
+    writeFileSync(
+      BASELINE_PATH,
+      serializeScoreboard(updateBaseline(current, previous))
+    );
     return {
       code: EXIT.OK,
       out: `baseline updated → ${BASELINE_PATH} (${sceneCount} scenes)\n`,

@@ -161,6 +161,34 @@ export function checkScoreboard(
   return { ok: regressions.length === 0, regressions, improvements };
 }
 
+/**
+ * Build the next committed baseline from a run, preserving any tier a scene
+ * didn't measure this run — a tier-0-only local `check --update` must not
+ * erase the tier-1/2 entries recorded by a full Figma run. Scenes absent from
+ * the run are dropped (deleting a scene remains an explicit baseline change),
+ * and a measured tier always overwrites the previous value.
+ */
+export function updateBaseline(
+  current: Scoreboard,
+  previous: Scoreboard | null
+): Scoreboard {
+  const scenes: Record<string, SceneScore> = {};
+  for (const [sceneId, score] of Object.entries(current.scenes)) {
+    const prev = previous?.scenes[sceneId];
+    const merged: SceneScore = { tier0: score.tier0 };
+    const tier1 = score.tier1 ?? prev?.tier1;
+    if (tier1) {
+      merged.tier1 = tier1;
+    }
+    const tier2 = score.tier2 ?? prev?.tier2;
+    if (tier2) {
+      merged.tier2 = tier2;
+    }
+    scenes[sceneId] = merged;
+  }
+  return { schemaVersion: SCOREBOARD_SCHEMA_VERSION, scenes };
+}
+
 /** Serialize a scoreboard with scene keys sorted, for minimal, reviewable diffs. */
 export function serializeScoreboard(scoreboard: Scoreboard): string {
   const scenes: Record<string, SceneScore> = {};

@@ -468,6 +468,42 @@
       "tier2": {
         "diffRatio": 0.07180555555555555
       }
+    },
+    "clip/clip-01-overflow-hidden": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      }
+    },
+    "fx/fx-12-opacity-vs-rgba": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      }
+    },
+    "img/img-01-raster": {
+      "tier0": {
+        "findings": 1,
+        "maxDeltaPx": 0
+      }
+    },
+    "pos/pos-03-z-index": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      }
+    },
+    "rad/rad-02-per-corner": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      }
+    },
+    "svg/svg-01-shapes": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      }
     }
   }
 }

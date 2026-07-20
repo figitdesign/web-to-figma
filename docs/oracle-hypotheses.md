@@ -5,7 +5,7 @@ is a hypothesis** — "the converter correctly handles X" — and becomes one
 **minimal scene** (`packages/dom-to-figma/scripts/oracle-scenes/<domain>/<ID>.html`)
 that isolates exactly that feature.
 
-**How they're checked:** every scheduled run pastes each scene into Figma and
+**How they're checked:** every full local run (`pnpm oracle:loop`) pastes each scene into Figma and
 pixel-diffs it (Tiers 1–2). A clean scene confirms the hypothesis; a discrepancy
 is a real converter bug that gets baselined and becomes a fix-target for the
 `/fix-discrepancy` agent. Because each scene isolates one feature, a failure
@@ -41,7 +41,7 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 
 ## Border radius & shape (RAD)
 - RAD-01 [P0 T2] uniform radius
-- RAD-02 [P0 T2] four different per-corner radii
+- RAD-02 [P0 T2] four different per-corner radii · scene: `rad/rad-02-per-corner`
 - RAD-03 [P1 T2] elliptical radius (`20px / 40px`)
 - RAD-04 [P0 T2] percentage radius 50% → circle
 - RAD-05 [P1 T2] 50% on a non-square box → ellipse
@@ -79,11 +79,11 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 - FX-09 [P2 T2] filter: brightness / contrast / grayscale
 - FX-10 [P2 T2] backdrop-filter
 - FX-11 [P2 T2] mix-blend-mode
-- FX-12 [P0 T2] element opacity vs rgba color
+- FX-12 [P0 T2] element opacity vs rgba color · scene: `fx/fx-12-opacity-vs-rgba`
 - FX-13 [P1 T2] nested opacity stacking (parent .5 × child .5)
 
 ## SVG (SVG)
-- SVG-01 [P0 T2] inline SVG rect / circle
+- SVG-01 [P0 T2] inline SVG rect / circle · scene: `svg/svg-01-shapes`
 - SVG-02 [P0 T2] SVG path fill
 - SVG-03 [P1 T2] SVG stroke (width, color)
 - SVG-04 [P1 T2] SVG stroke-dasharray (dashed vector)
@@ -121,7 +121,7 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 - TXT-20 [P1 T2] font-family fallback chain
 
 ## Images (IMG)
-- IMG-01 [P0 T2] raster `<img>`
+- IMG-01 [P0 T2] raster `<img>` · scene: `img/img-01-raster`
 - IMG-02 [P0 T2] object-fit cover / contain / fill
 - IMG-03 [P1 T2] object-position
 - IMG-04 [P1 T2] img + border-radius
@@ -162,13 +162,13 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 ## Positioning & stacking (POS)
 - POS-01 [P0 T0] absolute positioning
 - POS-02 [P1 T0] relative offset
-- POS-03 [P0 T2] z-index ordering
+- POS-03 [P0 T2] z-index ordering · scene: `pos/pos-03-z-index`
 - POS-04 [P1 T2] negative z-index
 - POS-05 [P1 T2] overlapping siblings
 - POS-06 [P2 T0] sticky (within a scroll container)
 
 ## Overflow & clipping (CLIP)
-- CLIP-01 [P0 T2] overflow: hidden clips a child
+- CLIP-01 [P0 T2] overflow: hidden clips a child · scene: `clip/clip-01-overflow-hidden`
 - CLIP-02 [P1 T2] overflow content visible (spills out)
 - CLIP-03 [P2 T2] clip-path inset / circle / polygon
 - CLIP-04 [P2 T2] mask-image
