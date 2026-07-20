@@ -242,7 +242,7 @@ export function selectNextClass(
   return null;
 }
 
-/** Park a class with a verdict (permanent: excluded from autonomous work). */
+/** Park a class with a verdict (permanent: excluded from fix work). */
 export function park(entry: LedgerEntry, verdict: string): LedgerEntry {
   if (verdict.trim() === "") {
     throw new Error("park requires a non-empty verdict");
@@ -254,7 +254,7 @@ export function park(entry: LedgerEntry, verdict: string): LedgerEntry {
   };
 }
 
-/** Record a failed autonomous attempt, optionally backing off for N runs. */
+/** Record a failed fix attempt, optionally backing off for N runs. */
 export function recordAttempt(
   entry: LedgerEntry,
   attempt: {

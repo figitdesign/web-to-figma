@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Visual-parity harness: measure DOM-to-Figma correspondence and drive autonomous fixes.",
+  "description": "Visual-parity harness: measure DOM-to-Figma correspondence and drive locally-run fixes.",
   "scripts": {
     "cli": "tsx src/cli.ts",
     "parity": "tsx src/cli.ts snapshot --run-id parity && tsx src/cli.ts report --run-id parity && tsx src/cli.ts check --run-id parity",

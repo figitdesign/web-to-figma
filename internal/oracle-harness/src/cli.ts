@@ -21,9 +21,6 @@ import {
   saveLoginSession,
   validateSession,
 } from "./figma/session";
-import type { GuardLabel } from "./guard";
-import { checkGuard } from "./guard";
-import { collectGuardInput } from "./guard-io";
 import {
   renderHistoryLine,
   serializeHistoryLine,
@@ -87,7 +84,6 @@ const COMMANDS: ReadonlyArray<{ name: string; summary: string }> = [
     summary: "reconcile/select/status/park/attempt on the findings ledger",
   },
   { name: "calibrate", summary: "measure Figma's render noise floor" },
-  { name: "guard", summary: "enforce oracle PR path/diff rules" },
   { name: "history", summary: "append a run summary line to runs.ndjson" },
 ];
 
@@ -203,7 +199,7 @@ function runCheckCommand(args: ReadonlyArray<string>): CliResult {
     mkdirSync(dirname(BASELINE_PATH), { recursive: true });
     writeFileSync(BASELINE_PATH, serializeScoreboard(current));
     return {
-      code: 0,
+      code: EXIT.OK,
       out: `baseline updated → ${BASELINE_PATH} (${sceneCount} scenes)\n`,
       err: "",
     };
@@ -221,7 +217,7 @@ function runCheckCommand(args: ReadonlyArray<string>): CliResult {
             .join("\n")}\n`
         : "";
     return {
-      code: 0,
+      code: EXIT.OK,
       out: `parity check passed (${sceneCount} scenes)${improvements}\n`,
       err: "",
     };
@@ -230,7 +226,7 @@ function runCheckCommand(args: ReadonlyArray<string>): CliResult {
     .map((r) => `  ${r.sceneId} ${r.metric}: ${r.detail}`)
     .join("\n");
   return {
-    code: 1,
+    code: EXIT.REGRESSION,
     out: "",
     err: `parity check FAILED — ${result.regressions.length} regression(s):\n${detail}\n`,
   };
@@ -534,47 +530,6 @@ async function runCalibrateCommand(
   };
 }
 
-/** Enforce the mechanical rules on an autonomous PR branch (WS-3.2). Reads the
- * diff against `--base` (default origin/main) and any ledger status flips from
- * git, then applies the label's allowlist. Exit 7 on any violation. */
-function runGuardCommand(args: ReadonlyArray<string>): CliResult {
-  const { values } = parseArgs({
-    args: [...args],
-    options: {
-      label: { type: "string" },
-      base: { type: "string", default: "origin/main" },
-    },
-    allowPositionals: false,
-  });
-  const label = values.label;
-  if (label !== "oracle-fix" && label !== "oracle-ledger") {
-    return {
-      code: EXIT.ERROR,
-      out: "",
-      err: "guard requires --label <oracle-fix|oracle-ledger>\n",
-    };
-  }
-  const input = collectGuardInput({
-    label: label as GuardLabel,
-    base: values.base ?? "origin/main",
-    repoRoot: REPO_ROOT,
-  });
-  const result = checkGuard(input);
-  if (result.ok) {
-    return {
-      code: EXIT.OK,
-      out: `guard passed (${label}): ${input.changedFiles.length} files in scope\n`,
-      err: "",
-    };
-  }
-  const detail = result.violations.map((v) => `  - ${v}`).join("\n");
-  return {
-    code: EXIT.GUARD_REJECTED,
-    out: "",
-    err: `guard REJECTED (${label}) — ${result.violations.length} violation(s):\n${detail}\n`,
-  };
-}
-
 /** Append a one-line summary of a run to the rolling `runs.ndjson` history
  * (WS-3.3) and, in CI, mirror it into the step summary. */
 function runHistoryCommand(args: ReadonlyArray<string>): CliResult {
@@ -613,15 +568,17 @@ async function runFigmaCommand(
     return await runFigmaValidate();
   }
   if (action === "paste" || action === "run") {
-    const { values } = parseArgs({
+    // `paste <scene>` (positional, as the help advertises) and `--scene <id>`
+    // are equivalent; both may repeat.
+    const { values, positionals } = parseArgs({
       args: [...args.slice(1)],
       options: {
         "run-id": { type: "string", default: "parity" },
         scene: { type: "string", multiple: true },
       },
-      allowPositionals: false,
+      allowPositionals: true,
     });
-    const filter = values.scene ?? [];
+    const filter = [...positionals, ...(values.scene ?? [])];
     const sceneIds =
       filter.length > 0 ? filter : discoverScenes().map((s) => s.id);
     return await figmaCapture(values["run-id"] ?? "parity", sceneIds);
@@ -661,9 +618,6 @@ export async function run(argv: ReadonlyArray<string>): Promise<CliResult> {
   }
   if (command === "calibrate") {
     return await runCalibrateCommand(argv.slice(1));
-  }
-  if (command === "guard") {
-    return runGuardCommand(argv.slice(1));
   }
   if (command === "history") {
     return runHistoryCommand(argv.slice(1));

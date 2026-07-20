@@ -1,6 +1,6 @@
 /**
- * Failure taxonomy so the scheduled workflow's notifications are
- * self-explanatory (WS-3.3). Extended as later tiers land.
+ * Failure taxonomy so a failed run is self-explanatory from its exit code
+ * alone (WS-3.3). Extended as later tiers land.
  */
 export const EXIT = {
   OK: 0,
@@ -9,5 +9,4 @@ export const EXIT = {
   PASTE_FAILED: 4,
   EXPORT_FAILED: 5,
   REGRESSION: 6,
-  GUARD_REJECTED: 7,
 } as const;

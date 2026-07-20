@@ -22,7 +22,7 @@
 
 `@figit/dom-to-figma` converts a live DOM into a Figma clipboard payload. The end goal of the product is **1:1 visual correspondence**: a scene rendered by the browser and the same scene pasted into Figma should look identical.
 
-Today, verifying that correspondence is manual: a human runs `pnpm oracle:outbox`, opens the generated copy pages, pastes into Figma, eyeballs the result, copies it back, runs `pnpm oracle:capture` and `pnpm oracle:diff`. This PRD specifies the system that automates that loop end-to-end and puts an AI agent on top of it, so the pipeline can **run on a schedule, measure parity, localize discrepancies, fix the converter, and open PRs in this repo** — with humans only reviewing and merging.
+Today, verifying that correspondence is manual: a human runs `pnpm oracle:outbox`, opens the generated copy pages, pastes into Figma, eyeballs the result, copies it back, runs `pnpm oracle:capture` and `pnpm oracle:diff`. This PRD specifies the system that automates that measurement end-to-end and puts an AI agent on top of it, so a human can **run the pipeline locally on demand, measure parity, localize discrepancies, and drive supervised converter fixes** — with the human reviewing and committing every change. (A scheduled, autonomous PR-opening loop was built and then deliberately removed on 2026-07-20; the pipeline is local-only by decision.)
 
 The design principle throughout: **separate cheap, deterministic diagnosis from expensive, Figma-in-the-loop verification**, and make every discrepancy *actionable* (attributed to a specific DOM element, Figma node, and converter code path) rather than a bare "images differ by N%".
 
@@ -31,16 +31,16 @@ The design principle throughout: **separate cheap, deterministic diagnosis from 
 ### Goals
 
 1. A **scored, automated parity measurement** for every scene in the corpus, at three fidelity tiers (local structural, Figma structural, Figma pixels).
-2. **Zero-human runs**: a scheduled workflow converts the corpus, gets it into Figma, extracts Figma's interpretation (geometry + rendered pixels), diffs, and produces a machine-readable report.
-3. **Autonomous improvement**: an agent consumes the report, fixes the highest-impact discrepancy in the converter, adds a regression scene, and opens a labeled PR in this repo.
+2. **One-command runs**: a locally-driven pipeline converts the corpus, gets it into Figma, extracts Figma's interpretation (geometry + rendered pixels), diffs, and produces a machine-readable report.
+3. **Agent-assisted improvement**: an agent, invoked locally under human supervision, consumes the report, fixes the highest-impact discrepancy in the converter, adds a regression scene, and leaves the change uncommitted for review.
 4. **A ratchet**: parity scores can only improve. CI blocks any PR that regresses a scene's score against the committed baseline.
-5. Runs **N times/day** (initially 1), triggered by cron, always building from `origin/main` source (never the published package).
+5. Runs whenever the human triggers one, always building from `origin/main` source (never the published package).
 
 ### Non-goals
 
 - Perfect pixel equality. Chrome and Figma rasterize (especially text) differently; the target is a calibrated, monotonically-shrinking diff, not zero.
 - A Figma plugin. The product's premise is pluginless paste; the pipeline must exercise the real paste path.
-- Auto-merge. Agent PRs are always reviewed by a human.
+- Unattended operation. The agent runs only when a human invokes it and watches the result; nothing is committed, pushed, or merged without a human doing it.
 - Private/proprietary corpus (Sleek designs). Deferred to M4; architecture must not preclude it (corpus is directory-driven).
 - Testing the browser extension or playground UIs. Only the conversion library's output parity.
 
@@ -92,7 +92,7 @@ What exists and is reused — implementers should read these files before writin
                         ▼
                  multi-frame payload (--single, one per batch)
                         │
-        ┌───────────────┴───────────────── outer loop (scheduled, secrets required)
+        ┌───────────────┴───────────────── outer loop (local, credentials required)
         ▼
   Figma runner (Playwright on figma.com, dedicated account + scratch file)
         │  1. clean page   2. paste payload   3. wait for import
@@ -105,16 +105,16 @@ What exists and is reused — implementers should read these files before writin
                     report.json + scoreboard + findings ledger + artifacts
                                               │
                                               ▼
-                 agent (/fix-discrepancy, headless Claude, scheduled)
+                 agent (/fix-discrepancy, invoked locally by the human)
                    reads ledger (skip parked / cooled-down classes) → works top *fixable* class
-                   fix converter + repro scene + update baseline & ledger → PR (label: oracle-fix)
-                   └─ if unsolvable after budget: park it in the ledger (+ optional issue), advance
+                   fix converter + repro scene + update baseline & ledger → uncommitted working tree
+                   └─ if unsolvable after budget: park it in the ledger, advance
                                               │
                                               ▼
-                        human review → merge → next run measures the improvement
+                        human review → commit → next run measures the improvement
 ```
 
-Failure-source separation is the load-bearing idea: **Tier 0 diagnoses converter bugs locally in the agent's edit-test loop**; Tiers 1–2 run against real Figma on the schedule and both *verify* fixes and *discover* reinterpretation bugs Tier 0 cannot see.
+Failure-source separation is the load-bearing idea: **Tier 0 diagnoses converter bugs locally in the agent's edit-test loop**; Tiers 1–2 run against real Figma and both *verify* fixes and *discover* reinterpretation bugs Tier 0 cannot see.
 
 ## 6. Data contracts
 
@@ -195,7 +195,7 @@ type Report = {
 };
 ```
 
-Written to `oracle/runs/<runId>/report.json` (gitignored) and uploaded as a workflow artifact.
+Written to `oracle/runs/<runId>/report.json` (gitignored).
 
 ### 6.4 Scoreboard baseline (committed, WS-1.6)
 
@@ -224,7 +224,7 @@ severity: 0.62                    # last-observed aggregateSeverity, for triage 
 firstSeenRun: 20260718-9d4e875
 lastSeenRun: 20260731-a1b2c3d
 lastAttemptRun: 20260725-77aa10c  # omitted if never attempted
-attempts: 3                       # count of autonomous fix attempts
+attempts: 3                       # count of agent fix attempts
 cooldownUntilRun: null            # while set, ranking skips this class (transient backoff)
 exemplarScene: 01-flex/tall-caption
 exemplarFindingId: 9f3c2a1b4d5e
@@ -242,16 +242,16 @@ issue: 142                        # optional GitHub issue mirror (dedupe key); n
 <for `parked`: the human decision needed, or the accepted-limitation rationale>
 ```
 
-**Lifecycle & semantics** (enforced by WS-1.7 ranking and WS-3.2 `guard`):
+**Lifecycle & semantics** (enforced by WS-1.7 ranking):
 
 | status | set by | ranking effect |
 |---|---|---|
 | `open` | report step, first time a class is seen and not yet in the ledger | eligible; ranked by `aggregateSeverity` |
-| `attempting` | fix job at start of an attempt (transient, within one run) | locked — the concurrency group already serializes runs, so this is a crash marker |
-| `parked` | fix job after exhausting its attempt budget, OR a human | **excluded** from autonomous selection; its magnitude is accepted into the scoreboard so the ratchet does not block other fixes |
-| `resolved` | fix job when the class's findings drop to zero after a merge | file deleted in the fix PR (git history retains it) |
+| `attempting` | fix agent at start of an attempt (transient, within one run) | locked — runs are serialized, so this is a crash marker |
+| `parked` | fix agent after exhausting its attempt budget, OR a human | **excluded** from selection; its magnitude is accepted into the scoreboard so the ratchet does not block other fixes |
+| `resolved` | fix agent when the class's findings drop to zero after a fix lands | file deleted alongside the fix (git history retains it) |
 
-`schemaVersion` for the ledger format is recorded once in `internal/oracle-harness/known-findings/README.md`, not per file. Transient failure (ran out of turns, flaky run) sets `cooldownUntilRun` and keeps `status: open`; permanent failure (Figma structurally can't represent it, or the fix needs a tolerance/calibration decision the `guard` forbids the agent from making) sets `status: parked`. Only a human moves a `parked` entry back to `open`.
+`schemaVersion` for the ledger format is recorded once in `internal/oracle-harness/known-findings/README.md`, not per file. Transient failure (ran out of turns, flaky run) sets `cooldownUntilRun` and keeps `status: open`; permanent failure (Figma structurally can't represent it, or the fix needs a tolerance/calibration decision that is the human's to make) sets `status: parked`. Only a human moves a `parked` entry back to `open`.
 
 ## 7. Milestone M1 — Local parity harness (no Figma credentials)
 
@@ -287,7 +287,7 @@ Outcome: every PR to this repo gets a deterministic Tier-0 parity check with a c
 **Steps**
 
 1. `package.json`: private, `type: module`, `engines.node >= 20`, deps: `playwright` (same range as dom-to-figma), `pixelmatch`, `pngjs`; devDeps: `tsx`, `vitest`, `typescript: catalog:`, `@types/node: catalog:`. Workspace deps: `@figit/dom-to-figma`, `@figit/fig-kiwi`.
-2. CLI entry `src/cli.ts` with subcommands: `snapshot` (Tier 0), `figma` (Tiers 1–2), `report` (merge + rank), `check` (ratchet), `calibrate` (M2), `guard` (M3). Argument parsing with `node:util` `parseArgs` — no CLI framework.
+2. CLI entry `src/cli.ts` with subcommands: `snapshot` (Tier 0), `figma` (Tiers 1–2), `report` (merge + rank), `check` (ratchet), `calibrate` (M2). Argument parsing with `node:util` `parseArgs` — no CLI framework.
 3. Root `package.json` scripts: `oracle:parity` → `pnpm --filter @figit/oracle-harness cli snapshot --check`, `oracle:figma-run`, `oracle:calibrate`. Keep existing `oracle:*` scripts untouched (the human workflow remains a fallback).
 4. Scene discovery module `src/scenes.ts`: enumerate `packages/dom-to-figma/scripts/oracle-scenes/**/*.html` and playground corpus refs, applying the same id/name/size-hint conventions as `oracle-outbox.ts` (`loadScene`). **Refactor, don't duplicate**: extract the scene-loading helpers from `oracle-outbox.ts` into a small shared module both consume.
 5. Run-dir management: `oracle/runs/<runId>/` layout: `ground-truth/`, `payloads/`, `figma/`, `diff/`, `report.json`. `runId` = `<utcstamp>-<shortsha>` passed in by the caller.
@@ -399,7 +399,7 @@ Outcome: every PR to this repo gets a deterministic Tier-0 parity check with a c
 
 **Where**: `internal/oracle-harness/src/ledger/{schema,io,select}.ts`, ledger dir `internal/oracle-harness/known-findings/`. Pure logic and file I/O only — no Figma, no secrets. Depends on WS-1.5.
 
-Rationale: without a persisted, deduplicated, cross-run memory of discrepancies, every scheduled run re-ranks by raw severity, re-attempts the same unfixable top class, and either loops forever on it or opens duplicate issues — starving the fixable classes underneath it. The ledger (§6.5) is that memory. It exists in M1 (before any agent) so the data contract and the selection logic are proven by unit tests, not discovered live in M3.
+Rationale: without a persisted, deduplicated, cross-run memory of discrepancies, every run re-ranks by raw severity, re-attempts the same unfixable top class, and loops forever on it — starving the fixable classes underneath it. The ledger (§6.5) is that memory. It exists in M1 (before any agent) so the data contract and the selection logic are proven by unit tests, not discovered live in M3.
 
 **Steps**
 
@@ -407,8 +407,8 @@ Rationale: without a persisted, deduplicated, cross-run memory of discrepancies,
 2. `reconcile(report, ledger)` — pure: for each class in the report, upsert a ledger entry (create `open` if absent; refresh `severity`, `lastSeenRun`, `exemplarFindingId`, `tier`). For ledger entries whose class is **absent** from the report (no longer reproduces), mark `resolved` and flag for deletion. Never downgrade a human-set `parked` to `open`. Returns the mutated ledger + a change summary; the CLI writes files.
 3. `selectNextClass(report, ledger, currentRunId)` — pure: from the report's raw ranking (WS-1.5), drop classes whose ledger status is `parked` or `attempting`, and those with `cooldownUntilRun` still in the future (compare against a monotonic run counter, not wall-clock). Return the highest-severity remaining class, or `null` ("nothing fixable now").
 4. `park(class, verdict)` / `recordAttempt(class, runId, whatTried, whyFailed, {cooldownRuns?})` — pure transforms that append to the Attempts body and set the right frontmatter; the CLI persists. `park` requires a non-empty verdict.
-5. CLI wiring: `cli report` calls `reconcile` and writes the ledger alongside `report.json`; add `cli ledger select --report <path>` (prints the chosen class or `none`), `cli ledger park --class <c> --verdict <text>`, `cli ledger status` (human summary table). A **monotonic run counter**: maintain an integer in `known-findings/.run-counter` (or derive from committed run history) so `cooldownUntilRun` math never depends on timestamps.
-6. Reconciliation runs on the scheduled path only (it writes committed files); the PR-CI `parity` job reads the ledger read-only for `selectNextClass` sanity but never mutates it.
+5. CLI wiring: `cli report` calls `reconcile` and writes the ledger alongside `report.json`; add `cli ledger select --run-id <id>` (prints the chosen class or `none`), `cli ledger park --class <c> --verdict <text>`, `cli ledger status` (human summary table). A **monotonic run counter**: maintain an integer in `known-findings/.run-counter` (or derive from committed run history) so `cooldownUntilRun` math never depends on timestamps.
+6. Reconciliation runs only in full local runs (it writes committed files); the PR-CI `parity` job reads the ledger read-only for `selectNextClass` sanity but never mutates it.
 
 **Tests** (node unit — pure functions, exhaustively)
 
@@ -433,7 +433,7 @@ Outcome: a Playwright-driven, logged-in Figma session pastes the corpus into a r
 **Steps**
 
 1. Dedicated Figma account (decision D-1, §15) and one scratch file; record its key in `FIGMA_FILE_KEY`. The runner treats page 1 as a disposable buffer.
-2. `cli figma login`: launches headed Chromium, human signs in once, saves Playwright `storageState` to the path in `FIGMA_STORAGE_STATE` (default `.figma-storage-state.json`, gitignored). Prints how to store it (base64) as a CI secret later. Document session lifetime and the re-login procedure in the README.
+2. `cli figma login`: launches headed Chromium, human signs in once, saves Playwright `storageState` to the path in `FIGMA_STORAGE_STATE` (default `.figma-storage-state.json`, gitignored). Document session lifetime and the re-login procedure in the README.
 3. Config resolution in `src/figma/session.ts`: `FIGMA_STORAGE_STATE` (inline JSON or path) and `FIGMA_FILE_KEY` are **required**; `FIGMA_TOKEN` is **optional**, read only when the Tier-2 REST fallback (WS-2.5) is enabled. Fail fast with a checklist message if a required var is missing.
 4. Session validation: open the file URL, assert the canvas surface appears within 60s, else exit with a distinct `SESSION_EXPIRED` code (a distinguishable failure — it means "re-login", not "parity broke").
 
@@ -458,7 +458,7 @@ Outcome: a Playwright-driven, logged-in Figma session pastes the corpus into a r
 
 - Unit: envelope → `DataTransfer` construction (the produced `text/html` string parses via `parseClipboardHtml` and decodes to the same node count).
 - Unit: expected-frame-set computation from a scene manifest.
-- Live smoke (gated): paste `00-smoke` batch into the scratch file; assert settlement finds both frames; cleanup empties the page. This is the M2 canary test — the scheduled workflow runs it before the full corpus.
+- Live smoke (gated): paste `00-smoke` batch into the scratch file; assert settlement finds both frames; cleanup empties the page. This is the M2 canary test — run it before the full corpus.
 
 ### WS-2.3 Tier 1 — clipboard copy-back structural differ (primary)
 
@@ -511,15 +511,17 @@ Build **only if** in-browser "Copy as PNG" (WS-2.4 step 1) proves unreliable hea
 
 1. `cli calibrate`: paste the same batch twice into the scratch file (sequentially), capture both via the Tier-2 pixel mechanism, diff Figma-vs-Figma → the **render noise floor** per scene; also diff repeated browser screenshots → browser noise (should be 0).
 2. Emit `calibration.json` (p50/p95 noise per scene class: text-heavy vs. geometric) and recommend: pixelmatch threshold, cluster noise floor, ratchet epsilon. Update the constants in `severity.ts` / `check` from its output in a reviewed PR.
-3. Document the calibration procedure and cadence (re-run when Figma ships renderer changes — detectable as a fleet-wide diffRatio jump with no repo change; the scheduled workflow flags this pattern explicitly instead of opening a fix PR).
+3. Document the calibration procedure and cadence (re-run when Figma ships renderer changes — detectable as a fleet-wide diffRatio jump with no repo change; treat that pattern as a recalibration signal, not a converter bug).
 
 **Tests**: unit-test the stats aggregation on fixture data; the command itself is live-gated.
 
 **M2 exit criteria**: the `figma` runner completes corpus → paste → copy-back (Tier 1) + pixel capture (Tier 2) → report, artifacts uploaded, zero human touches after the one-time login; calibration constants committed; live canary (`00-smoke`) green on three consecutive runs. No REST token required on the primary path.
 
-## 9. Milestone M3 — Autonomous loop
+## 9. Milestone M3 — Fix loop (local, human-supervised)
 
-Outcome: on a daily cron, the pipeline measures, an agent fixes the top discrepancy class, and a guarded PR appears in this repo.
+Outcome: a human triggers a run, an agent fixes the top discrepancy class under supervision, and the human reviews the working tree and commits.
+
+> **Scope decision (2026-07-20).** M3 was originally specified — and briefly built — as an *autonomous* loop: a scheduled workflow that measured in CI, ran the agent headless, and opened labelled PRs gated by a `cli guard` job. That machinery (`oracle.yml`, `cli guard`, the `oracle-fix`/`oracle-ledger` labels, the CI-secret provisioning) has been **removed by decision**: the pipeline runs only locally, with the human in control of what gets done and committed. The workstreams below reflect the local model.
 
 ### WS-3.1 `/fix-discrepancy` command
 
@@ -527,50 +529,33 @@ Outcome: on a daily cron, the pipeline measures, an agent fixes the top discrepa
 
 **Content requirements** (the command must instruct the agent to):
 
-1. Input: a path to `report.json` (argument). Determine the target class via `cli ledger select --report <path>` (the ledger-aware selection from WS-1.7), **not** by reading `classes[0]` directly — this is what skips `parked` and cooled-down classes. If it returns `none`, exit successfully with "nothing fixable" (mirrors WS-3.2's severity-floor skip). Load the chosen class's `exemplarFindingId` finding, open the referenced artifacts, and read the class's ledger entry (§6.5) — its **Attempts** history tells you what has already been tried and failed; do not repeat those approaches.
-2. **Reproduce before fixing**: write a *minimal* scene under `oracle-scenes/` (≤ ~20 lines of HTML) that exhibits the exemplar finding at Tier 0 where possible; where the class is Tier-1/2-only (Figma reinterpretation), encode the expectation as the best available lower-tier assertion (a unit test against the intended payload property) plus the scene, and state in the PR that live verification comes from the next scheduled run.
+1. Input: a path to `report.json` (argument). Determine the target class via `cli ledger select --run-id <id>` (the ledger-aware selection from WS-1.7), **not** by reading `classes[0]` directly — this is what skips `parked` and cooled-down classes. If it returns `none`, exit successfully with "nothing fixable". Load the chosen class's `exemplarFindingId` finding, open the referenced artifacts, and read the class's ledger entry (§6.5) — its **Attempts** history tells you what has already been tried and failed; do not repeat those approaches.
+2. **Reproduce before fixing**: write a *minimal* scene under `oracle-scenes/` (≤ ~20 lines of HTML) that exhibits the exemplar finding at Tier 0 where possible; where the class is Tier-1/2-only (Figma reinterpretation), encode the expectation as the best available lower-tier assertion (a unit test against the intended payload property) plus the scene, and state in the summary that live verification comes from the next Figma run.
 3. Fix in `packages/dom-to-figma/src/` (or `fig-kiwi` if encoding-level). Iterate against: targeted unit tests → `oracle:parity` on affected scenes → full `oracle:parity`.
-4. Constraints: touch **one discrepancy class per PR**; do not modify tolerances, severity constants, or the ratchet to make a run pass; do not edit unrelated scenes or baselines beyond `check --update`.
-5. Finish (success): `check --update`, mark the class `resolved` in the ledger (delete its file via `cli ledger` reconcile, since its findings are now zero), add a changeset (`patch` for fixes to published packages), run full `pnpm lint && pnpm check-types && pnpm test`, open a PR per `.claude/commands/create-pr.md` conventions with label `oracle-fix`, body containing: class fixed, findings before → after counts, scenes affected, link to the run artifact, and the repro scene name.
-6. Finish (unsolved): if the fix isn't converging after the bounded iteration budget, **do not open a code PR**. Instead, record the outcome in the findings ledger and stop:
+4. Constraints: touch **one discrepancy class per run**; do not modify tolerances, severity constants, or the ratchet to make a run pass; do not edit unrelated scenes or baselines beyond `check --update`.
+5. Finish (success): `check --update`, mark the class `resolved` in the ledger (delete its file via `cli ledger` reconcile, since its findings are now zero), add a changeset (`patch` for fixes to published packages), run full `pnpm lint && pnpm check-types && pnpm test`, then leave everything **uncommitted** and summarize for the human: class fixed, findings before → after counts, scenes affected, and the repro scene name. The human reviews the working tree and commits.
+6. Finish (unsolved): if the fix isn't converging after the bounded iteration budget, revert any converter edits, record the outcome in the findings ledger, and stop:
    - Transient/ran-out-of-budget → `cli ledger` `recordAttempt` with what was tried, why it failed, and a `cooldownRuns` backoff (status stays `open`; a later run retries it, informed by the appended history).
-   - Genuinely unsolvable in the converter, or needs a human decision the `guard` forbids the agent from making (tolerance/calibration change, an editability tradeoff) → `cli ledger park` with a clear verdict stating the decision needed. Optionally open **one** GitHub issue (label `oracle-finding`) and record its number in the entry's `issue:` field for dedupe — never open a second issue for an already-parked class.
-   - Either way the ledger change is committed on its own branch and opened as a small PR labeled `oracle-ledger` (so the human sees the analysis and, for `parked`, makes the call); the pipeline advances to the next fixable class on the following run.
+   - Genuinely unsolvable in the converter, or needs a decision that is the human's to make (tolerance/calibration change, an editability tradeoff) → `cli ledger park` with a clear verdict stating the decision needed.
+   - Either way the ledger change stays in the working tree for the human to review and commit; the pipeline advances to the next fixable class on the following run.
 
-**Tests**: commands are prose; the enforcement is WS-3.2's `guard` (mechanical) plus a **drill**: run the command manually once against an M2 report with a seeded known bug (introduce a deliberate off-by-line-height in a branch, run the pipeline, verify the agent produces a correct PR). The drill is the acceptance test for this workstream and must be performed before enabling the cron.
+**Tests**: commands are prose; the enforcement is human review of the working tree plus a **drill**: run the command manually once against an M2 report with a seeded known bug (introduce a deliberate off-by-line-height in a branch, run the pipeline, verify the agent produces a correct fix). The drill is the acceptance test for this workstream.
 
-### WS-3.2 Scheduled workflow + guard
+### WS-3.2 Scheduled workflow + guard — REMOVED
 
-**Where**: `.github/workflows/oracle.yml`, `cli guard`.
-
-**Steps**
-
-1. Workflow triggers: `schedule` (one daily cron to start; adding entries = raising N) and `workflow_dispatch` (with `tiers` input for manual partial runs). **Never** `pull_request`/`push`. `concurrency: { group: oracle, cancel-in-progress: false }`.
-2. Job `measure` (environment: `oracle`; secrets: `FIGMA_STORAGE_STATE`, `FIGMA_FILE_KEY`, plus `FIGMA_TOKEN` only if the REST pixel fallback is enabled): checkout `main`, pnpm install, build, run live canary (`00-smoke`), then full `figma` run Tiers 0–2, `report`, upload run dir artifact (14-day retention), write step summary. Distinct failure surface for `SESSION_EXPIRED` (notifies for human re-login rather than counting as a pipeline failure).
-3. Job `fix` (needs `measure`; secrets: `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY`, `ORACLE_GH_TOKEN`): download the report artifact, run headless Claude Code (`claude -p "/fix-discrepancy <report path>"` with `--permission-mode acceptEdits`, bounded `--max-turns`, model per decision D-4), on a branch `oracle/fix-<class>-<runid>`. The PR is opened with `ORACLE_GH_TOKEN` (fine-grained: `contents: write`, `pull_requests: write`, this repo only) so that normal CI runs on it. Skip the job entirely when the report has zero classes above a severity floor — "nothing to fix" is a successful outcome, logged in the summary.
-4. `cli guard` — runs in **PR CI** (extend the `parity` job), branching on PR label:
-   - `oracle-fix` (code fix): diff touches only allowed paths (`packages/*/src`, `packages/*/scripts/oracle-scenes`, `apps/playground/src/corpus`, harness baseline + ledger, changesets, tests); ≥ 1 scene file added or modified; baseline diff is non-regressive (reuses `check`); severity/tolerance constant files unchanged; any ledger change is a `resolved` deletion only (a fix PR must not create/edit `parked` entries).
-   - `oracle-ledger` (analysis only): diff touches **only** `known-findings/**` (and optionally a changeset-free issue link); no `src`/scene/baseline changes.
-   - Both: the agent may **not** flip an existing `parked` entry to `open` or edit its verdict (only a human does that — guard diffs the frontmatter `status` transition and fails on agent-authored `parked → open`). Guard failures block merge like any CI failure.
-5. Both jobs tolerate the other's absence (measure-only runs are valid; a human can trigger `fix` on an old artifact via dispatch input).
-
-**Tests**
-
-- Unit: `guard` path/diff rules (fixture diffs: legitimate fix passes; tolerance edit fails; missing scene fails; unrelated file touched fails).
-- Workflow lint: add `actionlint` to CI (or a minimal YAML validation step) so workflow syntax errors are caught in PRs.
-- End-to-end acceptance: the WS-3.1 drill executed through this workflow via `workflow_dispatch` on a branch with a seeded bug.
+Built (a scheduled `oracle.yml` measure+fix workflow, a `cli guard` allowlist gate, and `oracle-fix`/`oracle-ledger` PR labels), then removed on 2026-07-20 when the pipeline was made local-only: with a human invoking the agent and reviewing every change before commit, the mechanical PR gate and the CI secret provisioning it required are unnecessary. If unattended operation is ever revisited, resurrect this workstream from git history (commits `1eed1d9`, `d45101e`, and the removal commit) rather than re-designing from scratch — and note the review findings fixed along the way (fail-open on git errors, rename-bypass of the un-park rule, label-trigger gaps).
 
 ### WS-3.3 Observability
 
 **Steps**
 
-1. Persist a one-line-per-run history: append `{runId, commit, medianDiffRatio, totalFindings, classesTop3}` to a `runs.ndjson` kept as a rolling workflow artifact and printed in the step summary (no DB; revisit only if N grows).
-2. Step summary always includes: corpus size, per-tier findings, top 5 classes, delta vs. previous run, link to `report.html`.
-3. Failure taxonomy in exit codes (`SESSION_EXPIRED`, `PASTE_FAILED`, `EXPORT_FAILED`, `REGRESSION`, `OK`) so the workflow's failure notifications are self-explanatory.
+1. Persist a one-line-per-run history: append `{runId, commit, medianDiffRatio, totalFindings, classesTop3}` to a local, gitignored `oracle/history/runs.ndjson` (no DB; revisit only if run volume grows).
+2. The report summary always includes: corpus size, per-tier findings, top 5 classes, delta vs. previous run, link to `report.html`.
+3. Failure taxonomy in exit codes (`SESSION_EXPIRED`, `PASTE_FAILED`, `EXPORT_FAILED`, `REGRESSION`, `OK`) so a failed run is self-explanatory.
 
 **Tests**: unit-test summary rendering from a fixture report; taxonomy is asserted by the live-gated tests of WS-2.x.
 
-**M3 exit criteria**: three consecutive scheduled runs where each either (a) opened a valid `oracle-fix` PR that passed CI + guard, (b) opened a valid `oracle-ledger` PR that parked or recorded an attempt on an unsolvable class, (c) correctly reported "nothing fixable" (severity floor or all-parked), or (d) failed with an accurate taxonomy code. Across a run of several days the selected class must **advance** (not re-attempt a parked one). Human review time per PR under ~10 minutes.
+**M3 exit criteria**: three consecutive human-triggered runs where each either (a) produced a valid fix the human committed, (b) parked or recorded an attempt on an unsolvable class, (c) correctly reported "nothing fixable" (all-parked or clean), or (d) failed with an accurate taxonomy code. Across several runs the selected class must **advance** (not re-attempt a parked one). Human review time per fix under ~10 minutes.
 
 ## 10. Milestone M4 — Corpus scale-out (post-MVP, sketch)
 
@@ -578,17 +563,15 @@ Specified at lower resolution intentionally; re-plan when M3 is live.
 
 - **WS-4.1 Seeded scene generator**: property-based generation of flex/grid/text/style permutations from a seed manifest (committed, so scenes are reproducible — no runtime randomness in workflow scripts). New generated scenes enter the corpus through PRs like any scene. Tests: same seed → byte-identical scene; generated scenes pass the WS-1.3 determinism gate.
 - **WS-4.2 Scene minimizer**: given a failing scene + finding class, bisect DOM subtrees/style declarations while the Tier-0 (preferred) or Tier-1 finding persists; output the minimal repro the agent debugs. Tests: on fixture bugs, minimized scene retains the finding class with monotonically fewer nodes.
-- **WS-4.3 Real-world + private corpus overlay**: frozen (committed, self-contained, asset-inlined) real pages; a private repo checked out by the scheduled workflow via deploy key contributing additional scenes (Sleek designs). Findings from private scenes must pass through WS-4.2 minimization before appearing in public PRs/scene additions. Explicitly out of scope until the ratchet has been stable for a while.
+- **WS-4.3 Real-world + private corpus overlay**: frozen (committed, self-contained, asset-inlined) real pages; a private repo checked out locally contributing additional scenes (Sleek designs). Findings from private scenes must pass through WS-4.2 minimization before appearing in public PRs/scene additions. Explicitly out of scope until the ratchet has been stable for a while.
 
 ## 11. Security & operations
 
-- **Secrets** — GitHub Environment `oracle`: `FIGMA_STORAGE_STATE`, `FIGMA_FILE_KEY`, `CLAUDE_CODE_OAUTH_TOKEN` (subscription auth via `claude setup-token`; or `ANTHROPIC_API_KEY` for metered billing), `ORACLE_GH_TOKEN`, and **`FIGMA_TOKEN` only if** the Tier-2 REST fallback (WS-2.5) is enabled. Never available to `pull_request`-triggered workflows. PR-facing jobs (Tier-0 `parity`, `guard`) use no secrets by design. Provisioning + testing + credential-rotation runbook: [`docs/oracle-operations.md`](./oracle-operations.md).
-- **Least privilege**: `ORACLE_GH_TOKEN` is a fine-grained PAT (or GitHub App) scoped to this repo, `contents: write` + `pull_requests: write` only. `FIGMA_STORAGE_STATE` is a live login session — treat it as a full credential. `FIGMA_TOKEN` (if used at all) is read-only (`file_read`).
-- **Trigger discipline**: the agent and Figma jobs run only on `schedule`/`workflow_dispatch` from `main`. Untrusted (fork) code never executes adjacent to secrets.
+- **Credentials** — local `.env` only: `FIGMA_STORAGE_STATE`, `FIGMA_FILE_KEY`, and **`FIGMA_TOKEN` only if** the Tier-2 REST fallback (WS-2.5) is enabled. Nothing is stored in CI; the PR-facing `parity` job uses no secrets by design. Setup + credential-rotation runbook: [`docs/oracle-operations.md`](./oracle-operations.md).
+- **Least privilege**: `FIGMA_STORAGE_STATE` is a live login session — treat it as a full credential (gitignored, never pasted anywhere). `FIGMA_TOKEN` (if used at all) is read-only (`file_read`).
 - **Prompt-injection surface**: the agent's inputs are repo-controlled files (scenes, report.json). Live-fetched web content must never enter the corpus directly (M4 freezes pages into committed fixtures). Report fields derived from scene content (e.g. `text`) are data, not instructions — the command file says so explicitly.
-- **Figma ToS posture**: UI automation of figma.com is a gray zone. Mitigations: dedicated account, one paste + one copy-back per run, low frequency (N ≤ a few/day). Capture is via the browser clipboard, not REST. Degraded mode if automation is ever blocked: the runner pauses after building the batch and a human performs the single paste + copy-back — everything else stays automated.
-- **Runner**: GitHub-hosted Ubuntu with `xvfb-run` for the headed-fallback paste path. If Figma challenges datacenter IPs / sessions rot too fast, fall back to a self-hosted runner (decision D-5).
-- **Spend controls**: `--max-turns` cap on the agent, one class per run, skip-below-severity-floor, concurrency group prevents overlap.
+- **Figma ToS posture**: UI automation of figma.com is a gray zone. Mitigations: dedicated account, one paste + one copy-back per run, low frequency (human-triggered). Capture is via the browser clipboard, not REST. Degraded mode if automation is ever blocked: the runner pauses after building the batch and a human performs the single paste + copy-back — everything else stays automated.
+- **Spend controls**: `--max-turns` cap on the agent, one class per run, and the human watching the session.
 
 ## 12. Determinism & measurement policy (normative)
 
@@ -597,17 +580,17 @@ Specified at lower resolution intentionally; re-plan when M3 is live.
 3. Images in scenes: local/inline (data URI or committed asset) only — no network fetches at render time.
 4. Animations/transitions/caret disabled by injected CSS; screenshots after `fonts.ready` + image decode + two rAFs.
 5. Pixel metrics are **scores and locators**; structural tiers are **diagnoses**. The agent should always seek the structural finding behind a pixel cluster before editing code.
-6. All tolerances/epsilons/severity constants live in `severity.ts` + `calibration.json`, changed only via calibration PRs — never inside a fix PR (enforced by `guard`).
+6. All tolerances/epsilons/severity constants live in `severity.ts` + `calibration.json`, changed only via calibration PRs — never inside a fix (a human-review rule).
 
 ## 13. Risks
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
 | Figma paste automation breaks (UI change, synthetic-event rejection) | Medium | Outer loop down | Dual paste strategies (WS-2.2); canary scene isolates failures; degraded human-paste mode; Tier 0 unaffected |
-| Figma session expiry / bot challenge | High over months | Scheduled run fails | Distinct `SESSION_EXPIRED` taxonomy + documented 2-min re-login; self-hosted runner fallback |
+| Figma session expiry / bot challenge | High over months | Figma run fails | Distinct `SESSION_EXPIRED` taxonomy + documented 2-min re-login |
 | Pixel noise drowns signal (fonts AA) | Medium | False findings, agent churn | Calibration (WS-2.6); structural tiers primary; cluster noise floor; per-class thresholds |
-| Agent overfits (tolerance-widening, baseline gaming) | Medium | Silent quality loss | `guard` forbids tolerance/constant edits; ratchet direction enforced; human review |
-| Loop stalls on an unfixable top class (re-attempts / duplicate issues forever) | High without mitigation | No throughput | Findings ledger (WS-1.7): `parked`/cooldown classes excluded from selection; accepted magnitude baselined so other fixes proceed; `guard` blocks `parked→open` gaming |
+| Agent overfits (tolerance-widening, baseline gaming) | Medium | Silent quality loss | Command forbids tolerance/constant edits; ratchet direction enforced; human reviews every diff before commit |
+| Loop stalls on an unfixable top class (re-attempts forever) | High without mitigation | No throughput | Findings ledger (WS-1.7): `parked`/cooldown classes excluded from selection; accepted magnitude baselined so other fixes proceed; only a human un-parks |
 | Figma renderer update shifts all scores | Low | Fleet-wide "regressions" | Fleet-wide-jump detection in WS-2.6 step 3 → recalibrate instead of fix |
 | Corpus grows → run time | Low (N small) | Slow CI | Tier 0 stays on PR CI only; batched single-paste keeps Figma cost ~constant per run |
 | `/oracle/` gitignore vs. committed baseline confusion | Certain if ignored | Baseline accidentally untracked | Baseline lives in `internal/oracle-harness/baseline/` (§6.4), never under `/oracle/` |
@@ -630,18 +613,18 @@ Specified at lower resolution intentionally; re-plan when M3 is live.
 | WS-2.4 Tier-2 pixel pipeline | M2 | done (commit e093e43); Copy-as-PNG is 2×, downsampled to 1× | — |
 | WS-2.5 REST pixel fallback (optional) | M2 | not started | — |
 | WS-2.6 Calibration | M2 | done (commit 3dae76e); Figma render is deterministic (0%), 0.1% noise floor applied | — |
-| WS-3.1 fix-discrepancy command | M3 | done (commit 8c770fa); `.claude/commands/fix-discrepancy.md` | — |
-| WS-3.2 Scheduled workflow + guard | M3 | done — `cli guard` + tolerances.ts (commit 1eed1d9); `oracle.yml` measure+fix jobs + PR-guard in ci.yml. Awaiting human: `oracle` env + secrets, then validate the scheduled run | — |
-| WS-3.3 Observability | M3 | done — exit-code taxonomy, report step summary, `cli history` → rolling runs.ndjson artifact + summary line | — |
+| WS-3.1 fix-discrepancy command | M3 | done (commit 8c770fa); rewritten local-only 2026-07-20 (no PRs/labels; human commits) | — |
+| WS-3.2 Scheduled workflow + guard | M3 | **removed** 2026-07-20 — built (commits 1eed1d9, d45101e) then deleted with the local-only decision; see §9 scope note | — |
+| WS-3.3 Observability | M3 | done — exit-code taxonomy, report step summary, `cli history` → local runs.ndjson + summary line | — |
 | WS-4.x Corpus scale-out | M4 | deferred | — |
 
 ## 15. Decisions needed (human, before the marked milestone)
 
 - **D-1 (M2)**: Figma account for the runner (fresh dedicated account recommended; free tier suffices for paste + copy-back of own file). Provide the scratch file key + one interactive login for `figma login`. **A REST token is not needed** on the primary path — only if the Tier-2 REST pixel fallback (WS-2.5) is later enabled.
-- **D-2 (M2)**: GitHub Environment `oracle` creation + the five secrets (§11); fine-grained PAT vs. GitHub App for PR opening (PAT is simpler; App gives a nicer bot identity — recommend starting with PAT).
+- **D-2 (M2)**: ~~GitHub Environment `oracle` + secrets~~ — obsolete since the 2026-07-20 local-only decision; credentials live in the local `.env` only.
 - **D-3 (M2)**: export scale 1 (recommended default) vs. 2.
-- **D-4 (M3)**: agent model + `--max-turns` budget for the scheduled fix job.
-- **D-5 (M3, conditional)**: self-hosted runner if GitHub-hosted proves unable to hold Figma sessions.
+- **D-4 (M3)**: agent model + `--max-turns` budget for the locally-invoked fix agent.
+- **D-5 (M3)**: ~~self-hosted runner~~ — obsolete; there is no CI runner.
 
 ## Appendix A — Repo conventions (binding for implementers)
 

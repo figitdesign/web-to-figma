@@ -8,7 +8,6 @@ const SUBCOMMANDS = [
   "check",
   "ledger",
   "calibrate",
-  "guard",
   "history",
 ];
 
@@ -27,11 +26,5 @@ describe("cli run()", () => {
 
   it("exits non-zero when no command is given", async () => {
     expect((await run([])).code).not.toBe(0);
-  });
-
-  it("rejects `guard` without a label", async () => {
-    const result = await run(["guard"]);
-    expect(result.code).not.toBe(0);
-    expect(result.err).toContain("--label");
   });
 });

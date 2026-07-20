@@ -10,13 +10,13 @@ carries machine-read fields; the body accumulates the human-read narrative
 See [`docs/visual-parity-pipeline.prd.md` §6.5](../../../docs/visual-parity-pipeline.prd.md)
 for the field reference and lifecycle. In short:
 
-- `open` — eligible for autonomous work, ranked by severity.
+- `open` — eligible for fix work, ranked by severity.
 - `attempting` — mid-attempt within a run (a crash marker).
-- `parked` — excluded from autonomous work; its magnitude is accepted into the
+- `parked` — excluded from fix work; its magnitude is accepted into the
   scoreboard so the ratchet doesn't block other fixes. Only a human un-parks it.
 - `resolved` — findings dropped to zero; the file is deleted (git keeps history).
 
 Managed via the harness CLI: `ledger reconcile | select | status | park |
 attempt`. `.run-counter` holds the monotonic run counter used for cooldowns.
-Reconciliation runs on the scheduled path only; the PR parity job never mutates
-this directory.
+Reconciliation runs only when you drive a full local run; the PR parity job
+never mutates this directory.

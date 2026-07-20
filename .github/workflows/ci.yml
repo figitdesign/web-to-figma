@@ -76,34 +76,3 @@ jobs:
           name: parity-run
           path: oracle/runs/parity
           retention-days: 7
-
-  guard:
-    name: Oracle PR guard
-    runs-on: ubuntu-latest
-    # Only autonomous PRs carry these labels; human PRs skip the guard entirely.
-    if: >-
-      github.event_name == 'pull_request' &&
-      (contains(github.event.pull_request.labels.*.name, 'oracle-fix') ||
-       contains(github.event.pull_request.labels.*.name, 'oracle-ledger'))
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          # Need the base branch and merge-base for the guard's `git diff`.
-          fetch-depth: 0
-
-      - uses: ./.github/actions/setup
-
-      # An autonomous PR may improve a number only by fixing the converter —
-      # never by loosening a tolerance, editing the measurement code, or
-      # un-parking a human-set finding. See internal/oracle-harness/src/guard.ts.
-      - name: Enforce oracle PR rules
-        run: |
-          BASE="${{ github.event.pull_request.base.ref }}"
-          git fetch --no-tags origin "$BASE"
-          LABEL=oracle-ledger
-          if ${{ contains(github.event.pull_request.labels.*.name, 'oracle-fix') }}; then
-            LABEL=oracle-fix
-          fi
-          pnpm --filter @figit/oracle-harness run cli guard \
-            --label "$LABEL" \
-            --base "origin/$BASE"

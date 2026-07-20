@@ -1,93 +1,76 @@
 # Oracle pipeline — operations runbook
 
-How to turn on the scheduled DOM→Figma parity pipeline (`.github/workflows/oracle.yml`),
-test it end to end, and keep it running. For the design, see
+How to run the DOM→Figma parity pipeline locally, end to end. The pipeline is
+deliberately local-only: a human drives every run and reviews every change
+before it is committed. For the design, see
 [`visual-parity-pipeline.prd.md`](./visual-parity-pipeline.prd.md).
 
-## 1. One-time setup — the `oracle` environment
+## 1. One-time setup — credentials
 
-Create a GitHub **Environment** named `oracle`
-(_repo → Settings → Environments → New environment_) and add these four secrets to
-it. The scheduled workflow reads them; PR-facing jobs never can.
+Everything lives in a local `.env` (see `.env.example`); nothing is stored in
+CI or shared anywhere.
 
-| Secret | What it is | How to generate |
+| Value | What it is | How to generate |
 | --- | --- | --- |
-| `FIGMA_STORAGE_STATE` | The Figma login session (a credential), base64-encoded | **`pnpm oracle:refresh-figma`** — signs you in locally and pushes the session straight to the secret via `gh` (needs `gh auth login` once + repo admin). Manual alternative: `cli figma login` → `base64 < .figma-storage-state.json \| pbcopy` → paste. |
+| `FIGMA_STORAGE_STATE` | The Figma login session (a credential): a path to a gitignored file | `pnpm --filter @figit/oracle-harness cli figma login` — opens a browser, waits for you to sign in once, writes `.figma-storage-state.json` |
 | `FIGMA_FILE_KEY` | The scratch Figma file's key | Copy from the file URL: `figma.com/file/<THIS>/…` |
-| `CLAUDE_CODE_OAUTH_TOKEN` | Your Claude subscription token (no API bill) | `claude setup-token` locally → copy the printed token. _To use the metered API instead, store `ANTHROPIC_API_KEY` and swap the one line noted in `oracle.yml`._ |
-| `ORACLE_GH_TOKEN` | Fine-grained PAT so the agent can open PRs that trigger CI | _github.com → Settings → Developer settings → Fine-grained tokens._ Scope: **this repo only**, permissions **Contents: Read/write** + **Pull requests: Read/write**. Set an expiry (e.g. 90d) and calendar a renewal. |
+| `FIGMA_TOKEN` | Optional — only the Tier-2 REST pixel fallback reads it | Figma → account settings → personal access token (`file_read` scope) |
 
-> **Never** paste any of these into chat, a commit, or an issue. `.figma-storage-state.json`
-> is gitignored and is a full login — treat it like a password.
+> **Never** paste any of these into chat, a commit, or an issue.
+> `.figma-storage-state.json` is gitignored and is a full login — treat it like
+> a password.
 
-## 2. Test it, smallest scope first
+## 2. Running the pipeline
 
-Run these in order; each proves more of the loop. Stop and fix if one fails.
+Run these in order; each proves more of the loop.
 
-1. **Tier-0, no credentials (local):**
+1. **Tier-0, no credentials:**
+
    ```
    pnpm oracle:parity
    ```
-   Renders the corpus, runs the structural diff, checks the ratchet. Proves the
-   measurement half works. Safe to run anytime — it's the same job every PR runs.
 
-2. **The agent, locally (the drill):** hand the fixer a real report and watch it
-   work, without the cloud:
+   Renders the corpus, runs the structural diff, checks the ratchet. Safe to
+   run anytime — it's the same job every PR runs in CI.
+
+2. **Tiers 1–2, real Figma:**
+
    ```
-   pnpm --filter @figit/oracle-harness cli snapshot --run-id drill
-   pnpm --filter @figit/oracle-harness cli report   --run-id drill
-   claude "/fix-discrepancy oracle/runs/drill/report.json"
+   pnpm --filter @figit/oracle-harness cli figma validate
+   pnpm --filter @figit/oracle-harness cli snapshot --run-id <id>
+   pnpm --filter @figit/oracle-harness cli figma run --run-id <id>
+   pnpm --filter @figit/oracle-harness cli report   --run-id <id>
+   pnpm --filter @figit/oracle-harness cli ledger reconcile --run-id <id>
    ```
-   Confirm it selects a class, writes a repro scene, edits the converter, and
-   opens (or would open) a labelled PR. This is the acceptance test for the agent
-   and needs no secrets.
 
-3. **The full cloud loop (manual trigger):** once the secrets are in, go to
-   _Actions → Oracle → Run workflow_ (this is `workflow_dispatch`). Watch:
-   - **measure** produces a run artifact + a step-summary line,
-   - **fix** opens a PR labelled `oracle-fix` or `oracle-ledger`,
-   - CI + the `guard` job run on that PR.
-   Merge it (or not) — that's your call. Nothing reached `main` without this merge.
+   `validate` fails with exit 3 when the stored login has expired — re-run
+   `cli figma login`. Artifacts land under the gitignored `oracle/runs/<id>/`.
 
-4. **Seeded-bug drill (highest confidence):** on a throwaway branch, deliberately
-   break the converter (e.g. an off-by-one in geometry), run the workflow, and
-   confirm the agent produces a PR that _fixes exactly that_ and passes the guard.
-   Revert the branch. This proves the whole loop catches and repairs a real bug.
+3. **The fix agent, under your supervision:** hand the fixer a real report and
+   watch it work:
 
-Only after 3–4 pass should you leave the daily `schedule` on.
+   ```
+   claude "/fix-discrepancy oracle/runs/<id>/report.json"
+   ```
 
-## 3. How you're notified when something breaks
+   It selects one class via the ledger, writes a repro scene, edits the
+   converter, and leaves everything uncommitted with a summary. You review the
+   working tree, then commit (or discard) the result yourself.
 
-Two layers:
+4. **Record the run** (optional, for trend-watching):
 
-- **Automatic email:** GitHub emails you when a scheduled run fails (it goes to
-  whoever last edited the workflow file — make sure that's you).
-- **A tracked, actionable issue:** the workflow's `alert` job opens **one**
-  deduplicated issue labelled `oracle-alert` on any failure, and _comments_ on it
-  for repeat failures instead of spamming new ones. When the failure is a
-  credential expiry, the issue names which one and the exact command to fix it.
+   ```
+   pnpm --filter @figit/oracle-harness cli history --run-id <id>
+   ```
 
-Watch the repo (or the `oracle-alert` label) so those issues reach your inbox.
+   Appends a one-line summary to the gitignored `oracle/history/runs.ndjson`.
 
-## 4. When a credential expires — what to do
+## 3. When a credential expires
 
 | Symptom | Fix |
 | --- | --- |
-| `oracle-alert` issue says **Figma session expired** (measure job, exit 3) | `pnpm oracle:refresh-figma` (re-login + push in one step) → re-run the workflow |
-| `oracle-alert` issue says **Claude token expired** (fix job auth error) | `claude setup-token` → update the `CLAUDE_CODE_OAUTH_TOKEN` secret → re-run |
-| PRs stop appearing / push denied | The `ORACLE_GH_TOKEN` PAT expired — regenerate it with the same scopes and update the secret |
+| `cli figma validate` (or any figma command) exits 3 | `cli figma login` again — the session lasts weeks |
+| Tier-2 REST fallback 403s | Regenerate `FIGMA_TOKEN` |
 
-Rough cadence: the **Figma session** lasts weeks (the most frequent refresh); the
-**Claude token** and **GitHub PAT** are long-lived but do expire — set a PAT expiry
-you'll remember, or the alert will tell you when it lapses. None of these auto-refresh
-by design: they're live credentials, so a human rotates them.
-
-## 5. Cost & spend controls
-
-- Claude usage bills against your **subscription quota** (shared with your own
-  interactive Claude Code). One class per run, once daily, bounded by `--max-turns`.
-  If the bot starts eating your quota, swap to `ANTHROPIC_API_KEY` (metered) — a
-  one-line change in `oracle.yml`.
-- GitHub Actions minutes are consumed by the runners; the `concurrency` group
-  prevents overlapping runs. Raise cadence by adding `cron` entries only after the
-  loop is proven stable.
+Neither auto-refreshes by design: they're live credentials, so a human rotates
+them.
