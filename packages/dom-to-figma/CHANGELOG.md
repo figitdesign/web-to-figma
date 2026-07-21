@@ -1,5 +1,30 @@
 # @figit/dom-to-figma
 
+## 0.2.0
+
+### Minor Changes
+
+- [#21](https://github.com/figitdesign/web-to-figma/pull/21) [`31c4809`](https://github.com/figitdesign/web-to-figma/commit/31c4809d156b57b79b4e33d2d62e80861d9b3e16) Thanks [@niko047](https://github.com/niko047)! - Add opt-in `trace` mode. `createFigmaConverter({ trace: true })` returns a `ConvertTrace` on the result, mapping every emitted Figma node GUID back to its source DOM element (`domPath`, `rect`, `kind`, `tag`, `text`). It is off by default, adds no cost when disabled, and does not change the payload bytes.
+
+### Patch Changes
+
+- [#21](https://github.com/figitdesign/web-to-figma/pull/21) [`31c4809`](https://github.com/figitdesign/web-to-figma/commit/31c4809d156b57b79b4e33d2d62e80861d9b3e16) Thanks [@niko047](https://github.com/niko047)! - Preserve CSS `transform` (rotate/skew/scale) on leaf frame elements. Previously
+  these were flattened to their axis-aligned bounding box; now the node keeps its
+  untransformed size and carries a Figma matrix derived from the computed
+  transform (assuming the default `transform-origin: center`). Transformed
+  elements with children keep the flattened-bbox behavior for now: in Figma the
+  matrix would apply to the whole subtree while descendants are still measured in
+  transformed screen space, so a parent matrix would transform them twice.
+
+- [#21](https://github.com/figitdesign/web-to-figma/pull/21) [`31c4809`](https://github.com/figitdesign/web-to-figma/commit/31c4809d156b57b79b4e33d2d62e80861d9b3e16) Thanks [@niko047](https://github.com/niko047)! - Convert raster `<img>` elements in non-secure contexts. Image conversion
+  hashed the bytes with `crypto.subtle`, which is only available in secure
+  contexts — on a plain `about:blank`/`http:`/`file:` page it is `undefined`, so
+  the hash threw and the image node was silently dropped (the browser rendered
+  nothing where the image should be). SHA-1 now falls back to a pure-JS digest
+  when `crypto.subtle` is absent, so images convert everywhere the converter runs.
+- Updated dependencies [[`31c4809`](https://github.com/figitdesign/web-to-figma/commit/31c4809d156b57b79b4e33d2d62e80861d9b3e16)]:
+  - @figit/fig-kiwi@0.2.0
+
 ## 0.1.0
 
 ### Minor Changes

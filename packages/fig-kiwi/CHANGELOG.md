@@ -1,5 +1,14 @@
 # @figit/fig-kiwi
 
+## 0.2.0
+
+### Minor Changes
+
+- [#21](https://github.com/figitdesign/web-to-figma/pull/21) [`31c4809`](https://github.com/figitdesign/web-to-figma/commit/31c4809d156b57b79b4e33d2d62e80861d9b3e16) Thanks [@niko047](https://github.com/niko047)! - Export `diffFigmaTrees`, `Mismatch`, `treeOrder`, and `OracleNode` for
+  structural diffing of decoded Figma payloads. This is the comparison the oracle
+  tooling uses to check a sent payload against Figma's copy-back, now shared so
+  the visual-parity harness can consume it too.
+
 ## 0.1.0
 
 ### Minor Changes
