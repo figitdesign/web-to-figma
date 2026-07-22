@@ -5,6 +5,22 @@ import { cssColorToFigmaColor } from "./color";
 // Figma renders softer than CSS at equal radius. Higher = tighter corners.
 const SQUIRCLE_RADIUS_TIGHTEN = 1.125;
 
+/**
+ * A CSS `double` border drawn as two concentric lines. Figma has no
+ * double-border primitive, so the frame's own stroke draws the OUTER line and
+ * a synthetic inset child (see the frame converter) draws the INNER line, with
+ * the frame's fill (the element background) showing through the gap between
+ * them. Only present for uniform `double` borders wide enough to show a gap.
+ */
+export type DoubleBorderSpec = {
+  /** Distance from each frame edge to the inner line's outer edge (px). */
+  inset: number;
+  /** Stroke weight of each line — outer and inner are equal (px). */
+  lineWeight: number;
+  /** Paints for the inner line: the same color as the frame's outer stroke. */
+  strokePaints: Array<FigmaPaint>;
+};
+
 export type BorderProperties = {
   strokeWeight: number;
   strokePaints: Array<FigmaPaint>;
@@ -21,7 +37,41 @@ export type BorderProperties = {
   rectangleBottomLeftCornerRadius?: number;
   rectangleBottomRightCornerRadius?: number;
   rectangleCornerRadiiIndependent?: boolean;
+  /** Present only for a uniform CSS `double` border. Not a Figma node field —
+   * the frame converter consumes it and must not spread it onto a node. */
+  doubleBorder?: DoubleBorderSpec;
 };
+
+/**
+ * A CSS `double` border is two solid lines separated by a gap, each roughly a
+ * third of the border width (Chrome renders 8px as 3px line / 2px gap / 3px
+ * line). Detect the uniform case and split the width into equal lines; the
+ * frame's stroke becomes the outer line and the returned spec drives the inner
+ * line. Returns `undefined` for non-`double`, mixed, or too-narrow borders
+ * (which Chrome itself collapses to a single solid line, so the existing solid
+ * stroke already matches).
+ */
+function parseUniformDoubleBorder(
+  computedStyle: CSSStyleDeclaration,
+  width: number,
+  strokePaints: Array<FigmaPaint>
+): DoubleBorderSpec | undefined {
+  const styles = [
+    computedStyle.borderTopStyle,
+    computedStyle.borderRightStyle,
+    computedStyle.borderBottomStyle,
+    computedStyle.borderLeftStyle,
+  ];
+  if (!styles.every((s) => s === "double") || strokePaints.length === 0) {
+    return;
+  }
+  const lineWeight = Math.round(width / 3);
+  const gap = width - 2 * lineWeight;
+  if (lineWeight < 1 || gap < 1) {
+    return;
+  }
+  return { inset: width - lineWeight, lineWeight, strokePaints };
+}
 
 // `squircle` ≡ `superellipse(4)` ≈ Figma's iOS smoothing (0.6).
 // `superellipse(n)` interpolates: n=2 → 0, n=4 → 0.6, clamped to 1.
@@ -108,7 +158,7 @@ export function parseBorderFromComputedStyle(
     borderBottomWidth,
     borderLeftWidth
   );
-  const strokeWeight = maxBorderWidth;
+  let strokeWeight = maxBorderWidth;
 
   // Get border color - prioritize the side with the largest border (Figma only supports one color for the stroke)
   const strokePaints: Array<FigmaPaint> = [];
@@ -145,6 +195,16 @@ export function parseBorderFromComputedStyle(
         blendMode: "NORMAL",
       });
     }
+  }
+
+  // A uniform CSS `double` border reduces the frame's own stroke to just the
+  // outer line; the returned spec drives a synthetic inner-line child node.
+  const doubleBorder =
+    hasIndependentBorders || maxBorderWidth <= 0
+      ? undefined
+      : parseUniformDoubleBorder(computedStyle, maxBorderWidth, strokePaints);
+  if (doubleBorder) {
+    strokeWeight = doubleBorder.lineWeight;
   }
 
   // Parse border radius properties
@@ -191,6 +251,7 @@ export function parseBorderFromComputedStyle(
     strokePaints,
     cornerRadius: hasIndependentCorners ? undefined : borderRadiusTopLeft,
     ...(cornerSmoothing !== undefined && { cornerSmoothing }),
+    ...(doubleBorder && { doubleBorder }),
   };
 
   // Only include individual border weights if they're different

@@ -128,7 +128,11 @@ export async function convertElement(
       });
       const borderChildren = frameResult.borderChildren ?? [];
       return {
-        changes: [frameResult.nodeChange, ...borderChildren],
+        changes: [
+          frameResult.nodeChange,
+          ...borderChildren,
+          ...(frameResult.extraChildren ?? []),
+        ],
         hasChildren: true,
         reservedChildCount: borderChildren.length,
         frameTextGradient: frameResult.textGradient,

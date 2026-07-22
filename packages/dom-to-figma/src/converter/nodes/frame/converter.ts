@@ -7,7 +7,7 @@ import {
   cssBackdropFilterToFigmaEffects,
   cssFilterToFigmaEffects,
 } from "../../styles/blur";
-import type { BorderProperties } from "../../styles/border";
+import type { BorderProperties, DoubleBorderSpec } from "../../styles/border";
 import { parseBorderFromComputedStyle } from "../../styles/border";
 import { createSolidPaint, cssColorToFigmaColor } from "../../styles/color";
 import { cssBackgroundToFigmaPaints } from "../../styles/gradient";
@@ -204,7 +204,8 @@ type Params = {
   /** Set for the converted root element only: the size of the paste-template
    * frame (a VERTICAL stack) that this element is a fill child of. */
   rootFill?: { width: number; height: number };
-  /** Needed only to decompose a per-side-colored border into child vectors. */
+  /** Allocates guids/blobs for synthetic child nodes — per-side-colored border
+   * vectors and a `double` border's inner line. Absent callers skip them. */
   createGuid?: () => FigmaGuid;
   registerBlob?: (blob: FigmaBlob) => number;
 };
@@ -222,7 +223,54 @@ type FrameResult = {
   childStackSpecs?: ReadonlyMap<Element, InferredChildStack>;
   /** Reversed flex direction: the walker emits children in visual order. */
   reverseChildren?: boolean;
+  /** Synthetic child nodes the walker must emit as children of this frame
+   * (e.g. a `double` border's inner line). */
+  extraChildren?: Array<FigmaNodeChange>;
 };
+
+/**
+ * The inner line of a CSS `double` border, as a stroked child frame inset from
+ * the parent frame's edges. The parent's own stroke draws the outer line and
+ * its fill shows through the gap; this node adds only the inner line, via an
+ * INSIDE stroke over an empty fill. See {@link DoubleBorderSpec}.
+ */
+function buildDoubleBorderInnerLine(
+  guid: FigmaGuid,
+  parentGuid: FigmaGuid,
+  parentSize: FigmaSize,
+  parentCornerRadius: number | undefined,
+  spec: DoubleBorderSpec
+): FigmaFrameNodeChange {
+  const { inset, lineWeight, strokePaints } = spec;
+  const innerRadius =
+    parentCornerRadius && parentCornerRadius > inset
+      ? parentCornerRadius - inset
+      : 0;
+  return {
+    guid,
+    phase: "CREATED",
+    parentIndex: { guid: parentGuid, position: "0" },
+    type: "FRAME",
+    name: "Border (inner)",
+    visible: true,
+    opacity: 1,
+    frameMaskDisabled: true,
+    size: { x: parentSize.x - inset * 2, y: parentSize.y - inset * 2 },
+    transform: { m00: 1, m01: 0, m02: inset, m10: 0, m11: 1, m12: inset },
+    stackMode: "NONE",
+    fillPaints: [],
+    strokeAlign: "INSIDE",
+    strokeJoin: "MITER",
+    strokeWeight: lineWeight,
+    strokePaints,
+    ...(innerRadius > 0 && { cornerRadius: innerRadius }),
+    effects: [],
+    stackHorizontalPadding: 0,
+    stackVerticalPadding: 0,
+    stackPaddingRight: 0,
+    stackPaddingBottom: 0,
+  };
+}
 
 export function elementToFrameNodeChange(
   element: Element,
@@ -264,11 +312,13 @@ export function elementToFrameNodeChange(
     +computedStyle.overflowY;
   const hasOverflowHidden = overflow === "hidden";
 
-  // Parse border information
-  const borderProperties = parseBorderFromComputedStyle(computedStyle, {
-    width,
-    height,
-  });
+  // Parse border information. `doubleBorder` is metadata for the synthetic
+  // inner-line child below, not a Figma node field, so keep it out of the
+  // properties spread onto the node change.
+  const { doubleBorder, ...borderProperties } = parseBorderFromComputedStyle(
+    computedStyle,
+    { width, height }
+  );
 
   const paddingTop = Number.parseFloat(computedStyle.paddingTop || "0");
   const paddingRight = Number.parseFloat(computedStyle.paddingRight || "0");
@@ -317,6 +367,9 @@ export function elementToFrameNodeChange(
     getPositioningInfo(element, rect, computedStyle);
   const finalPosition = positionOverride ?? position;
   const transformOverride = getTransformOverride(element, rect, computedStyle);
+  const frameSize: FigmaSize = transformOverride
+    ? transformOverride.size
+    : { x: width, y: height };
 
   // A frame carries a single stroke color, so four different border colors
   // collapse to one. When the sides disagree, decompose the border into a
@@ -411,7 +464,7 @@ export function elementToFrameNodeChange(
     frameMaskDisabled: !hasOverflowHidden,
 
     /* Size and Position */
-    size: transformOverride ? transformOverride.size : { x: width, y: height },
+    size: frameSize,
     transform: transformOverride
       ? transformOverride.transform
       : {
@@ -462,6 +515,22 @@ export function elementToFrameNodeChange(
     ...inferred?.stack,
   };
 
+  // A `double` border needs a second concentric line the frame's single
+  // stroke can't provide: emit it as an inset child (skipped when no guid
+  // allocator is available, e.g. the form converter's frame).
+  const extraChildren =
+    doubleBorder && createGuid
+      ? [
+          buildDoubleBorderInnerLine(
+            createGuid(),
+            guid,
+            frameSize,
+            borderProperties.cornerRadius,
+            doubleBorder
+          ),
+        ]
+      : undefined;
+
   return {
     nodeChange,
     ...(borderChildren && { borderChildren }),
@@ -469,5 +538,6 @@ export function elementToFrameNodeChange(
     isAutoLayout: inferred !== null,
     childStackSpecs: inferred?.children,
     reverseChildren: inferred?.reverseChildren,
+    ...(extraChildren && { extraChildren }),
   };
 }

@@ -189,6 +189,11 @@ exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
   },
   {
     "height": 160,
+    "id": "bord/bord-07-double",
+    "width": 240,
+  },
+  {
+    "height": 160,
     "id": "clip/clip-01-overflow-hidden",
     "width": 240,
   },
