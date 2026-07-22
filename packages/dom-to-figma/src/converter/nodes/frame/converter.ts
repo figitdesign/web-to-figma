@@ -12,9 +12,14 @@ import { parseBorderFromComputedStyle } from "../../styles/border";
 import { createSolidPaint, cssColorToFigmaColor } from "../../styles/color";
 import { cssBackgroundToFigmaPaints } from "../../styles/gradient";
 import { parseOpacity } from "../../styles/opacity";
-import { cssBoxShadowToFigmaEffects } from "../../styles/shadow";
+import {
+  cssBoxShadowToFigmaEffects,
+  isPureRingShadow,
+  ringShadowToStroke,
+} from "../../styles/shadow";
 import type {
   FigmaBlob,
+  FigmaEffect,
   FigmaFrameNodeChange,
   FigmaGuid,
   FigmaNodeChange,
@@ -279,8 +284,34 @@ export function elementToFrameNodeChange(
   const filterEffects = cssFilterToFigmaEffects(filter);
   const backdropEffects = cssBackdropFilterToFigmaEffects(backdropFilter);
 
-  // Combine all effects
-  const effects = [...shadowEffects, ...filterEffects, ...backdropEffects];
+  // A pure-ring box-shadow (`0 0 0 <spread>`) renders as nothing in Figma as a
+  // DROP_SHADOW, but CSS draws a crisp solid ring. Promote the dominant (widest)
+  // ring to an OUTSIDE stroke so Figma draws it following the corner radius.
+  // A Figma node has a single stroke alignment/weight, so this only applies
+  // when the element has no real CSS border (which owns the stroke); rings on
+  // bordered elements stay DROP_SHADOWs. Any non-promoted shadows (blur/offset
+  // shadows, narrower concentric rings) keep rendering as effects.
+  const hasCssBorder = borderProperties.strokePaints.length > 0;
+  let ringForStroke: FigmaEffect | null = null;
+  if (!hasCssBorder) {
+    for (const effect of shadowEffects) {
+      if (
+        isPureRingShadow(effect) &&
+        (ringForStroke === null ||
+          (effect.spread ?? 0) > (ringForStroke.spread ?? 0))
+      ) {
+        ringForStroke = effect;
+      }
+    }
+  }
+  const ringStroke = ringForStroke ? ringShadowToStroke(ringForStroke) : null;
+
+  // Combine all effects, dropping only the ring promoted to a stroke.
+  const effects = [
+    ...shadowEffects.filter((effect) => effect !== ringForStroke),
+    ...filterEffects,
+    ...backdropEffects,
+  ];
 
   const { horizontalConstraint, verticalConstraint, positionOverride } =
     getPositioningInfo(element, rect, computedStyle);
@@ -400,6 +431,9 @@ export function elementToFrameNodeChange(
     strokeAlign: "INSIDE",
     strokeJoin: "MITER",
     ...effectiveBorderProperties,
+    // A promoted pure-ring shadow overrides the (absent) border stroke with an
+    // OUTSIDE stroke; keeps INSIDE/border strokes untouched when there is none.
+    ...(ringStroke ?? {}),
 
     /* Effects */
     effects,

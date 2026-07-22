@@ -1,5 +1,5 @@
-import type { FigmaEffect } from "../types";
-import { cssColorToFigmaColor } from "./color";
+import type { FigmaEffect, FigmaPaint } from "../types";
+import { createSolidPaint, cssColorToFigmaColor } from "./color";
 
 /**
  * Parse a CSS box-shadow value and convert it to Figma effects
@@ -143,5 +143,54 @@ function parseSingleBoxShadow(shadow: string): FigmaEffect | null {
     radius: Math.max(0, blurRadius),
     spread: spreadRadius,
     showShadowBehindNode: false,
+  };
+}
+
+/**
+ * A "pure ring" box-shadow (`0 0 0 <spread> <color>`) is a crisp solid outline
+ * around the box in CSS. Figma does not draw a zero-blur/zero-offset spread
+ * DROP_SHADOW at all, so such a shadow renders as nothing. These are better
+ * represented as an OUTSIDE stroke (see {@link ringShadowToStroke}).
+ *
+ * @param effect - A Figma effect produced from a CSS box-shadow.
+ * @returns True when the effect is a visible, offset-less, blur-less, positive
+ *   spread drop shadow.
+ */
+export function isPureRingShadow(effect: FigmaEffect): boolean {
+  if (effect.type !== "DROP_SHADOW") {
+    return false;
+  }
+  return (
+    effect.offset.x === 0 &&
+    effect.offset.y === 0 &&
+    effect.radius === 0 &&
+    (effect.spread ?? 0) > 0 &&
+    effect.color.a > 0
+  );
+}
+
+/**
+ * Convert a pure-ring drop shadow (see {@link isPureRingShadow}) into the Figma
+ * stroke fields that reproduce it: an OUTSIDE stroke whose weight equals the
+ * CSS spread and whose paint is the shadow color. With `strokeAlign: OUTSIDE`
+ * the stroke sits entirely outside the node without changing its size and
+ * follows the node's corner radius, matching the CSS ring.
+ *
+ * @param effect - A pure-ring drop shadow effect.
+ * @returns Stroke fields to spread onto the frame node change.
+ */
+export function ringShadowToStroke(effect: FigmaEffect): {
+  strokeWeight: number;
+  strokePaints: Array<FigmaPaint>;
+  strokeAlign: "OUTSIDE";
+} {
+  const spread = effect.spread ?? 0;
+  const color = effect.color ?? { r: 0, g: 0, b: 0, a: 1 };
+  return {
+    strokeWeight: spread,
+    strokePaints: [
+      createSolidPaint({ r: color.r, g: color.g, b: color.b, a: 1 }, color.a),
+    ],
+    strokeAlign: "OUTSIDE",
   };
 }

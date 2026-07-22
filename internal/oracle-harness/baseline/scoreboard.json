@@ -481,6 +481,12 @@
         "maxDeltaPx": 0
       }
     },
+    "fx/fx-04-shadow-spread": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      }
+    },
     "fx/fx-12-opacity-vs-rgba": {
       "tier0": {
         "findings": 0,
