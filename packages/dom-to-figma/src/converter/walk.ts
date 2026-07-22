@@ -219,7 +219,8 @@ async function walkNode(
           childSpecs: result.childStackSpecs,
           reverse: result.reverseChildren,
         },
-        domPath
+        domPath,
+        result.reservedChildCount ?? 0
       );
     }
 
@@ -236,7 +237,8 @@ async function walkChildren(
   inheritedProperties: InheritedProperties,
   ctx: WalkContext,
   parentStack: ParentStackInfo = NO_PARENT_STACK,
-  parentDomPath = ""
+  parentDomPath = "",
+  startChildIndex = 0
 ) {
   const sortedNodes = sortNodesByStackingOrder(Array.from(element.childNodes));
   if (parentStack.reverse) {
@@ -245,7 +247,10 @@ async function walkChildren(
     sortedNodes.reverse();
   }
 
-  let childNodeIndex = 0;
+  // Real children start after any slots the converter already reserved (e.g.
+  // decomposed border sides), so their positions don't collide and they paint
+  // above the border.
+  let childNodeIndex = startChildIndex;
   for (const node of sortedNodes) {
     childNodeIndex += await walkNode(
       node,

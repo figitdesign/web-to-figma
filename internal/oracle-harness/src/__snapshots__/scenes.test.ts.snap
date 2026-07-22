@@ -184,6 +184,11 @@ exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
   },
   {
     "height": 160,
+    "id": "bord/bord-03-per-side-color",
+    "width": 240,
+  },
+  {
+    "height": 160,
     "id": "clip/clip-01-overflow-hidden",
     "width": 240,
   },

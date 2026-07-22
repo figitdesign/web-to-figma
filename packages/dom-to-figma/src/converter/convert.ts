@@ -53,6 +53,10 @@ export type ConversionResult = {
   childStackSpecs?: ReadonlyMap<Element, InferredChildStack>;
   /** Reversed flex direction: children must be emitted in visual order. */
   reverseChildren?: boolean;
+  /** Child slots (e.g. decomposed border sides) already emitted under this
+   * node's guid; the walker starts its real children after them so their
+   * `parentIndex.position` does not collide and they paint on top. */
+  reservedChildCount?: number;
 };
 
 /**
@@ -119,10 +123,14 @@ export async function convertElement(
         parentIsAutoLayout,
         childStackSpec,
         rootFill,
+        createGuid,
+        registerBlob,
       });
+      const borderChildren = frameResult.borderChildren ?? [];
       return {
-        changes: [frameResult.nodeChange],
+        changes: [frameResult.nodeChange, ...borderChildren],
         hasChildren: true,
+        reservedChildCount: borderChildren.length,
         frameTextGradient: frameResult.textGradient,
         isAutoLayout: frameResult.isAutoLayout,
         childStackSpecs: frameResult.childStackSpecs,

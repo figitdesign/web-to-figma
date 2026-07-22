@@ -7,19 +7,23 @@ import {
   cssBackdropFilterToFigmaEffects,
   cssFilterToFigmaEffects,
 } from "../../styles/blur";
+import type { BorderProperties } from "../../styles/border";
 import { parseBorderFromComputedStyle } from "../../styles/border";
 import { createSolidPaint, cssColorToFigmaColor } from "../../styles/color";
 import { cssBackgroundToFigmaPaints } from "../../styles/gradient";
 import { parseOpacity } from "../../styles/opacity";
 import { cssBoxShadowToFigmaEffects } from "../../styles/shadow";
 import type {
+  FigmaBlob,
   FigmaFrameNodeChange,
   FigmaGuid,
   FigmaNodeChange,
   FigmaPaint,
+  FigmaVectorNodeChange,
 } from "../../types";
 import type { FigmaSize, FigmaTransform } from "../../types/core";
 import type { ConverterLayout } from "../../walk";
+import { decomposePerSideBorder } from "./border-decomposition";
 
 type PositioningResult = {
   horizontalConstraint?: string;
@@ -151,6 +155,26 @@ function getTransformOverride(
   };
 }
 
+/**
+ * Drop the single-stroke border fields so the frame paints no stroke — used
+ * when a per-side-colored border is decomposed into child vectors instead.
+ * Corner-radius fields are preserved (decomposition only runs when there is no
+ * radius, so they are already zero/absent).
+ */
+function withoutFrameStroke(props: BorderProperties): BorderProperties {
+  const {
+    strokePaints: _paints,
+    strokeWeight: _weight,
+    borderTopWeight: _top,
+    borderRightWeight: _right,
+    borderBottomWeight: _bottom,
+    borderLeftWeight: _left,
+    borderStrokeWeightsIndependent: _independent,
+    ...rest
+  } = props;
+  return { ...rest, strokeWeight: 0, strokePaints: [] };
+}
+
 function getFillProperties(element: Element, rect: DOMRect) {
   const parentElement = element.parentElement;
   const parentRect = parentElement?.getBoundingClientRect();
@@ -175,10 +199,16 @@ type Params = {
   /** Set for the converted root element only: the size of the paste-template
    * frame (a VERTICAL stack) that this element is a fill child of. */
   rootFill?: { width: number; height: number };
+  /** Needed only to decompose a per-side-colored border into child vectors. */
+  createGuid?: () => FigmaGuid;
+  registerBlob?: (blob: FigmaBlob) => number;
 };
 
 type FrameResult = {
   nodeChange: FigmaFrameNodeChange;
+  /** Per-side border trapezoids emitted when the sides differ in color/style;
+   * the walker paints them below the frame's real children. */
+  borderChildren?: Array<FigmaVectorNodeChange>;
   textGradient?: Array<FigmaPaint>;
   /** Set when the frame became an inferred auto-layout stack, so the walker
    * can tell its children. */
@@ -202,6 +232,8 @@ export function elementToFrameNodeChange(
     parentIsAutoLayout,
     childStackSpec,
     rootFill,
+    createGuid,
+    registerBlob,
   } = options;
 
   // Inferred auto-layout, spread onto the node change last so it overrides
@@ -254,6 +286,26 @@ export function elementToFrameNodeChange(
     getPositioningInfo(element, rect, computedStyle);
   const finalPosition = positionOverride ?? position;
   const transformOverride = getTransformOverride(element, rect, computedStyle);
+
+  // A frame carries a single stroke color, so four different border colors
+  // collapse to one. When the sides disagree, decompose the border into a
+  // filled trapezoid per side (exact CSS miters) and drop the frame stroke.
+  // Skipped for inferred stacks (children would be laid out by the stack) and
+  // transformed frames (size differs from the measured rect used for geometry).
+  const borderChildren =
+    createGuid && registerBlob && !(inferred || transformOverride)
+      ? decomposePerSideBorder({
+          computedStyle,
+          width,
+          height,
+          frameGuid: guid,
+          createGuid,
+          registerBlob,
+        })
+      : null;
+  const effectiveBorderProperties = borderChildren
+    ? withoutFrameStroke(borderProperties)
+    : borderProperties;
 
   const { fillsParentHeight, fillsParentWidth } = getFillProperties(
     element,
@@ -347,7 +399,7 @@ export function elementToFrameNodeChange(
     fillPaints,
     strokeAlign: "INSIDE",
     strokeJoin: "MITER",
-    ...borderProperties,
+    ...effectiveBorderProperties,
 
     /* Effects */
     effects,
@@ -378,6 +430,7 @@ export function elementToFrameNodeChange(
 
   return {
     nodeChange,
+    ...(borderChildren && { borderChildren }),
     textGradient,
     isAutoLayout: inferred !== null,
     childStackSpecs: inferred?.children,

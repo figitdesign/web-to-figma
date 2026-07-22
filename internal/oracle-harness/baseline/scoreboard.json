@@ -469,6 +469,12 @@
         "diffRatio": 0.07180555555555555
       }
     },
+    "bord/bord-03-per-side-color": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      }
+    },
     "clip/clip-01-overflow-hidden": {
       "tier0": {
         "findings": 0,
