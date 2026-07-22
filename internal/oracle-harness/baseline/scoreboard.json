@@ -445,7 +445,7 @@
     },
     "05-exotic/text-in-box": {
       "tier0": {
-        "findings": 28,
+        "findings": 14,
         "maxDeltaPx": 4.65625
       },
       "tier1": {
@@ -483,7 +483,7 @@
     },
     "img/img-01-raster": {
       "tier0": {
-        "findings": 1,
+        "findings": 0,
         "maxDeltaPx": 0
       }
     },

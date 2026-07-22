@@ -159,7 +159,7 @@ describe("layout assertions for nested frames", () => {
           "name": "Title",
           "parentLocalID": 3,
           "position": {
-            "x": 18.5,
+            "x": 20,
             "y": 20,
           },
           "size": {
