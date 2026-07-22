@@ -34,6 +34,7 @@ import {
   writeLedger,
   writeRunCounter,
 } from "./ledger-io";
+import { renderMontage } from "./montage";
 import { assertReport } from "./report";
 import { renderStepSummary } from "./report-html";
 import { assembleReport, writeReport } from "./report-io";
@@ -86,6 +87,10 @@ const COMMANDS: ReadonlyArray<{ name: string; summary: string }> = [
   },
   { name: "calibrate", summary: "measure Figma's render noise floor" },
   { name: "history", summary: "append a run summary line to runs.ndjson" },
+  {
+    name: "montage",
+    summary: "stitch target/before/after PNGs into a PR review image",
+  },
 ];
 
 function helpText(): string {
@@ -564,6 +569,47 @@ function runHistoryCommand(args: ReadonlyArray<string>): CliResult {
   };
 }
 
+/** Stitch the review strip for a parity-fix PR: Target (browser) + Before
+ * (pre-fix Figma) + After (post-fix Figma), from PNGs prior runs already wrote.
+ * Browser-only — no Figma credentials needed. */
+async function runMontageCommand(
+  args: ReadonlyArray<string>
+): Promise<CliResult> {
+  const { values } = parseArgs({
+    args: [...args],
+    options: {
+      scene: { type: "string" },
+      before: { type: "string" },
+      after: { type: "string" },
+      title: { type: "string" },
+      out: { type: "string" },
+    },
+    allowPositionals: false,
+  });
+  const { scene, before, after } = values;
+  if (!(scene && before && after)) {
+    return {
+      code: EXIT.ERROR,
+      out: "",
+      err: "montage requires --scene, --before and --after\n",
+    };
+  }
+  const stem = scene.replaceAll("/", "__");
+  const beforeDir = createRunDir(before);
+  const afterDir = createRunDir(after);
+  // The browser render is converter-independent, so the after run's
+  // ground-truth is a fine Target.
+  const out = values.out ?? resolve(afterDir.root, "montage", `${stem}.png`);
+  await renderMontage({
+    title: values.title ?? scene,
+    targetPng: resolve(afterDir.groundTruth, `${stem}.png`),
+    beforePng: resolve(beforeDir.figma, `${stem}.png`),
+    afterPng: resolve(afterDir.figma, `${stem}.png`),
+    out,
+  });
+  return { code: EXIT.OK, out: `montage → ${out}\n`, err: "" };
+}
+
 async function runFigmaCommand(
   args: ReadonlyArray<string>
 ): Promise<CliResult> {
@@ -628,6 +674,9 @@ export async function run(argv: ReadonlyArray<string>): Promise<CliResult> {
   }
   if (command === "history") {
     return runHistoryCommand(argv.slice(1));
+  }
+  if (command === "montage") {
+    return await runMontageCommand(argv.slice(1));
   }
   return {
     code: 1,

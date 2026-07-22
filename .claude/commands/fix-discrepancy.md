@@ -75,6 +75,14 @@ right.
 5. Leave everything uncommitted and summarize for the human: the class fixed,
    findings/diffRatio before → after, scenes affected, and the repro scene
    name. The human reviews the working tree and commits.
+6. **Attach a before/after montage to the PR** when the change is visually
+   apparent. Once the PR is open, `scripts/publish-montage.sh <pr-number>
+   <scene-id> <before-run-id> <after-run-id>` renders the Target/Before/After
+   strip from your baseline (before) and validation (after) runs and embeds it
+   in the PR body (idempotent — safe to re-run). For a sub-pixel fix, cite the
+   report's numeric before → after instead. You don't open PRs yourself, so
+   surface this command in your summary for the human. See
+   [`docs/oracle-operations.md`](../../docs/oracle-operations.md) §4.
 
 ## 6. Finish — could not fix
 

@@ -82,7 +82,49 @@ Useful for debugging one stage or doing a measure-only run.
 
    Appends a one-line summary to the gitignored `oracle/history/runs.ndjson`.
 
-## 4. When a credential expires
+## 4. Before/after montage for PRs
+
+When a fix changes something **visually apparent**, attach a before/after strip
+to the PR so a reviewer sees the improvement at a glance: three labelled panels
+— **Target** (browser), **Before** (pre-fix Figma) and **After** (post-fix
+Figma) — stitched from PNGs the pipeline already wrote under
+`oracle/runs/<run>/{ground-truth,figma}/`.
+
+One command renders, hosts, and embeds it:
+
+```
+scripts/publish-montage.sh <pr-number> <scene-id> <before-run-id> <after-run-id> [title]
+```
+
+It renders the strip, commits the PNG to the orphan **`parity-shots`** hosting
+branch through a throwaway worktree (your checkout is never touched), and
+prepends a marked block to the PR body. Re-running **replaces** that block
+instead of duplicating it, so it is safe to run again after each iteration.
+
+To render the strip alone — e.g. to eyeball it before publishing:
+
+```
+pnpm --filter @figit/oracle-harness cli montage \
+  --scene <scene-id> --before <before-run-id> --after <after-run-id> \
+  [--title <str>] [--out <path>]
+```
+
+Default `--out` is `oracle/runs/<after>/montage/<stem>.png`; the Target panel is
+the after run's `ground-truth/` PNG (the browser render is
+converter-independent, so either run's is fine).
+
+**Hosting.** This repo is **public**, so the committed PNG is served straight
+from the branch — embed it with a raw URL:
+`https://raw.githubusercontent.com/<owner>/<repo>/parity-shots/<name>.png`
+(`publish-montage.sh` writes exactly this into the PR body). For a **private**
+repo those raw URLs don't render — drag-drop the PNG into the PR body instead.
+
+**When _not_ to use one.** A montage only helps when the difference is visible.
+For a sub-pixel fix (e.g. a 1px text-baseline shift) the panels look identical —
+prefer numeric or round-trip evidence (the report's Δpx / diff-ratio, or a
+copy-back assertion) in the PR description instead.
+
+## 5. When a credential expires
 
 | Symptom | Fix |
 | --- | --- |
