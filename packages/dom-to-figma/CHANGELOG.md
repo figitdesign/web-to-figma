@@ -1,5 +1,44 @@
 # @figit/dom-to-figma
 
+## 0.2.1
+
+### Patch Changes
+
+- [#26](https://github.com/figitdesign/web-to-figma/pull/26) [`0208934`](https://github.com/figitdesign/web-to-figma/commit/0208934deb0b540967ea34dc7360967199341156) Thanks [@niko047](https://github.com/niko047)! - Render CSS `double` borders as two concentric lines instead of one solid stroke. Figma has no native double-border style, so a uniform `border-style: double` now maps the frame's own stroke to the outer line and emits an inset stroked child frame for the inner line, letting the element background show through the gap between them (matching Chrome's 1/3–1/3–1/3 split). Solid and other border styles are unchanged.
+
+- [#30](https://github.com/figitdesign/web-to-figma/pull/30) [`51b5821`](https://github.com/figitdesign/web-to-figma/commit/51b582107bf12cd01fd9a1bae309eb14a4f95edb) Thanks [@niko047](https://github.com/niko047)! - Render CSS `filter: drop-shadow()` as a Figma drop shadow. Previously only `filter: blur()` was handled, so `drop-shadow()` was dropped and the element rendered flat. Each `drop-shadow()` in the filter now maps to a `DROP_SHADOW` effect — parsed paren-aware so nested `rgba()`/`hsl()` colors survive — sharing the `text-shadow` parser since both are offset+blur+color shadows with no `inset` or spread. `blur()` handling is unchanged; color-matrix filters (`grayscale`/`brightness`/`contrast`) remain unsupported (no Figma equivalent).
+
+- [#24](https://github.com/figitdesign/web-to-figma/pull/24) [`87db0f2`](https://github.com/figitdesign/web-to-figma/commit/87db0f2a05865c6067b4a703efa8ccac02eeb004) Thanks [@niko047](https://github.com/niko047)! - Render per-side border colors instead of collapsing them to one. A Figma frame
+  carries a single stroke color, so a box with four different solid border colors
+  (`border-top-color` … `border-left-color`) previously painted the whole border
+  with the top color. When the visible sides are all `solid` but disagree on
+  color, the border is now decomposed into one filled VECTOR trapezoid per side —
+  reproducing CSS's 45° mitered corners exactly — and the frame's own stroke is
+  dropped. Uniform borders (and per-side widths with a shared color) keep the
+  single-stroke fast path, and dashed/dotted/double sides are left untouched.
+
+- [#25](https://github.com/figitdesign/web-to-figma/pull/25) [`ac830db`](https://github.com/figitdesign/web-to-figma/commit/ac830db5b89d2e8e7eede86f9419303988ae1938) Thanks [@niko047](https://github.com/niko047)! - Render pure-ring box-shadows (`0 0 0 <spread>`) as an OUTSIDE stroke. Figma does
+  not draw a zero-offset, zero-blur, positive-spread `DROP_SHADOW`, so a CSS ring
+  was disappearing. Such shadows now become an OUTSIDE frame stroke whose weight is
+  the spread and whose paint is the shadow color, so the ring follows the corner
+  radius and no longer changes the node size. Shadows with any blur or offset stay
+  `DROP_SHADOW`, and elements with a real CSS border keep their border stroke (the
+  ring falls back to the drop-shadow effect there).
+
+- [#23](https://github.com/figitdesign/web-to-figma/pull/23) [`051ba3b`](https://github.com/figitdesign/web-to-figma/commit/051ba3b9e73d4b0c8001c7f80953265ea683ca75) Thanks [@niko047](https://github.com/niko047)! - Fix the horizontal position of non-centered text. The width buffer that absorbs
+  browser/OpenType.js measurement differences was split evenly around the text box
+  (`x - widthBuffer / 2`), which assumed centered text and shifted every
+  left-aligned run half a buffer to the left of the browser position (and
+  right-aligned runs half a buffer right). The buffer now goes on the edge the
+  text grows away from — trailing for left, split for center, leading for right —
+  so the glyph origin lands where the browser put it. The box keeps its buffered
+  width (load-bearing: it stops Figma re-wrapping the fixed-width box). Confirmed
+  against Figma, which previously normalized our shifted boxes back on paste (a
+  tier-1 round-trip mismatch) and now round-trips them losslessly; on the local
+  corpus this clears every `geometry.x` text finding (e.g. `text-in-box` 28 → 14).
+
+- [#29](https://github.com/figitdesign/web-to-figma/pull/29) [`774a670`](https://github.com/figitdesign/web-to-figma/commit/774a670a99950fe7927e971816adaee6d792dd85) Thanks [@niko047](https://github.com/niko047)! - Render CSS `text-shadow` as a Figma text drop shadow. Text nodes previously dropped `text-shadow` entirely, so shadowed headings and labels rendered flat. Each comma-separated shadow now maps to a `DROP_SHADOW` effect on the TEXT node — reusing the box-shadow parser, since `text-shadow` shares its grammar but has no `inset` keyword or spread radius — matching how CSS paints the shadow behind the glyphs. Text without a shadow is unchanged.
+
 ## 0.2.0
 
 ### Minor Changes
