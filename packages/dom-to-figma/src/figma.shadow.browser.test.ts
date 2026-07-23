@@ -114,3 +114,29 @@ describe("pure-ring box-shadow → OUTSIDE stroke", () => {
     expect(dropShadows).toHaveLength(1);
   });
 });
+
+describe("filter: drop-shadow → DROP_SHADOW effect", () => {
+  it("maps a filter drop-shadow to a DROP_SHADOW on the frame", async () => {
+    const element = mountElement(
+      `<div style="width:${FRAME_WIDTH}px;height:${FRAME_HEIGHT}px;background:#fff;box-sizing:border-box;padding:30px">
+        <div style="width:140px;height:100px;background:#10b981;filter:drop-shadow(8px 8px 5px rgba(0,0,0,0.5))"></div>
+      </div>`
+    );
+
+    const changes = await convert(element);
+    const shadowed = frameByLocalID(changes, 4);
+    expect(shadowed).toBeDefined();
+
+    const dropShadows = (shadowed?.effects ?? []).filter(
+      (effect) => effect.type === "DROP_SHADOW"
+    );
+    expect(dropShadows).toHaveLength(1);
+    const shadow = dropShadows[0];
+    expect(shadow?.offset).toEqual({ x: 8, y: 8 });
+    expect(shadow?.radius).toBe(5);
+    if (shadow?.type === "DROP_SHADOW") {
+      // rgba(0,0,0,0.5): opaque black at 0.5 alpha.
+      expect(shadow.color.a).toBeCloseTo(0.5, 5);
+    }
+  });
+});

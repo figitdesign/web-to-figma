@@ -208,6 +208,11 @@ exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
     "width": 320,
   },
   {
+    "height": 180,
+    "id": "fx/fx-08-filter-drop-shadow",
+    "width": 240,
+  },
+  {
     "height": 160,
     "id": "fx/fx-12-opacity-vs-rgba",
     "width": 240,

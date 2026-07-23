@@ -55,12 +55,34 @@ export function cssBoxShadowToFigmaEffects(
 }
 
 /**
- * Parse a CSS `text-shadow` value into Figma DROP_SHADOW effects. `text-shadow`
- * shares the box-shadow grammar (`<offset-x> <offset-y> <blur>? <color>?`,
- * comma-separated) but has no `inset` keyword and no spread radius, so it reuses
- * the box-shadow parser and normalizes every result to an offset drop shadow
- * with zero spread. On a Figma TEXT node a DROP_SHADOW follows the glyph
- * outlines, matching how CSS paints `text-shadow` behind the text.
+ * Parse a comma-separated CSS shadow list (`<offset-x> <offset-y> <blur>?
+ * <color>?`) into Figma DROP_SHADOW effects. This is the shared core behind
+ * both `text-shadow` and `filter: drop-shadow()` — neither has an `inset`
+ * keyword or a spread radius, so it reuses the box-shadow parser for the
+ * grammar and normalizes every result to an offset drop shadow with zero
+ * spread.
+ *
+ * @param value - A CSS shadow list, e.g. a `text-shadow` value or the argument
+ *   of a `drop-shadow()` filter.
+ * @returns An array of Figma DROP_SHADOW effects.
+ */
+export function cssShadowListToDropShadows(value: string): Array<FigmaEffect> {
+  const effects: Array<FigmaEffect> = [];
+  for (const effect of cssBoxShadowToFigmaEffects(value)) {
+    // Box-shadow parsing only yields shadow effects; text-shadow and
+    // drop-shadow are never inset, so coerce to DROP_SHADOW and discard any
+    // spread they never have.
+    if (effect.type === "DROP_SHADOW" || effect.type === "INNER_SHADOW") {
+      effects.push({ ...effect, type: "DROP_SHADOW", spread: 0 });
+    }
+  }
+  return effects;
+}
+
+/**
+ * Parse a CSS `text-shadow` value into Figma DROP_SHADOW effects. On a Figma
+ * TEXT node a DROP_SHADOW follows the glyph outlines, matching how CSS paints
+ * `text-shadow` behind the text. See {@link cssShadowListToDropShadows}.
  *
  * @param textShadow - The CSS text-shadow value to parse.
  * @returns An array of Figma DROP_SHADOW effects.
@@ -68,15 +90,7 @@ export function cssBoxShadowToFigmaEffects(
 export function cssTextShadowToFigmaEffects(
   textShadow: string
 ): Array<FigmaEffect> {
-  const effects: Array<FigmaEffect> = [];
-  for (const effect of cssBoxShadowToFigmaEffects(textShadow)) {
-    // Box-shadow parsing only yields shadow effects; text-shadow is never
-    // inset, so coerce to DROP_SHADOW and discard any spread it never has.
-    if (effect.type === "DROP_SHADOW" || effect.type === "INNER_SHADOW") {
-      effects.push({ ...effect, type: "DROP_SHADOW", spread: 0 });
-    }
-  }
-  return effects;
+  return cssShadowListToDropShadows(textShadow);
 }
 
 /**

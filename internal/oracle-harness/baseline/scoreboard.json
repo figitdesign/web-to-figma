@@ -506,6 +506,12 @@
         "maxDeltaPx": 3
       }
     },
+    "fx/fx-08-filter-drop-shadow": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      }
+    },
     "fx/fx-12-opacity-vs-rgba": {
       "tier0": {
         "findings": 0,
