@@ -228,3 +228,59 @@ describe("text rendering with Inter", () => {
     expect(glyphs).toHaveLength("office affinity".length);
   });
 });
+
+describe("text-shadow → TEXT node DROP_SHADOW effect", () => {
+  it("attaches a drop shadow parsed from the computed text-shadow", async () => {
+    const element = mountElement(
+      `<div style="width:${FRAME_WIDTH}px;height:${FRAME_HEIGHT}px;font-family:'${TEST_FONT_FAMILY}',sans-serif;font-size:32px;font-weight:700;color:#1d4ed8;text-shadow:5px 5px 0 #f59e0b">Shadow</div>`
+    );
+
+    const figma = createFigmaConverter({ fontLoader: createTestFontLoader() });
+    const result = await figma.convert({
+      element,
+      width: FRAME_WIDTH,
+      height: FRAME_HEIGHT,
+    });
+
+    const textChange = result.document.nodeChanges.find(
+      (change) => change.type === "TEXT"
+    );
+    if (textChange?.type !== "TEXT") {
+      throw new Error("expected TEXT node");
+    }
+
+    const effects = textChange.effects ?? [];
+    expect(effects).toHaveLength(1);
+    const shadow = effects[0];
+    expect(shadow?.type).toBe("DROP_SHADOW");
+    expect(shadow?.offset).toEqual({ x: 5, y: 5 });
+    expect(shadow?.radius).toBe(0);
+    // #f59e0b in sRGB 0-1.
+    if (shadow?.type === "DROP_SHADOW") {
+      expect(shadow.color.r).toBeCloseTo(0.961, 2);
+      expect(shadow.color.g).toBeCloseTo(0.62, 2);
+      expect(shadow.color.b).toBeCloseTo(0.043, 2);
+    }
+  });
+
+  it("emits no effects field when the text has no shadow", async () => {
+    const element = mountElement(
+      `<div style="width:${FRAME_WIDTH}px;height:${FRAME_HEIGHT}px;font-family:'${TEST_FONT_FAMILY}',sans-serif;font-size:32px;color:#1d4ed8">Plain</div>`
+    );
+
+    const figma = createFigmaConverter({ fontLoader: createTestFontLoader() });
+    const result = await figma.convert({
+      element,
+      width: FRAME_WIDTH,
+      height: FRAME_HEIGHT,
+    });
+
+    const textChange = result.document.nodeChanges.find(
+      (change) => change.type === "TEXT"
+    );
+    if (textChange?.type !== "TEXT") {
+      throw new Error("expected TEXT node");
+    }
+    expect(textChange.effects ?? []).toHaveLength(0);
+  });
+});

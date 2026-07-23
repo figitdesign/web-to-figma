@@ -4,6 +4,7 @@ import type { FontCache } from "../../font-cache";
 import { createSolidPaint, cssColorToFigmaColor } from "../../styles/color";
 import { cssBackgroundToFigmaPaints } from "../../styles/gradient";
 import { parseOpacity } from "../../styles/opacity";
+import { cssTextShadowToFigmaEffects } from "../../styles/shadow";
 import type {
   FigmaBlob,
   FigmaGuid,
@@ -164,6 +165,9 @@ export async function nodeToTextNodeChange(
   const textAlign =
     cssToFigmaTextAlignHorizontalMap[computedStyle.textAlign] ?? "LEFT";
   const color = cssColorToFigmaColor(computedStyle.color);
+  const textShadowEffects = cssTextShadowToFigmaEffects(
+    computedStyle.textShadow
+  );
 
   // Check for gradient backgrounds in text (for gradient text effects)
   const backgroundImage =
@@ -468,6 +472,9 @@ export async function nodeToTextNodeChange(
     name: text,
     visible: true,
     opacity: parseOpacity(computedStyle.opacity),
+
+    /* Effects */
+    ...(textShadowEffects.length > 0 && { effects: textShadowEffects }),
 
     /* Size and Position */
     size: {

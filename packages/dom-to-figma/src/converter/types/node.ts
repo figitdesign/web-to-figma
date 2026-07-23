@@ -83,6 +83,7 @@ export type FigmaTextNodeChange = FigmaBaseNodeChange & {
   strokeCap?: string;
   strokeJoin?: string;
   fillPaints?: Array<FigmaPaint>;
+  effects?: Array<FigmaEffect>;
   targetAspectRatio?: {
     value: {
       x: number;
