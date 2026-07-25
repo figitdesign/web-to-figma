@@ -10,6 +10,10 @@ import {
 import type { BorderProperties, DoubleBorderSpec } from "../../styles/border";
 import { parseBorderFromComputedStyle } from "../../styles/border";
 import { createSolidPaint, cssColorToFigmaColor } from "../../styles/color";
+import {
+  applyCssColorMatrixFilters,
+  hasColorMatrixFilter,
+} from "../../styles/filter-color";
 import { cssBackgroundToFigmaPaints } from "../../styles/gradient";
 import { parseOpacity } from "../../styles/opacity";
 import {
@@ -425,11 +429,23 @@ export function elementToFrameNodeChange(
   const fillPaints: Array<FigmaPaint> = [];
   let textGradient: Array<FigmaPaint> | undefined;
 
-  // Add background-color first (bottom layer)
+  // Add background-color first (bottom layer). CSS color-matrix filters
+  // (grayscale/brightness/contrast/…) have no Figma effect, so bake them into
+  // the fill — but only when the element's whole appearance IS that one solid
+  // fill (a leaf with no children/text/background-image/border). A filter also
+  // recolors content Figma paints separately (children, images, borders), so a
+  // partial bake would be wrong; there, leaving it unfiltered is safer.
   if (backgroundColor) {
-    fillPaints.push(
-      createSolidPaint(backgroundColor.color, backgroundColor.opacity)
-    );
+    const canBakeFilter =
+      element.childElementCount === 0 &&
+      !element.textContent?.trim() &&
+      (!backgroundImage || backgroundImage === "none") &&
+      borderProperties.strokePaints.length === 0 &&
+      hasColorMatrixFilter(filter);
+    const fillColor = canBakeFilter
+      ? applyCssColorMatrixFilters(backgroundColor.color, filter)
+      : backgroundColor.color;
+    fillPaints.push(createSolidPaint(fillColor, backgroundColor.opacity));
   }
 
   // Add background-image on top (top layer)
