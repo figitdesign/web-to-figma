@@ -414,7 +414,7 @@
         "maxDeltaPx": 0
       },
       "tier2": {
-        "diffRatio": 0.011064814814814816
+        "diffRatio": 0.005983796296296296
       }
     },
     "05-exotic/gradients-effects": {
@@ -570,7 +570,7 @@
         "maxDeltaPx": 0
       },
       "tier2": {
-        "diffRatio": 0.037395833333333336
+        "diffRatio": 0.01765625
       }
     },
     "bord/bord-07-double": {
