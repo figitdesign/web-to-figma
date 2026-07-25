@@ -184,7 +184,42 @@ exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
   },
   {
     "height": 160,
+    "id": "bg/bg-02-linear-two-stop",
+    "width": 240,
+  },
+  {
+    "height": 160,
+    "id": "bg/bg-03-linear-angle",
+    "width": 240,
+  },
+  {
+    "height": 160,
+    "id": "bg/bg-06-radial",
+    "width": 240,
+  },
+  {
+    "height": 160,
+    "id": "bord/bord-01-solid-uniform",
+    "width": 240,
+  },
+  {
+    "height": 160,
+    "id": "bord/bord-02-per-side-width",
+    "width": 240,
+  },
+  {
+    "height": 160,
     "id": "bord/bord-03-per-side-color",
+    "width": 240,
+  },
+  {
+    "height": 160,
+    "id": "bord/bord-05-dashed",
+    "width": 240,
+  },
+  {
+    "height": 160,
+    "id": "bord/bord-06-dotted",
     "width": 240,
   },
   {
@@ -194,7 +229,17 @@ exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
   },
   {
     "height": 160,
+    "id": "box/box-01-box-sizing",
+    "width": 300,
+  },
+  {
+    "height": 160,
     "id": "clip/clip-01-overflow-hidden",
+    "width": 240,
+  },
+  {
+    "height": 180,
+    "id": "fx/fx-01-box-shadow",
     "width": 240,
   },
   {
@@ -219,7 +264,17 @@ exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
   },
   {
     "height": 160,
+    "id": "grid/grid-01-template-columns",
+    "width": 240,
+  },
+  {
+    "height": 160,
     "id": "img/img-01-raster",
+    "width": 240,
+  },
+  {
+    "height": 160,
+    "id": "img/img-02-object-fit",
     "width": 240,
   },
   {
@@ -229,12 +284,37 @@ exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
   },
   {
     "height": 160,
+    "id": "rad/rad-01-uniform",
+    "width": 240,
+  },
+  {
+    "height": 160,
     "id": "rad/rad-02-per-corner",
     "width": 240,
   },
   {
     "height": 160,
+    "id": "rad/rad-04-percent-circle",
+    "width": 240,
+  },
+  {
+    "height": 160,
     "id": "svg/svg-01-shapes",
+    "width": 240,
+  },
+  {
+    "height": 160,
+    "id": "svg/svg-02-path-fill",
+    "width": 240,
+  },
+  {
+    "height": 160,
+    "id": "xfrm/xfrm-02-scale",
+    "width": 240,
+  },
+  {
+    "height": 160,
+    "id": "xfrm/xfrm-04-translate",
     "width": 240,
   },
 ]

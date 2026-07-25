@@ -414,7 +414,7 @@
         "maxDeltaPx": 0
       },
       "tier2": {
-        "diffRatio": 0.01579861111111111
+        "diffRatio": 0.011064814814814816
       }
     },
     "05-exotic/gradients-effects": {
@@ -427,7 +427,7 @@
         "maxDeltaPx": 0
       },
       "tier2": {
-        "diffRatio": 0.2646412037037037
+        "diffRatio": 0.09351851851851851
       }
     },
     "05-exotic/rotated": {
@@ -453,7 +453,7 @@
         "maxDeltaPx": 0
       },
       "tier2": {
-        "diffRatio": 0.03497685185185185
+        "diffRatio": 0.037731481481481484
       }
     },
     "05-exotic/weird-shapes": {
@@ -469,13 +469,124 @@
         "diffRatio": 0.07180555555555555
       }
     },
+    "bg/bg-02-linear-two-stop": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
+    "bg/bg-03-linear-angle": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
+    "bg/bg-06-radial": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
+    "bord/bord-01-solid-uniform": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
+    "bord/bord-02-per-side-width": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
     "bord/bord-03-per-side-color": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
+    "bord/bord-05-dashed": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0.02
+      }
+    },
+    "bord/bord-06-dotted": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0.037395833333333336
       }
     },
     "bord/bord-07-double": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
+    "box/box-01-box-sizing": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
@@ -492,54 +603,221 @@
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
+    "fx/fx-01-box-shadow": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "fx/fx-04-shadow-spread": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "fx/fx-06-text-shadow": {
       "tier0": {
         "findings": 1,
         "maxDeltaPx": 3
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0.027994791666666668
       }
     },
     "fx/fx-08-filter-drop-shadow": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0.0017824074074074075
       }
     },
     "fx/fx-12-opacity-vs-rgba": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
+    "grid/grid-01-template-columns": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "img/img-01-raster": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
+    "img/img-02-object-fit": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "pos/pos-03-z-index": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
+    "rad/rad-01-uniform": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "rad/rad-02-per-corner": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
+    "rad/rad-04-percent-circle": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0.014453125
       }
     },
     "svg/svg-01-shapes": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
+    "svg/svg-02-path-fill": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
+    "xfrm/xfrm-02-scale": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
+    "xfrm/xfrm-04-translate": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     }
   }
