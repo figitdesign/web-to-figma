@@ -37,6 +37,10 @@ export type BorderProperties = {
   rectangleBottomLeftCornerRadius?: number;
   rectangleBottomRightCornerRadius?: number;
   rectangleCornerRadiiIndependent?: boolean;
+  /** `[dash, gap]` in px for a uniform CSS `dashed` or `dotted` border. */
+  dashPattern?: Array<number>;
+  /** `"ROUND"` for a dotted border, so each dash renders as a round dot. */
+  strokeCap?: string;
   /** Present only for a uniform CSS `double` border. Not a Figma node field —
    * the frame converter consumes it and must not spread it onto a node. */
   doubleBorder?: DoubleBorderSpec;
@@ -71,6 +75,45 @@ function parseUniformDoubleBorder(
     return;
   }
   return { inset: width - lineWeight, lineWeight, strokePaints };
+}
+
+/**
+ * The `[dash, gap]` pattern for a uniform CSS `dotted` border — dots of the
+ * border width separated by an equal gap, measured off Chrome's own raster.
+ *
+ * Figma carries a single dash pattern per node, so this only fires when all
+ * four sides agree; mixed styles keep the existing solid stroke rather than
+ * imposing one side's pattern on the rest.
+ *
+ * `dashed` is deliberately left solid. Chrome fits a whole number of dashes to
+ * each side, nudging their length so a dash lands in both corners (a 6px border
+ * measures 12px dashes with an occasional 11px to make the side come out even).
+ * Figma instead runs one pattern continuously around the path, so the dashes
+ * drift out of phase and land in the browser's gaps — measured at 3.69% against
+ * the 2.00% of simply drawing the border solid. Matching it needs the dashes
+ * fitted per side, as `border-decomposition.ts` does for per-side colours.
+ */
+function parseUniformDashPattern(
+  computedStyle: CSSStyleDeclaration,
+  width: number
+): { dashPattern: Array<number>; strokeCap?: string } | undefined {
+  if (width <= 0) {
+    return;
+  }
+  const styles = [
+    computedStyle.borderTopStyle,
+    computedStyle.borderRightStyle,
+    computedStyle.borderBottomStyle,
+    computedStyle.borderLeftStyle,
+  ];
+  const style = styles[0];
+  if (!(style && styles.every((s) => s === style))) {
+    return;
+  }
+  if (style === "dotted") {
+    return { dashPattern: [width, width] };
+  }
+  return;
 }
 
 // `squircle` ≡ `superellipse(4)` ≈ Figma's iOS smoothing (0.6).
@@ -246,11 +289,17 @@ export function parseBorderFromComputedStyle(
     borderRadiusTopLeft !== borderRadiusBottomLeft ||
     borderRadiusTopLeft !== borderRadiusBottomRight;
 
+  const dashes = parseUniformDashPattern(computedStyle, maxBorderWidth);
+
   const borderProps: BorderProperties = {
     strokeWeight,
     strokePaints,
     cornerRadius: hasIndependentCorners ? undefined : borderRadiusTopLeft,
     ...(cornerSmoothing !== undefined && { cornerSmoothing }),
+    ...(dashes && {
+      dashPattern: dashes.dashPattern,
+      ...(dashes.strokeCap && { strokeCap: dashes.strokeCap }),
+    }),
     ...(doubleBorder && { doubleBorder }),
   };
 
