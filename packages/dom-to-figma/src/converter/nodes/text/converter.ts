@@ -184,7 +184,10 @@ export async function nodeToTextNodeChange(
   }
   // Check for gradients first. Only apply gradient if the color is transparent (that's how text gradient works in CSS)
   else if (backgroundImage && backgroundImage !== "none" && color === null) {
-    const gradientPaints = cssBackgroundToFigmaPaints(backgroundImage);
+    const gradientPaints = cssBackgroundToFigmaPaints(backgroundImage, {
+      width: baseWidth,
+      height: baseHeight,
+    });
     fillPaints.push(...gradientPaints);
   }
   // Add solid color if present and no gradients found

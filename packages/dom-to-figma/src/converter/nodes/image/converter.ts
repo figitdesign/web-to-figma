@@ -19,6 +19,27 @@ type Params = {
   imageCache: ImageCache;
 };
 
+/**
+ * Maps CSS `object-fit` onto Figma's image scale modes. CSS defaults to `fill`
+ * (stretch to the box, ignoring aspect ratio), which is Figma's `STRETCH` — not
+ * `FILL`, which is Figma's name for the cover behaviour.
+ *
+ * `none` and `scale-down` have no Figma equivalent; `FIT` is the closest, since
+ * it at least preserves the image's aspect ratio.
+ */
+function objectFitToScaleMode(objectFit: string): "FILL" | "FIT" | "STRETCH" {
+  switch (objectFit.trim()) {
+    case "cover":
+      return "FILL";
+    case "contain":
+    case "none":
+    case "scale-down":
+      return "FIT";
+    default:
+      return "STRETCH";
+  }
+}
+
 export async function elementToImageNodeChange(
   element: HTMLImageElement,
   options: Params
@@ -100,7 +121,7 @@ export async function elementToImageNodeChange(
         //   hash: [],
         //   name: "image",
         // },
-        imageScaleMode: "FILL",
+        imageScaleMode: objectFitToScaleMode(computedStyle.objectFit),
         // animationFrame: 0,
         // imageShouldColorManage: true,
         // rotation: 0.0,

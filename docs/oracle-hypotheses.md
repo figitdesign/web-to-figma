@@ -22,13 +22,13 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 ---
 
 ## Borders (BORD)
-- BORD-01 [P0 T2] solid border, all sides equal
-- BORD-02 [P0 T2] per-side different widths
-- BORD-03 [P0 T2] per-side different colors
+- BORD-01 [P0 T2] solid border, all sides equal · scene: `bord/bord-01-solid-uniform`
+- BORD-02 [P0 T2] per-side different widths · scene: `bord/bord-02-per-side-width`
+- BORD-03 [P0 T2] per-side different colors · scene: `bord/bord-03-per-side-color`
 - BORD-04 [P1 T2] per-side different styles (solid top, dashed right, …)
-- BORD-05 [P0 T2] dashed border
-- BORD-06 [P0 T2] dotted border
-- BORD-07 [P1 T2] double border
+- BORD-05 [P0 T2] dashed border · scene: `bord/bord-05-dashed`
+- BORD-06 [P0 T2] dotted border · scene: `bord/bord-06-dotted`
+- BORD-07 [P1 T2] double border · scene: `bord/bord-07-double`
 - BORD-08 [P2 T2] groove / ridge / inset / outset (3D styles)
 - BORD-09 [P1 T2] dashed **+ border-radius** (curved dashes — notoriously hard)
 - BORD-10 [P1 T2] dotted + border-radius
@@ -40,10 +40,10 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 - BORD-16 [P2 T2] outline (vs border) + outline-offset
 
 ## Border radius & shape (RAD)
-- RAD-01 [P0 T2] uniform radius
+- RAD-01 [P0 T2] uniform radius · scene: `rad/rad-01-uniform`
 - RAD-02 [P0 T2] four different per-corner radii · scene: `rad/rad-02-per-corner`
 - RAD-03 [P1 T2] elliptical radius (`20px / 40px`)
-- RAD-04 [P0 T2] percentage radius 50% → circle
+- RAD-04 [P0 T2] percentage radius 50% → circle · scene: `rad/rad-04-percent-circle`
 - RAD-05 [P1 T2] 50% on a non-square box → ellipse
 - RAD-06 [P1 T2] radius larger than half (clamping)
 - RAD-07 [P1 T2] pill shape (radius = height/2)
@@ -51,11 +51,11 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 
 ## Backgrounds & gradients (BG)
 - BG-01 [P0 T2] solid background color
-- BG-02 [P0 T2] linear-gradient, 2 stops
-- BG-03 [P0 T2] linear-gradient with angle
+- BG-02 [P0 T2] linear-gradient, 2 stops · scene: `bg/bg-02-linear-two-stop`
+- BG-03 [P0 T2] linear-gradient with angle · scene: `bg/bg-03-linear-angle`
 - BG-04 [P1 T2] linear-gradient, many stops
 - BG-05 [P1 T2] gradient with hard color stops (stripes)
-- BG-06 [P0 T2] radial-gradient
+- BG-06 [P0 T2] radial-gradient · scene: `bg/bg-06-radial`
 - BG-07 [P1 T2] radial-gradient positioned + sized
 - BG-08 [P2 T2] conic-gradient
 - BG-09 [P2 T2] repeating-linear / repeating-radial
@@ -68,14 +68,14 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 - BG-16 [P1 T2] gradient + border-radius together
 
 ## Shadows & effects (FX)
-- FX-01 [P0 T2] box-shadow, single
+- FX-01 [P0 T2] box-shadow, single · scene: `fx/fx-01-box-shadow`
 - FX-02 [P1 T2] box-shadow inset
 - FX-03 [P1 T2] multiple box-shadows
-- FX-04 [P1 T2] box-shadow with spread
+- FX-04 [P1 T2] box-shadow with spread · scene: `fx/fx-04-shadow-spread`
 - FX-05 [P1 T2] colored / rgba shadow
-- FX-06 [P1 T2] text-shadow
+- FX-06 [P1 T2] text-shadow · scene: `fx/fx-06-text-shadow`
 - FX-07 [P2 T2] filter: blur
-- FX-08 [P2 T2] filter: drop-shadow
+- FX-08 [P2 T2] filter: drop-shadow · scene: `fx/fx-08-filter-drop-shadow`
 - FX-09 [P2 T2] filter: brightness / contrast / grayscale
 - FX-10 [P2 T2] backdrop-filter
 - FX-11 [P2 T2] mix-blend-mode
@@ -84,7 +84,7 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 
 ## SVG (SVG)
 - SVG-01 [P0 T2] inline SVG rect / circle · scene: `svg/svg-01-shapes`
-- SVG-02 [P0 T2] SVG path fill
+- SVG-02 [P0 T2] SVG path fill · scene: `svg/svg-02-path-fill`
 - SVG-03 [P1 T2] SVG stroke (width, color)
 - SVG-04 [P1 T2] SVG stroke-dasharray (dashed vector)
 - SVG-05 [P1 T2] stroke-linecap / linejoin
@@ -122,7 +122,7 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 
 ## Images (IMG)
 - IMG-01 [P0 T2] raster `<img>` · scene: `img/img-01-raster`
-- IMG-02 [P0 T2] object-fit cover / contain / fill
+- IMG-02 [P0 T2] object-fit cover / contain / fill · scene: `img/img-02-object-fit`
 - IMG-03 [P1 T2] object-position
 - IMG-04 [P1 T2] img + border-radius
 - IMG-05 [P2 T2] aspect-ratio box
@@ -131,9 +131,9 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 
 ## Transforms (XFRM)  *(rotate already fixed)*
 - XFRM-01 [P0 T0] rotate
-- XFRM-02 [P0 T0] scale
+- XFRM-02 [P0 T0] scale · scene: `xfrm/xfrm-02-scale`
 - XFRM-03 [P1 T0] skew
-- XFRM-04 [P0 T0] translate
+- XFRM-04 [P0 T0] translate · scene: `xfrm/xfrm-04-translate`
 - XFRM-05 [P1 T0] combined translate+rotate+scale
 - XFRM-06 [P1 T0] transform-origin variations
 - XFRM-07 [P2 T2] 3D transform (rotateX/Y, perspective)
@@ -151,7 +151,7 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 - FLEX-09 [P1 T0] min/max width interaction
 
 ## Grid layout (GRID)
-- GRID-01 [P0 T0] template columns / rows
+- GRID-01 [P0 T0] template columns / rows · scene: `grid/grid-01-template-columns`
 - GRID-02 [P0 T0] gap
 - GRID-03 [P1 T0] column/row span
 - GRID-04 [P1 T0] auto-fit / auto-fill minmax
@@ -175,7 +175,7 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 - CLIP-05 [P1 T2] rounded clip (radius + overflow hidden)
 
 ## Box model & sizing (BOX)
-- BOX-01 [P0 T0] box-sizing border-box vs content-box
+- BOX-01 [P0 T0] box-sizing border-box vs content-box · scene: `box/box-01-box-sizing`
 - BOX-02 [P0 T0] padding
 - BOX-03 [P1 T0] margin collapse
 - BOX-04 [P1 T0] min/max width & height

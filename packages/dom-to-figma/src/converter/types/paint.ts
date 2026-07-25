@@ -14,12 +14,19 @@ type FigmaSolidPaint = FigmaBasePaint & {
   color: FigmaColor;
 };
 
+type FigmaGradientStop = {
+  color: FigmaColor;
+  position: number;
+};
+
 type FigmaGradientLinearPaint = FigmaBasePaint & {
   type: "GRADIENT_LINEAR";
-  stops: Array<{
-    color: FigmaColor;
-    position: number;
-  }>;
+  stops: Array<FigmaGradientStop>;
+};
+
+type FigmaGradientRadialPaint = FigmaBasePaint & {
+  type: "GRADIENT_RADIAL";
+  stops: Array<FigmaGradientStop>;
 };
 
 type FigmaImagePaint = FigmaBasePaint & {
@@ -47,4 +54,5 @@ type FigmaImagePaint = FigmaBasePaint & {
 export type FigmaPaint =
   | FigmaSolidPaint
   | FigmaImagePaint
-  | FigmaGradientLinearPaint;
+  | FigmaGradientLinearPaint
+  | FigmaGradientRadialPaint;
