@@ -1,5 +1,22 @@
 # @figit/dom-to-figma
 
+## 0.2.2
+
+### Patch Changes
+
+- [#31](https://github.com/figitdesign/web-to-figma/pull/31) [`810c2aa`](https://github.com/figitdesign/web-to-figma/commit/810c2aaf947fc6ef7fcb9de6bd95fae38b1469f7) Thanks [@niko047](https://github.com/niko047)! - Bake CSS color-matrix filters (`grayscale`/`brightness`/`contrast`/`invert`/`sepia`/`saturate`) into the Figma fill color. Figma has no color-filter effect, so these were dropped and solid elements rendered in their original, unfiltered color. They are now pre-computed into the fill when the element's whole appearance is that one solid fill — a leaf with no children, text, background-image, or border — the case that is exactly representable. Containers, images, gradients, and text with color filters stay unfiltered (they'd need the filter applied across the subtree, which Figma can't express); `hue-rotate`/`opacity` are not baked. `blur`/`drop-shadow` filters are unaffected — they remain Figma effects.
+
+- [#32](https://github.com/figitdesign/web-to-figma/pull/32) [`cc8d486`](https://github.com/figitdesign/web-to-figma/commit/cc8d4864e6be53d0d5047fbf97283b112b3117f4) Thanks [@niko047](https://github.com/niko047)! - Render CSS radial gradients, angled linear gradients, and `object-fit` faithfully.
+
+  - `radial-gradient(…)` produced no paint at all, leaving the element blank. It now
+    converts to a Figma radial paint.
+  - Angled linear gradients were mirrored: the transform's horizontal term carried
+    the wrong sign, which cancelled out at 0deg/180deg and so went unnoticed. The
+    gradient line is now also scaled to the element's box, so the end stops land on
+    the same corners the browser uses.
+  - `object-fit` was ignored and every image was pasted with Figma's `FILL` (cover).
+    `fill`, `cover`, and `contain` now map to `STRETCH`, `FILL`, and `FIT`.
+
 ## 0.2.1
 
 ### Patch Changes
