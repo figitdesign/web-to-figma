@@ -1,6 +1,11 @@
 import { Buffer } from "node:buffer";
 import { describe, expect, it } from "vitest";
-import { classifyStorageState, fileUrl, resolveSessionConfig } from "./session";
+import {
+  classifyStorageState,
+  fileUrl,
+  isAnonymousViewer,
+  resolveSessionConfig,
+} from "./session";
 
 const STATE_JSON = '{"cookies":[],"origins":[]}';
 
@@ -83,5 +88,35 @@ describe("resolveSessionConfig()", () => {
 describe("fileUrl()", () => {
   it("builds a /design/ url from the file key", () => {
     expect(fileUrl("abc123")).toBe("https://www.figma.com/design/abc123");
+  });
+});
+
+describe("isAnonymousViewer()", () => {
+  // Text sampled from a real expired-session run: the file still rendered a
+  // canvas, which is why the old canvas-only check passed.
+  it("detects the signed-out sign-up banner", () => {
+    expect(
+      isAnonymousViewer(
+        "proj Share View only Sign up to comment, edit, inspect and more. Sign up"
+      )
+    ).toBe(true);
+  });
+
+  it("detects a bare view-only badge", () => {
+    expect(isAnonymousViewer("proj\nView only\n100%")).toBe(true);
+  });
+
+  it("accepts editor chrome", () => {
+    expect(
+      isAnonymousViewer("Layers Assets Design Prototype Page 1 100%")
+    ).toBe(false);
+  });
+
+  it("does not fire on unrelated text containing the words", () => {
+    expect(isAnonymousViewer("Overview onlyfans reviewer")).toBe(false);
+  });
+
+  it("treats empty text as not-anonymous so a scrape failure is not a false alarm", () => {
+    expect(isAnonymousViewer("")).toBe(false);
   });
 });
