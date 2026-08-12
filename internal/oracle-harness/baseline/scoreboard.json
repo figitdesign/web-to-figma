@@ -469,6 +469,19 @@
         "diffRatio": 0.07180555555555555
       }
     },
+    "bg/bg-01-solid-color": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
     "bg/bg-02-linear-two-stop": {
       "tier0": {
         "findings": 0,
