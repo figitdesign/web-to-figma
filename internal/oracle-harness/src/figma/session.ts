@@ -119,11 +119,31 @@ export function newFigmaContext(
 }
 
 const DEFAULT_TIMEOUT_MS = 60_000;
+// The anonymous banner mounts after the canvas, so sampling the text the
+// instant a canvas appears reads an editor that isn't there yet.
+const VIEWER_SETTLE_MS = 6000;
 
 export type ValidationResult = { ok: boolean; reason?: string };
 
-/** Open the scratch file with the stored session and confirm the editor loads.
- * A logged-in editor renders a `<canvas>`; login/marketing pages do not. */
+/**
+ * Whether Figma served the signed-out viewer rather than the editor.
+ *
+ * A `<canvas>` proves nothing on its own: the scratch file is publicly
+ * viewable, so an expired session still renders one and the old canvas-only
+ * check passed. That is not a cosmetic gap — with no edit rights `pastePayload`
+ * and `copyBack` both become no-ops, so tier-1 reads back the payload it just
+ * wrote to the clipboard and reports zero findings. A dead session therefore
+ * looked like perfect parity instead of an error.
+ */
+export function isAnonymousViewer(pageText: string): boolean {
+  return (
+    /sign up to comment/i.test(pageText) ||
+    /(^|\W)view only(\W|$)/i.test(pageText)
+  );
+}
+
+/** Open the scratch file with the stored session and confirm an *editable*
+ * editor loads — a canvas plus the absence of the signed-out viewer. */
 export async function validateSession(
   config: SessionConfig,
   timeoutMs: number = DEFAULT_TIMEOUT_MS
@@ -138,7 +158,6 @@ export async function validateSession(
     });
     try {
       await page.waitForSelector("canvas", { timeout: timeoutMs });
-      return { ok: true };
     } catch {
       return {
         ok: false,
@@ -147,6 +166,16 @@ export async function validateSession(
           : "editor canvas did not load within timeout",
       };
     }
+    await page.waitForTimeout(VIEWER_SETTLE_MS);
+    const pageText = await page.evaluate(() => document.body.innerText ?? "");
+    if (isAnonymousViewer(pageText)) {
+      return {
+        ok: false,
+        reason:
+          "signed out — Figma served the anonymous viewer, not the editor; re-run `cli figma login`",
+      };
+    }
+    return { ok: true };
   } finally {
     await browser.close();
   }
