@@ -50,7 +50,7 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 - RAD-08 [P1 T2] radius + overflow:hidden clipping a child
 
 ## Backgrounds & gradients (BG)
-- BG-01 [P0 T2] solid background color
+- BG-01 [P0 T2] solid background color · scene: `bg/bg-01-solid-color`
 - BG-02 [P0 T2] linear-gradient, 2 stops · scene: `bg/bg-02-linear-two-stop`
 - BG-03 [P0 T2] linear-gradient with angle · scene: `bg/bg-03-linear-angle`
 - BG-04 [P1 T2] linear-gradient, many stops
