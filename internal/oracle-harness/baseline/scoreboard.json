@@ -625,6 +625,19 @@
         "diffRatio": 0
       }
     },
+    "col/col-01-rgba": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
     "fx/fx-01-box-shadow": {
       "tier0": {
         "findings": 0,

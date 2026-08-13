@@ -185,7 +185,7 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 - BOX-08 [P2 T0] fit-content / min-content / max-content
 
 ## Color & opacity (COL)
-- COL-01 [P0 T2] rgba
+- COL-01 [P0 T2] rgba · scene: `col/col-01-rgba`
 - COL-02 [P1 T2] hsl / hsla
 - COL-03 [P1 T2] hex 3 / 6 / 8 digit
 - COL-04 [P1 T2] currentColor

@@ -243,6 +243,11 @@ exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
     "width": 240,
   },
   {
+    "height": 160,
+    "id": "col/col-01-rgba",
+    "width": 240,
+  },
+  {
     "height": 180,
     "id": "fx/fx-01-box-shadow",
     "width": 240,
