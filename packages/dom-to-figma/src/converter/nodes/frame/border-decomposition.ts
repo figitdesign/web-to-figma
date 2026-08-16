@@ -1,3 +1,5 @@
+import type { Border3dStyle } from "../../styles/border-3d";
+import { border3dSideColor, isBorder3dStyle } from "../../styles/border-3d";
 import { createSolidPaint, cssColorToFigmaColor } from "../../styles/color";
 import type { FigmaBlob, FigmaGuid, FigmaVectorNodeChange } from "../../types";
 import { svgPathToVectorNetworkWithScaling } from "../vector/vector-networks";
@@ -12,6 +14,11 @@ import { vectorNetworkToBytes } from "../vector/vector-networks/encoder";
  * own filled VECTOR trapezoid — matching CSS's 45° mitered corners exactly — so
  * red/green/blue/orange edges survive the round-trip instead of collapsing to
  * the top color. Uniform borders keep the single-stroke fast path.
+ *
+ * The same trapezoids also carry the 3D styles (`groove`/`ridge`/`inset`/
+ * `outset`): those are uniform in the declared color but *painted* with a
+ * per-side shade, and `groove`/`ridge` additionally split each side in half.
+ * See `styles/border-3d.ts` for the shading; here we only cut the bands.
  */
 
 type SideKey = "top" | "right" | "bottom" | "left";
@@ -78,6 +85,27 @@ function borderSidesRequireDecomposition(sides: BorderSides): boolean {
   return visible.some((side) => side.color !== first.color);
 }
 
+/**
+ * The 3D style shared by every visible side, or `undefined` when the border is
+ * not a uniform 3D one. Mixed styles and mixed colors keep the existing
+ * behavior: shading is only well-defined relative to a single declared color,
+ * and a per-side mix of 3D and flat styles is BORD-04's problem, not this one.
+ */
+function uniformBorder3dStyle(sides: BorderSides): Border3dStyle | undefined {
+  const visible = SIDE_KEYS.map((key) => sides[key]).filter((s) => s.width > 0);
+  const first = visible[0];
+  if (visible.length < 2 || !first || !isBorder3dStyle(first.style)) {
+    return;
+  }
+  const style = first.style;
+  if (
+    !visible.every((side) => side.style === style && side.color === first.color)
+  ) {
+    return;
+  }
+  return style;
+}
+
 function hasCornerRadius(style: CSSStyleDeclaration): boolean {
   const radii = [
     "border-top-left-radius",
@@ -91,69 +119,133 @@ function hasCornerRadius(style: CSSStyleDeclaration): boolean {
 }
 
 /**
- * The four CSS border trapezoids for a `width`×`height` border-box (INSIDE
- * stroke). Each side runs from its outer edge to the inner content edge; the
- * shared corner vertices `(l, t)`, `(width - r, t)`, … give the 45° miters.
- * Sides with zero width are omitted.
+ * The CSS border trapezoids for a `width`×`height` border-box (INSIDE stroke),
+ * for the band between two proportional depths through the border.
+ *
+ * `from`/`to` are fractions of each side's own width, so `0 → 1` is the whole
+ * border (the plain per-side-color case) and `0 → 0.5` / `0.5 → 1` are the
+ * outer and inner halves a `groove`/`ridge` bevel needs. Each quad spans its
+ * side's slice of the band, and the corner vertices are taken at the band's own
+ * depths — which keeps CSS's 45° miters at every depth, including between the
+ * two halves. Sides with zero width are omitted.
  */
+function bandQuads(params: {
+  sides: BorderSides;
+  width: number;
+  height: number;
+  from: number;
+  to: number;
+  colorFor: (side: SideKey) => string;
+}): Array<SideQuad> {
+  const { sides, width, height, from, to, colorFor } = params;
+  // Corner miters at the band's outer depth (`f`) and inner depth (`n`).
+  const tf = sides.top.width * from;
+  const rf = sides.right.width * from;
+  const bf = sides.bottom.width * from;
+  const lf = sides.left.width * from;
+  const tn = sides.top.width * to;
+  const rn = sides.right.width * to;
+  const bn = sides.bottom.width * to;
+  const ln = sides.left.width * to;
+
+  const quads: Array<SideQuad> = [];
+  if (sides.top.width > 0) {
+    quads.push({
+      color: colorFor("top"),
+      points: [
+        [lf, tf],
+        [width - rf, tf],
+        [width - rn, tn],
+        [ln, tn],
+      ],
+    });
+  }
+  if (sides.right.width > 0) {
+    quads.push({
+      color: colorFor("right"),
+      points: [
+        [width - rf, tf],
+        [width - rf, height - bf],
+        [width - rn, height - bn],
+        [width - rn, tn],
+      ],
+    });
+  }
+  if (sides.bottom.width > 0) {
+    quads.push({
+      color: colorFor("bottom"),
+      points: [
+        [ln, height - bn],
+        [width - rn, height - bn],
+        [width - rf, height - bf],
+        [lf, height - bf],
+      ],
+    });
+  }
+  if (sides.left.width > 0) {
+    quads.push({
+      color: colorFor("left"),
+      points: [
+        [lf, tf],
+        [ln, tn],
+        [ln, height - bn],
+        [lf, height - bf],
+      ],
+    });
+  }
+  return quads;
+}
+
+/** The whole border, one trapezoid per side, each in its declared color. */
 function sideQuads(
   sides: BorderSides,
   width: number,
   height: number
 ): Array<SideQuad> {
-  const t = sides.top.width;
-  const r = sides.right.width;
-  const b = sides.bottom.width;
-  const l = sides.left.width;
-  const innerRight = width - r;
-  const innerBottom = height - b;
+  return bandQuads({
+    sides,
+    width,
+    height,
+    from: 0,
+    to: 1,
+    colorFor: (side) => sides[side].color,
+  });
+}
 
-  const quads: Array<SideQuad> = [];
-  if (t > 0) {
-    quads.push({
-      color: sides.top.color,
-      points: [
-        [0, 0],
-        [width, 0],
-        [innerRight, t],
-        [l, t],
-      ],
-    });
-  }
-  if (r > 0) {
-    quads.push({
-      color: sides.right.color,
-      points: [
-        [width, 0],
-        [width, height],
-        [innerRight, innerBottom],
-        [innerRight, t],
-      ],
-    });
-  }
-  if (b > 0) {
-    quads.push({
-      color: sides.bottom.color,
-      points: [
-        [l, innerBottom],
-        [innerRight, innerBottom],
-        [width, height],
-        [0, height],
-      ],
-    });
-  }
-  if (l > 0) {
-    quads.push({
-      color: sides.left.color,
-      points: [
-        [0, 0],
-        [l, t],
-        [l, innerBottom],
-        [0, height],
-      ],
-    });
-  }
-  return quads;
+/**
+ * The shaded bands of a 3D border. `inset`/`outset` shade the border as a
+ * single band; `groove`/`ridge` cut it in half and shade the halves in opposite
+ * directions, so they emit two trapezoids per side.
+ */
+function border3dQuads(
+  sides: BorderSides,
+  width: number,
+  height: number,
+  style: Border3dStyle
+): Array<SideQuad> {
+  const halves: ReadonlyArray<{
+    half: "outer" | "inner";
+    from: number;
+    to: number;
+  }> =
+    style === "groove" || style === "ridge"
+      ? [
+          { half: "outer", from: 0, to: 0.5 },
+          { half: "inner", from: 0.5, to: 1 },
+        ]
+      : [{ half: "outer", from: 0, to: 1 }];
+
+  return halves.flatMap(({ half, from, to }) =>
+    bandQuads({
+      sides,
+      width,
+      height,
+      from,
+      to,
+      colorFor: (side) =>
+        border3dSideColor({ style, side, half, color: sides[side].color }),
+    })
+  );
 }
 
 function quadToVectorNode(params: {
@@ -226,9 +318,9 @@ function quadToVectorNode(params: {
 
 /**
  * Build per-side border VECTOR children, or `null` to keep the frame's single
- * stroke. Returns `null` when the sides share color+style, when fewer than two
- * sides are visible, or when a corner radius is present (rounded per-side
- * colors are not representable as flat trapezoids).
+ * stroke. Returns `null` when the sides share color+style and no 3D shading
+ * applies, when fewer than two sides are visible, or when a corner radius is
+ * present (rounded per-side colors are not representable as flat trapezoids).
  */
 export function decomposePerSideBorder(params: {
   computedStyle: CSSStyleDeclaration;
@@ -245,12 +337,16 @@ export function decomposePerSideBorder(params: {
     return null;
   }
   const sides = parseBorderSides(computedStyle);
-  if (!borderSidesRequireDecomposition(sides)) {
+  const style3d = uniformBorder3dStyle(sides);
+  if (!(style3d || borderSidesRequireDecomposition(sides))) {
     return null;
   }
+  const quads = style3d
+    ? border3dQuads(sides, width, height, style3d)
+    : sideQuads(sides, width, height);
 
   const nodes: Array<FigmaVectorNodeChange> = [];
-  for (const quad of sideQuads(sides, width, height)) {
+  for (const quad of quads) {
     const node = quadToVectorNode({
       quad,
       guid: createGuid(),

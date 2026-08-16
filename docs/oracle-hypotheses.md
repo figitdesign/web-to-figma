@@ -29,7 +29,7 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 - BORD-05 [P0 T2] dashed border · scene: `bord/bord-05-dashed`
 - BORD-06 [P0 T2] dotted border · scene: `bord/bord-06-dotted`
 - BORD-07 [P1 T2] double border · scene: `bord/bord-07-double`
-- BORD-08 [P2 T2] groove / ridge / inset / outset (3D styles)
+- BORD-08 [P2 T2] groove / ridge / inset / outset (3D styles) · scene: `bord/bord-08-ridge`
 - BORD-09 [P1 T2] dashed **+ border-radius** (curved dashes — notoriously hard)
 - BORD-10 [P1 T2] dotted + border-radius
 - BORD-11 [P2 T2] sub-pixel border (0.5px hairline)

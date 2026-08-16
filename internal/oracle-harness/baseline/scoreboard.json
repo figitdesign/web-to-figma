@@ -599,6 +599,19 @@
         "diffRatio": 0
       }
     },
+    "bord/bord-08-ridge": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
     "box/box-01-box-sizing": {
       "tier0": {
         "findings": 0,

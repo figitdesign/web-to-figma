@@ -234,6 +234,11 @@ exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
   },
   {
     "height": 160,
+    "id": "bord/bord-08-ridge",
+    "width": 240,
+  },
+  {
+    "height": 160,
     "id": "box/box-01-box-sizing",
     "width": 300,
   },
