@@ -638,6 +638,19 @@
         "diffRatio": 0
       }
     },
+    "bord/bord-14-inline-element": {
+      "tier0": {
+        "findings": 2,
+        "maxDeltaPx": 3.96875
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0.005598958333333333
+      }
+    },
     "bord/bord-15-transparent-border": {
       "tier0": {
         "findings": 0,
