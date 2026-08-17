@@ -25,19 +25,19 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 - BORD-01 [P0 T2] solid border, all sides equal · scene: `bord/bord-01-solid-uniform`
 - BORD-02 [P0 T2] per-side different widths · scene: `bord/bord-02-per-side-width`
 - BORD-03 [P0 T2] per-side different colors · scene: `bord/bord-03-per-side-color`
-- BORD-04 [P1 T2] per-side different styles (solid top, dashed right, …)
+- BORD-04 [P1 T2] per-side different styles (solid top, dashed right, …) · scene: `bord/bord-04-per-side-style`
 - BORD-05 [P0 T2] dashed border · scene: `bord/bord-05-dashed`
 - BORD-06 [P0 T2] dotted border · scene: `bord/bord-06-dotted`
 - BORD-07 [P1 T2] double border · scene: `bord/bord-07-double`
 - BORD-08 [P2 T2] groove / ridge / inset / outset (3D styles) · scene: `bord/bord-08-ridge`
-- BORD-09 [P1 T2] dashed **+ border-radius** (curved dashes — notoriously hard)
+- BORD-09 [P1 T2] dashed **+ border-radius** (curved dashes — notoriously hard) · scene: `bord/bord-09-dashed-radius`
 - BORD-10 [P1 T2] dotted + border-radius
 - BORD-11 [P2 T2] sub-pixel border (0.5px hairline)
 - BORD-12 [P1 T2] very thick border (20px+)
 - BORD-13 [P1 T2] semi-transparent border (rgba)
 - BORD-14 [P2 T2] border on an inline element
 - BORD-15 [P2 T2] transparent border reserving space
-- BORD-16 [P2 T2] outline (vs border) + outline-offset
+- BORD-16 [P2 T2] outline (vs border) + outline-offset · scene: `bord/bord-16-outline-offset`
 
 ## Border radius & shape (RAD)
 - RAD-01 [P0 T2] uniform radius · scene: `rad/rad-01-uniform`

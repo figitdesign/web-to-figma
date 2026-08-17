@@ -16,6 +16,8 @@ import {
 } from "../../styles/filter-color";
 import { cssBackgroundToFigmaPaints } from "../../styles/gradient";
 import { parseOpacity } from "../../styles/opacity";
+import type { OutlineSpec } from "../../styles/outline";
+import { parseOutlineFromComputedStyle } from "../../styles/outline";
 import {
   cssBoxShadowToFigmaEffects,
   isPureRingShadow,
@@ -268,6 +270,67 @@ function buildDoubleBorderInnerLine(
     strokeWeight: lineWeight,
     strokePaints,
     ...(innerRadius > 0 && { cornerRadius: innerRadius }),
+    effects: [],
+    stackHorizontalPadding: 0,
+    stackVerticalPadding: 0,
+    stackPaddingRight: 0,
+    stackPaddingBottom: 0,
+  };
+}
+
+/**
+ * A CSS `outline` as a child frame that overhangs its parent on every side.
+ * The ring's inner edge sits `outline-offset` outside the border box, so the
+ * child is grown by `offset + width` per side and draws an INSIDE stroke of
+ * `width` over an empty fill — leaving the parent's own stroke free for the
+ * border. See {@link OutlineSpec}.
+ *
+ * CSS keeps a sharp outline sharp and otherwise grows the radius with the ring,
+ * so the outer corner radius is the border radius plus the ring's full standoff.
+ */
+function buildOutlineRing(
+  guid: FigmaGuid,
+  parentGuid: FigmaGuid,
+  parentSize: FigmaSize,
+  parentCornerRadius: number | undefined,
+  spec: OutlineSpec
+): FigmaFrameNodeChange {
+  const { width, offset, strokePaints, dashPattern, strokeCap } = spec;
+  const standoff = offset + width;
+  const outerRadius =
+    parentCornerRadius && parentCornerRadius > 0
+      ? parentCornerRadius + standoff
+      : 0;
+  return {
+    guid,
+    phase: "CREATED",
+    parentIndex: { guid: parentGuid, position: "0" },
+    type: "FRAME",
+    name: "Outline",
+    visible: true,
+    opacity: 1,
+    frameMaskDisabled: true,
+    size: {
+      x: parentSize.x + standoff * 2,
+      y: parentSize.y + standoff * 2,
+    },
+    transform: {
+      m00: 1,
+      m01: 0,
+      m02: -standoff,
+      m10: 0,
+      m11: 1,
+      m12: -standoff,
+    },
+    stackMode: "NONE",
+    fillPaints: [],
+    strokeAlign: "INSIDE",
+    strokeJoin: "MITER",
+    strokeWeight: width,
+    strokePaints,
+    ...(dashPattern && { dashPattern }),
+    ...(strokeCap && { strokeCap }),
+    ...(outerRadius > 0 && { cornerRadius: outerRadius }),
     effects: [],
     stackHorizontalPadding: 0,
     stackVerticalPadding: 0,
@@ -534,21 +597,34 @@ export function elementToFrameNodeChange(
     ...inferred?.stack,
   };
 
-  // A `double` border needs a second concentric line the frame's single
-  // stroke can't provide: emit it as an inset child (skipped when no guid
-  // allocator is available, e.g. the form converter's frame).
-  const extraChildren =
-    doubleBorder && createGuid
-      ? [
-          buildDoubleBorderInnerLine(
-            createGuid(),
-            guid,
-            frameSize,
-            borderProperties.cornerRadius,
-            doubleBorder
-          ),
-        ]
-      : undefined;
+  // Synthetic children the frame's single stroke can't express: a `double`
+  // border's second concentric line, and an `outline` standing off outside the
+  // box. Both are skipped when no guid allocator is available (e.g. the form
+  // converter's frame).
+  const extraChildren: Array<FigmaNodeChange> = [];
+  if (doubleBorder && createGuid) {
+    extraChildren.push(
+      buildDoubleBorderInnerLine(
+        createGuid(),
+        guid,
+        frameSize,
+        borderProperties.cornerRadius,
+        doubleBorder
+      )
+    );
+  }
+  const outline = parseOutlineFromComputedStyle(computedStyle);
+  if (outline && createGuid) {
+    extraChildren.push(
+      buildOutlineRing(
+        createGuid(),
+        guid,
+        frameSize,
+        borderProperties.cornerRadius,
+        outline
+      )
+    );
+  }
 
   return {
     nodeChange,
@@ -557,6 +633,6 @@ export function elementToFrameNodeChange(
     isAutoLayout: inferred !== null,
     childStackSpecs: inferred?.children,
     reverseChildren: inferred?.reverseChildren,
-    ...(extraChildren && { extraChildren }),
+    ...(extraChildren.length > 0 && { extraChildren }),
   };
 }

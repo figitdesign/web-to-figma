@@ -86,12 +86,15 @@ function parseUniformDoubleBorder(
  * imposing one side's pattern on the rest.
  *
  * `dashed` is deliberately left solid. Chrome fits a whole number of dashes to
- * each side, nudging their length so a dash lands in both corners (a 6px border
- * measures 12px dashes with an occasional 11px to make the side come out even).
- * Figma instead runs one pattern continuously around the path, so the dashes
- * drift out of phase and land in the browser's gaps — measured at 3.69% against
- * the 2.00% of simply drawing the border solid. Matching it needs the dashes
- * fitted per side, as `border-decomposition.ts` does for per-side colours.
+ * each side, nudging the gaps so a dash lands in both corners; Figma instead
+ * runs one pattern continuously around the path, so the dashes drift out of
+ * phase and land in the browser's gaps — measured at 3.69% against the 2.00% of
+ * simply drawing the border solid.
+ *
+ * Both patterns here are fallbacks. `border-decomposition.ts` normally takes
+ * over for `dashed` and `dotted` borders and paints the fitted dashes as
+ * geometry, dropping this stroke entirely; what stays is the case it declines
+ * (a box needing more dashes than its node budget, say).
  */
 function parseUniformDashPattern(
   computedStyle: CSSStyleDeclaration,
