@@ -219,6 +219,11 @@ exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
   },
   {
     "height": 160,
+    "id": "bord/bord-04-per-side-style",
+    "width": 240,
+  },
+  {
+    "height": 160,
     "id": "bord/bord-05-dashed",
     "width": 240,
   },
@@ -235,6 +240,16 @@ exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
   {
     "height": 160,
     "id": "bord/bord-08-ridge",
+    "width": 240,
+  },
+  {
+    "height": 160,
+    "id": "bord/bord-09-dashed-radius",
+    "width": 240,
+  },
+  {
+    "height": 160,
+    "id": "bord/bord-16-outline-offset",
     "width": 240,
   },
   {
