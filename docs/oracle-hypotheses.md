@@ -36,8 +36,13 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 - BORD-12 [P1 T2] very thick border (20px+)
 - BORD-13 [P1 T2] semi-transparent border (rgba)
 - BORD-14 [P2 T2] border on an inline element
+<<<<<<< HEAD
 - BORD-15 [P2 T2] transparent border reserving space
 - BORD-16 [P2 T2] outline (vs border) + outline-offset · scene: `bord/bord-16-outline-offset`
+=======
+- BORD-15 [P2 T2] transparent border reserving space · scene: `bord/bord-15-transparent-border`
+- BORD-16 [P2 T2] outline (vs border) + outline-offset
+>>>>>>> aa68eb2 (test(BORD-15): transparent border reserving space)
 
 ## Border radius & shape (RAD)
 - RAD-01 [P0 T2] uniform radius · scene: `rad/rad-01-uniform`
