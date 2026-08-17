@@ -35,8 +35,12 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 - BORD-11 [P2 T2] sub-pixel border (0.5px hairline)
 - BORD-12 [P1 T2] very thick border (20px+)
 - BORD-13 [P1 T2] semi-transparent border (rgba)
+<<<<<<< HEAD
 - BORD-14 [P2 T2] border on an inline element
 <<<<<<< HEAD
+=======
+- BORD-14 [P2 T2] border on an inline element · scene: `bord/bord-14-inline-element`
+>>>>>>> 8d41d8d (test(BORD-14): border on an inline element)
 - BORD-15 [P2 T2] transparent border reserving space
 - BORD-16 [P2 T2] outline (vs border) + outline-offset · scene: `bord/bord-16-outline-offset`
 =======
