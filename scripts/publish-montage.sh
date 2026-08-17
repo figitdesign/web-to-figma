@@ -76,19 +76,24 @@ REPO="$(ghc repo view --json nameWithOwner -q .nameWithOwner)"
 RAW="https://raw.githubusercontent.com/$REPO/parity-shots/$NAME.png"
 
 BODY="$(ghc pr view "$PR" --json body -q .body)"
-# Drop any prior montage block (marker comments included) so we replace it.
-STRIPPED="$(printf '%s\n' "$BODY" | awk '
-  /<!-- parity-montage -->/ {inblock=1}
+# Scope the marker to the scene: a batch run publishes one montage per scene,
+# and a shared marker would make each one delete the last.
+OPEN="<!-- parity-montage:$NAME -->"
+CLOSE="<!-- /parity-montage:$NAME -->"
+# Drop only this scene's prior block (marker comments included) so re-running
+# replaces it in place and leaves its siblings alone.
+STRIPPED="$(printf '%s\n' "$BODY" | awk -v o="$OPEN" -v c="$CLOSE" '
+  index($0, o) {inblock=1}
   inblock==0 {print}
-  /<!-- \/parity-montage -->/ {inblock=0}
+  index($0, c) {inblock=0}
 ')"
 
 TMPBODY="$TMP/body.md"
 {
-  printf '<!-- parity-montage -->\n'
-  printf '### DOM→Figma parity — before / after\n\n'
+  printf '%s\n' "$OPEN"
+  printf '### DOM→Figma parity — `%s`\n\n' "$SCENE"
   printf '![parity montage for %s](%s)\n' "$SCENE" "$RAW"
-  printf '<!-- /parity-montage -->\n\n'
+  printf '%s\n\n' "$CLOSE"
   printf '%s\n' "$STRIPPED"
 } >"$TMPBODY"
 ghc pr edit "$PR" --body-file "$TMPBODY"
