@@ -364,10 +364,12 @@ export function elementToFrameNodeChange(
   const rect = element.getBoundingClientRect();
   const computedStyle = window.getComputedStyle(element);
 
-  // Inside auto-layout stacks the box edges drive sibling positions, so
-  // ceiling fractional sizes would accumulate as visible drift there.
-  const width = parentIsAutoLayout ? rect.width : Math.ceil(rect.width);
-  const height = parentIsAutoLayout ? rect.height : Math.ceil(rect.height);
+  // The measured box, fractions included. Block boxes get integer widths from
+  // CSS anyway, so rounding up only ever bit the text-driven fractional case —
+  // an inline element sized to its content shipped up to 1px wider than the
+  // browser laid it out, which is visible as a displaced border edge.
+  const width = rect.width;
+  const height = rect.height;
 
   const backgroundImage = computedStyle.backgroundImage;
   const backgroundColor = cssColorToFigmaColor(computedStyle.backgroundColor);

@@ -445,8 +445,8 @@
     },
     "05-exotic/text-in-box": {
       "tier0": {
-        "findings": 14,
-        "maxDeltaPx": 4.65625
+        "findings": 0,
+        "maxDeltaPx": 0
       },
       "tier1": {
         "findings": 0,
@@ -653,15 +653,15 @@
     },
     "bord/bord-14-inline-element": {
       "tier0": {
-        "findings": 2,
-        "maxDeltaPx": 3.96875
+        "findings": 0,
+        "maxDeltaPx": 0
       },
       "tier1": {
         "findings": 0,
         "maxDeltaPx": 0
       },
       "tier2": {
-        "diffRatio": 0.005598958333333333
+        "diffRatio": 0.004348958333333333
       }
     },
     "bord/bord-15-transparent-border": {
@@ -757,8 +757,8 @@
     },
     "fx/fx-06-text-shadow": {
       "tier0": {
-        "findings": 1,
-        "maxDeltaPx": 3
+        "findings": 0,
+        "maxDeltaPx": 0
       },
       "tier1": {
         "findings": 0,
@@ -785,6 +785,13 @@
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
       }
     },
     "fx/fx-12-opacity-vs-rgba": {

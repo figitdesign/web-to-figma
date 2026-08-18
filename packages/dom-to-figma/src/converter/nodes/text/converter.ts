@@ -48,17 +48,6 @@ function getWidthBuffer(fontWeight: number, fontSize: number) {
   return fontSize > 60 ? fontWeightBuffer + 1 : fontWeightBuffer;
 }
 
-// Fraction of the width buffer that sits *before* the glyph origin, keyed by
-// alignment. Left/justified text grows rightward so all the slack trails it (0);
-// centered text splits it; right-aligned text grows leftward so all the slack
-// leads it (1). This keeps the glyph origin at the browser's position.
-const alignToLeadingBufferFraction: Record<FigmaTextAlignHorizontal, number> = {
-  LEFT: 0,
-  CENTER: 0.5,
-  RIGHT: 1,
-  JUSTIFIED: 0,
-};
-
 const cssToFigmaTextDecorationMap: Record<string, FigmaTextDecoration> = {
   none: "NONE",
   underline: "UNDERLINE",
@@ -243,22 +232,21 @@ export async function nodeToTextNodeChange(
 
   const widthBuffer = getWidthBuffer(fontWeight, fontSize);
 
-  // The width buffer is horizontal slack that keeps Figma's slightly-wider text
-  // remeasurement from re-wrapping or clipping the fixed-width box. Placing it on
-  // the trailing edge (left-aligned), splitting it (centered), or leading edge
-  // (right-aligned) keeps the glyph origin where the browser put it. A flat
-  // `- widthBuffer / 2` assumed centered text and shifted left-aligned runs — the
-  // common case — half a buffer left of the browser position (a systematic
-  // geometry.x discrepancy that Figma then had to normalize away on paste).
-  const leadingBuffer = widthBuffer * alignToLeadingBufferFraction[textAlign];
-
+  // The node ships the browser's measured box. The width buffer is horizontal
+  // slack against Figma/OpenType remeasuring the same run a little wider than
+  // the browser did, and it applies only to line breaking — see
+  // `wrappingContainerWidth` below. Adding it to the emitted size instead put
+  // every text node up to a buffer wider than the DOM (a standing
+  // `geometry.width` discrepancy) and pushed runs past the content box of a
+  // bordered inline parent; the box is transparent, so the slack bought
+  // nothing here.
   const adjustedSize = {
-    width: baseWidth + widthBuffer,
+    width: baseWidth,
     height: baseHeight,
   };
 
   const adjustedPosition = {
-    x: position.x - leadingBuffer,
+    x: position.x,
     // Need this max because of browser text alignment issues
     y: Math.max(0, position.y),
   };

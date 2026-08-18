@@ -621,12 +621,12 @@ describe("text inside and around stacks", () => {
     expect(Math.abs(baselineX)).toBeLessThan(6);
   });
 
-  it("measures exact (uninflated) text sizes for stack children", () => {
-    // Inside stacks the box edges drive sibling positions, so text nodes use
-    // getTextSize(node, exact=true) — the raw measured width — instead of the
-    // default ceil(width)+1 buffer. Assert both directly against the same
-    // measurement so the check is independent of the actual pixel value (which
-    // varies per OS font rendering and made an integration-level check flaky).
+  it("measures exact (uninflated) text sizes", () => {
+    // Text nodes ship the raw measured width — the slack that absorbs Figma's
+    // wider remeasurement lives on the line-breaking container, not the node
+    // size. Assert against the same measurement so the check is independent of
+    // the actual pixel value (which varies per OS font rendering and made an
+    // integration-level check flaky).
     const p = document.createElement("p");
     p.style.font = "16px sans-serif";
     p.textContent = "Proportional text";
@@ -637,8 +637,7 @@ describe("text inside and around stacks", () => {
     range.selectNodeContents(textNode);
     const measured = range.getBoundingClientRect().width;
 
-    expect(getTextSize(textNode, true).width).toBe(measured);
-    expect(getTextSize(textNode).width).toBe(Math.ceil(measured) + 1);
+    expect(getTextSize(textNode).width).toBe(measured);
 
     p.remove();
   });

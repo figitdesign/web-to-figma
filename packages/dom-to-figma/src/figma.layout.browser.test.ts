@@ -163,7 +163,7 @@ describe("layout assertions for nested frames", () => {
             "y": 20,
           },
           "size": {
-            "x": 283,
+            "x": 280,
             "y": 32,
           },
           "type": "TEXT",
