@@ -521,6 +521,45 @@
         "diffRatio": 0
       }
     },
+    "bg/bg-08-conic": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
+    "bg/bg-09-repeating": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0.0012239583333333334
+      }
+    },
+    "bg/bg-15-clip-text": {
+      "tier0": {
+        "findings": 1,
+        "maxDeltaPx": 3
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0.0027864583333333335
+      }
+    },
     "bord/bord-01-solid-uniform": {
       "tier0": {
         "findings": 0,
