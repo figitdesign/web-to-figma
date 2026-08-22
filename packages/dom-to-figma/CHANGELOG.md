@@ -1,5 +1,17 @@
 # @figit/dom-to-figma
 
+## 0.2.4
+
+### Patch Changes
+
+- [#49](https://github.com/figitdesign/web-to-figma/pull/49) [`20a438c`](https://github.com/figitdesign/web-to-figma/commit/20a438c55f089bfb8ff7d157be3c5e420100e1f4) Thanks [@niko047](https://github.com/niko047)! - Scale `filter: blur()` and `backdrop-filter: blur()` to Figma's blur radius
+  instead of passing the CSS length straight through. CSS `blur(<length>)` is a
+  Gaussian whose _standard deviation_ is the length, while Figma's blur `radius`
+  is twice that sigma — so every blurred element rendered half as soft as the
+  browser. Measured on the new `fx/fx-07-filter-blur` scene, the 10–90% edge
+  falloff for `blur(6px)` was 14px in Chrome against 7px in Figma; doubling the
+  radius brings the tier-2 pixel diff from 7.8% to 0.
+
 ## 0.2.3
 
 ### Patch Changes
