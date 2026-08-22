@@ -807,6 +807,19 @@
         "diffRatio": 0.027994791666666668
       }
     },
+    "fx/fx-07-filter-blur": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
     "fx/fx-08-filter-drop-shadow": {
       "tier0": {
         "findings": 0,
@@ -821,6 +834,19 @@
       }
     },
     "fx/fx-09-filter-colormatrix": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
+    "fx/fx-10-backdrop-filter": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0

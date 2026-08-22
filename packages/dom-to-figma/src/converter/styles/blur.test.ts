@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { cssFilterToFigmaEffects } from "./blur";
+import {
+  cssBackdropFilterToFigmaEffects,
+  cssFilterToFigmaEffects,
+} from "./blur";
 
 describe("cssFilterToFigmaEffects", () => {
   it("returns no effects for none/empty", () => {
@@ -7,12 +10,13 @@ describe("cssFilterToFigmaEffects", () => {
     expect(cssFilterToFigmaEffects("")).toEqual([]);
   });
 
-  it("maps blur() to a FOREGROUND_BLUR", () => {
+  it("maps blur() to a FOREGROUND_BLUR of twice the CSS sigma", () => {
+    // CSS blur(<len>) is a Gaussian with std deviation <len>; Figma's radius is 2σ.
     const [effect, ...rest] = cssFilterToFigmaEffects("blur(6px)");
 
     expect(rest).toHaveLength(0);
     expect(effect?.type).toBe("FOREGROUND_BLUR");
-    expect(effect?.radius).toBe(6);
+    expect(effect?.radius).toBe(12);
   });
 
   it("maps drop-shadow() (computed color-first form) to a DROP_SHADOW", () => {
@@ -81,7 +85,7 @@ describe("cssFilterToFigmaEffects", () => {
 
     const blur = effects.find((e) => e.type === "FOREGROUND_BLUR");
     const shadow = effects.find((e) => e.type === "DROP_SHADOW");
-    expect(blur?.radius).toBe(2);
+    expect(blur?.radius).toBe(4);
     expect(shadow?.offset).toEqual({ x: 4, y: 4 });
     expect(shadow?.radius).toBe(4);
   });
@@ -89,5 +93,24 @@ describe("cssFilterToFigmaEffects", () => {
   it("ignores color-matrix filters with no Figma equivalent", () => {
     expect(cssFilterToFigmaEffects("grayscale(1)")).toEqual([]);
     expect(cssFilterToFigmaEffects("brightness(0.5) contrast(2)")).toEqual([]);
+  });
+});
+
+describe("cssBackdropFilterToFigmaEffects", () => {
+  it("returns no effects for none/empty", () => {
+    expect(cssBackdropFilterToFigmaEffects("none")).toEqual([]);
+    expect(cssBackdropFilterToFigmaEffects("")).toEqual([]);
+  });
+
+  it("maps blur() to a BACKGROUND_BLUR of twice the CSS sigma", () => {
+    const [effect, ...rest] = cssBackdropFilterToFigmaEffects("blur(10px)");
+
+    expect(rest).toHaveLength(0);
+    expect(effect?.type).toBe("BACKGROUND_BLUR");
+    expect(effect?.radius).toBe(20);
+  });
+
+  it("ignores non-blur backdrop functions", () => {
+    expect(cssBackdropFilterToFigmaEffects("saturate(1.8)")).toEqual([]);
   });
 });

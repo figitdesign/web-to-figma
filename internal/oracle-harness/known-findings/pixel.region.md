@@ -1,9 +1,9 @@
 ---
 class: pixel.region
 status: open
-severity: 15.481481481481481
+severity: 17.496296296296293
 firstSeenRun: 20260812-111119
-lastSeenRun: 20260818-010001-b
+lastSeenRun: 20260822-084401
 lastAttemptRun: null
 attempts: 0
 cooldownUntilRun: null
