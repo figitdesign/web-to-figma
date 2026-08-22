@@ -204,6 +204,21 @@ exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
   },
   {
     "height": 160,
+    "id": "bg/bg-08-conic",
+    "width": 240,
+  },
+  {
+    "height": 160,
+    "id": "bg/bg-09-repeating",
+    "width": 240,
+  },
+  {
+    "height": 160,
+    "id": "bg/bg-15-clip-text",
+    "width": 240,
+  },
+  {
+    "height": 160,
     "id": "bord/bord-01-solid-uniform",
     "width": 240,
   },

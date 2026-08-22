@@ -116,4 +116,117 @@ describe("cssBackgroundToFigmaPaints()", () => {
       }
     });
   });
+
+  describe("pixel stop offsets", () => {
+    it("places a px stop along the gradient line, not at an even split", () => {
+      // Default 180deg on a 120px-tall box: 30px is a quarter of the line.
+      const paint = paintFor("linear-gradient(#000 0px, #fff 30px)");
+
+      expect(stopsOf(paint)[0]?.position).toBeCloseTo(0, 6);
+      expect(stopsOf(paint)[1]?.position).toBeCloseTo(0.25, 6);
+    });
+
+    it("measures a radial px stop against the horizontal radius", () => {
+      // farthest-corner radius is (√2/2)·200 ≈ 141.42px.
+      const paint = paintFor("radial-gradient(#000 0px, #fff 70.71px)");
+
+      expect(stopsOf(paint)[1]?.position).toBeCloseTo(0.5, 3);
+    });
+  });
+
+  describe("conic gradients", () => {
+    it("builds an angular paint instead of dropping the fill", () => {
+      const paint = paintFor("conic-gradient(#6366f1, #f59e0b)");
+
+      expect(paint.type).toBe("GRADIENT_ANGULAR");
+      expect(stopsOf(paint).map((stop) => stop.position)).toEqual([0, 1]);
+    });
+
+    it("reads stop offsets as fractions of a turn", () => {
+      const paint = paintFor("conic-gradient(#000 0deg, #fff 90deg)");
+
+      expect(stopsOf(paint).map((stop) => stop.position)).toEqual([0, 0.25]);
+    });
+
+    it("skips a leading geometry argument rather than reading it as a colour", () => {
+      for (const geometry of [
+        "from 45deg",
+        "at 30% 70%",
+        "from 0deg at center",
+      ]) {
+        const paint = paintFor(`conic-gradient(${geometry}, #000, #fff)`);
+
+        expect(paint.type).toBe("GRADIENT_ANGULAR");
+        expect(stopsOf(paint)).toHaveLength(2);
+      }
+    });
+  });
+
+  describe("repeating gradients", () => {
+    it("tiles the ramp across the line instead of painting it once", () => {
+      // A 20px period on a 120px-tall box repeats six times.
+      const paint = paintFor(
+        "repeating-linear-gradient(#000 0px, #000 10px, #fff 10px, #fff 20px)"
+      );
+
+      expect(paint.type).toBe("GRADIENT_LINEAR");
+      expect(stopsOf(paint)).toHaveLength(24);
+      expect(stopsOf(paint).map((stop) => stop.position.toFixed(4))).toContain(
+        (1 / 6).toFixed(4)
+      );
+    });
+
+    it("keeps hard stops hard by pairing the boundary offset", () => {
+      const positions = stopsOf(
+        paintFor(
+          "repeating-linear-gradient(#000 0px, #000 10px, #fff 10px, #fff 20px)"
+        )
+      ).map((stop) => stop.position);
+
+      // The 10px boundary carries two stops — end of black, start of white —
+      // a hair apart rather than coincident, so Figma cannot reorder them.
+      const boundary = positions.filter(
+        (position) => Math.abs(position - 1 / 12) < 1e-3
+      );
+      expect(boundary).toHaveLength(2);
+      expect(boundary[1]).toBeGreaterThan(Number(boundary[0]));
+      expect(Number(boundary[1]) - Number(boundary[0])).toBeLessThan(1e-4);
+    });
+
+    it("emits strictly increasing offsets so the ramp cannot be reordered", () => {
+      const positions = stopsOf(
+        paintFor(
+          "repeating-linear-gradient(#000 0px, #000 10px, #fff 10px, #fff 20px)"
+        )
+      ).map((stop) => stop.position);
+
+      for (let i = 1; i < positions.length; i += 1) {
+        expect(positions[i]).toBeGreaterThan(Number(positions[i - 1]));
+      }
+    });
+
+    it("tiles a repeating radial ramp too", () => {
+      const paint = paintFor(
+        "repeating-radial-gradient(#000 0px, #000 10px, #fff 10px, #fff 20px)"
+      );
+
+      expect(paint.type).toBe("GRADIENT_RADIAL");
+      expect(stopsOf(paint).length).toBeGreaterThan(4);
+    });
+
+    it("falls back to a single pass when the ramp spans the whole line", () => {
+      const paint = paintFor("repeating-linear-gradient(#000, #fff)");
+
+      expect(stopsOf(paint).map((stop) => stop.position)).toEqual([0, 1]);
+    });
+
+    it("does not explode into an unbounded stop list for a tiny period", () => {
+      const paint = paintFor(
+        "repeating-linear-gradient(#000 0px, #fff 0.05px)",
+        { width: 200, height: 1200 }
+      );
+
+      expect(stopsOf(paint).length).toBeLessThanOrEqual(256);
+    });
+  });
 });

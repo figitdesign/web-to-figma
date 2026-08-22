@@ -57,14 +57,14 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 - BG-05 [P1 T2] gradient with hard color stops (stripes)
 - BG-06 [P0 T2] radial-gradient · scene: `bg/bg-06-radial`
 - BG-07 [P1 T2] radial-gradient positioned + sized
-- BG-08 [P2 T2] conic-gradient
-- BG-09 [P2 T2] repeating-linear / repeating-radial
+- BG-08 [P2 T2] conic-gradient · scene: `bg/bg-08-conic`
+- BG-09 [P2 T2] repeating-linear / repeating-radial · scene: `bg/bg-09-repeating`
 - BG-10 [P1 T2] gradient with alpha/transparent stops
 - BG-11 [P1 T2] multiple background layers
 - BG-12 [P1 T2] background raster image
 - BG-13 [P1 T2] background-size cover / contain
 - BG-14 [P1 T2] background-position / repeat
-- BG-15 [P2 T2] background-clip: text
+- BG-15 [P2 T2] background-clip: text · scene: `bg/bg-15-clip-text`
 - BG-16 [P1 T2] gradient + border-radius together
 
 ## Shadows & effects (FX)
