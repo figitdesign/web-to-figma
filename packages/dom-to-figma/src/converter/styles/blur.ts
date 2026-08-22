@@ -2,6 +2,35 @@ import type { FigmaBlurEffect, FigmaEffect } from "../types/effects";
 import { cssShadowListToDropShadows } from "./shadow";
 
 /**
+ * CSS `blur(<length>)` is a Gaussian whose *standard deviation* is the length;
+ * Figma's blur `radius` is twice that sigma. Passing the CSS length straight
+ * through renders half as soft as the browser — measured on
+ * `fx/fx-07-filter-blur`, whose 10–90% edge falloff was 14px in Chrome and 7px
+ * in Figma for the same `blur(6px)`.
+ */
+const FIGMA_BLUR_RADIUS_PER_CSS_SIGMA = 2;
+
+/** Every top-level `blur()` length in a filter value, as Figma blur effects. */
+function extractBlurEffects(
+  value: string,
+  type: FigmaBlurEffect["type"]
+): Array<FigmaBlurEffect> {
+  const effects: Array<FigmaBlurEffect> = [];
+  for (const match of value.matchAll(/blur\(([^)]+)\)/g)) {
+    const sigma = Number.parseFloat(match[1] ?? "");
+    if (Number.isNaN(sigma) || sigma <= 0) {
+      continue;
+    }
+    effects.push({
+      type,
+      visible: true,
+      radius: sigma * FIGMA_BLUR_RADIUS_PER_CSS_SIGMA,
+    });
+  }
+  return effects;
+}
+
+/**
  * Extract the argument of each top-level `drop-shadow(...)` in a CSS filter,
  * scanning paren depth so nested color functions (`rgba(...)`, `hsl(...)`) do
  * not terminate the match early the way a naive regex would.
@@ -43,30 +72,9 @@ export function cssFilterToFigmaEffects(filter: string): Array<FigmaEffect> {
     return [];
   }
 
-  const effects: Array<FigmaEffect> = [];
-
-  // Match blur() functions in the filter
-  const blurMatches = filter.match(/blur\(([^)]+)\)/g);
-
-  if (blurMatches) {
-    for (const blurMatch of blurMatches) {
-      const blurValueMatch = /blur\(([^)]+)\)/.exec(blurMatch);
-      if (blurValueMatch?.[1]) {
-        const blurValueStr = blurValueMatch[1];
-        // Parse value and remove 'px' unit if present
-        const blurValue = Number.parseFloat(blurValueStr);
-
-        if (!Number.isNaN(blurValue) && blurValue > 0) {
-          const effect: FigmaBlurEffect = {
-            type: "FOREGROUND_BLUR",
-            visible: true,
-            radius: blurValue,
-          };
-          effects.push(effect);
-        }
-      }
-    }
-  }
+  const effects: Array<FigmaEffect> = [
+    ...extractBlurEffects(filter, "FOREGROUND_BLUR"),
+  ];
 
   // Each drop-shadow() maps to a DROP_SHADOW — same grammar as a single
   // text-shadow (offset + blur + color, no inset or spread).
@@ -89,30 +97,5 @@ export function cssBackdropFilterToFigmaEffects(
     return [];
   }
 
-  const effects: Array<FigmaBlurEffect> = [];
-
-  // Match blur() functions in the backdrop-filter
-  const blurMatches = backdropFilter.match(/blur\(([^)]+)\)/g);
-
-  if (blurMatches) {
-    for (const blurMatch of blurMatches) {
-      const blurValueMatch = /blur\(([^)]+)\)/.exec(blurMatch);
-      if (blurValueMatch?.[1]) {
-        const blurValueStr = blurValueMatch[1];
-        // Parse value and remove 'px' unit if present
-        const blurValue = Number.parseFloat(blurValueStr);
-
-        if (!Number.isNaN(blurValue) && blurValue > 0) {
-          const effect: FigmaBlurEffect = {
-            type: "BACKGROUND_BLUR",
-            visible: true,
-            radius: blurValue,
-          };
-          effects.push(effect);
-        }
-      }
-    }
-  }
-
-  return effects;
+  return extractBlurEffects(backdropFilter, "BACKGROUND_BLUR");
 }

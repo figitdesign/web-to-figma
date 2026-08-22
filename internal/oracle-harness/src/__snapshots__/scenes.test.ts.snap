@@ -313,6 +313,11 @@ exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
     "width": 320,
   },
   {
+    "height": 160,
+    "id": "fx/fx-07-filter-blur",
+    "width": 240,
+  },
+  {
     "height": 180,
     "id": "fx/fx-08-filter-drop-shadow",
     "width": 240,
@@ -321,6 +326,11 @@ exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
     "height": 160,
     "id": "fx/fx-09-filter-colormatrix",
     "width": 260,
+  },
+  {
+    "height": 160,
+    "id": "fx/fx-10-backdrop-filter",
+    "width": 240,
   },
   {
     "height": 160,
