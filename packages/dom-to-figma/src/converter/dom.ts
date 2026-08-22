@@ -44,10 +44,7 @@ export function getElementPositionRelativeToParent(element: Element): Position {
 
 export function getElementSize(element: Element): Size {
   const elementRect = element.getBoundingClientRect();
-  return {
-    width: Math.ceil(elementRect.width),
-    height: Math.ceil(elementRect.height),
-  };
+  return { width: elementRect.width, height: elementRect.height };
 }
 
 function getTextRect(textNode: Text) {
@@ -71,18 +68,20 @@ export function getTextPositionRelativeToParent(textNode: Text): Position {
   };
 }
 
-export function getTextSize(textNode: Text, exact = false): Size {
+/**
+ * The browser's measured box for a text node — no inflation.
+ *
+ * Figma remeasures text with its own font engine and can come out a little
+ * wider than the browser did, but the slack that absorbs that belongs to the
+ * line-breaking container (see `wrappingContainerWidth` in the text converter),
+ * not to the size we report for the node. Inflating here made every text node
+ * ship a box up to 2px wider than the browser's, which showed up as a standing
+ * `geometry.width` discrepancy and let text overflow a bordered inline parent's
+ * content box.
+ */
+export function getTextSize(textNode: Text): Size {
   const textNodeRect = getTextRect(textNode);
-  if (exact) {
-    // Inside auto-layout stacks the box edges drive sibling positions, so
-    // any inflation accumulates as visible drift — use the measured size.
-    return { width: textNodeRect.width, height: textNodeRect.height };
-  }
-  return {
-    // Fonts in Figma take 1px more width sometimes, so we add a buffer.
-    width: Math.ceil(textNodeRect.width) + 1,
-    height: Math.ceil(textNodeRect.height),
-  };
+  return { width: textNodeRect.width, height: textNodeRect.height };
 }
 
 export type TextLineSegment = {

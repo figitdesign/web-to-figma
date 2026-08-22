@@ -139,7 +139,6 @@ async function walkNode(
         childIndex,
         inheritedProperties,
         ctx,
-        parentStack.isAutoLayout,
         parentDomPath
       );
     }
@@ -270,7 +269,6 @@ async function renderTextNode(
   childIndex: number,
   inheritedProperties: InheritedProperties,
   ctx: WalkContext,
-  parentIsAutoLayout = false,
   parentDomPath = ""
 ): Promise<number> {
   if (isTextEmpty(textNode)) {
@@ -306,8 +304,7 @@ async function renderTextNode(
     parentGuid,
     childIndex,
     position: getTextPositionRelativeToParent(textNode),
-    // Exact size inside stacks: box edges drive sibling positions there.
-    size: getTextSize(textNode, parentIsAutoLayout),
+    size: getTextSize(textNode),
     textContent: (textNode.textContent || "").trim(),
     registerBlob: ctx.registerBlob,
     inheritedProperties,
