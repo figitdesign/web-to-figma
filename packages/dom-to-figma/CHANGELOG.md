@@ -1,5 +1,74 @@
 # @figit/dom-to-figma
 
+## 0.2.3
+
+### Patch Changes
+
+- [#41](https://github.com/figitdesign/web-to-figma/pull/41) [`0d3c9ea`](https://github.com/figitdesign/web-to-figma/commit/0d3c9eac37e274f08a5005868a60f5604d2d8eb5) Thanks [@niko047](https://github.com/niko047)! - Render the CSS 3D border styles (`groove`, `ridge`, `inset`, `outset`) with
+  Chrome's bevel shading instead of a flat stroke in the declared color. Each side
+  is painted as a filled trapezoid — reusing the per-side-color decomposition, so
+  the 45° miters still match CSS — shaded by Blink's own rules: sides facing away
+  from the top-left light source are darkened, and `groove`/`ridge` split every
+  side in half and shade the halves in opposite directions. When darkening a color
+  would leave too little contrast to read as a bevel (dark navy, black), the lit
+  sides are lightened instead, as Chrome does.
+
+- [#46](https://github.com/figitdesign/web-to-figma/pull/46) [`ec38305`](https://github.com/figitdesign/web-to-figma/commit/ec38305e32fab580a7e04ebd11e6e66630d847e7) Thanks [@niko047](https://github.com/niko047)! - Draw CSS `outline` and paint dashed/dotted borders as fitted geometry.
+
+  An `outline` was dropped entirely: a Figma node's single stroke already belongs
+  to the border and hugs the box, so it cannot stand off by `outline-offset`. The
+  ring now becomes its own oversized child frame whose INSIDE stroke lands exactly
+  where CSS paints it, following the border radius as CSS does.
+
+  Dashed and dotted borders were drawn solid, or with one dash pattern phased
+  continuously around the whole box, because Figma carries a single pattern per
+  node. Chrome instead fits the dashes to each side, landing one in every corner,
+  so the two drifted out of step. Each side's dashes are now painted as their own
+  geometry using Chrome's fit — the dash fixed at twice the border width, the
+  count chosen so the resulting gap comes closest to its nominal width — which
+  also lets a border mix `solid`, `dashed`, `dotted` and `double` sides. A rounded
+  box is fitted as one loop instead, its dashes cut into bands across the straight
+  runs and arc sectors around the corners.
+
+- [#48](https://github.com/figitdesign/web-to-figma/pull/48) [`922e12e`](https://github.com/figitdesign/web-to-figma/commit/922e12e9b2bc245edae38c36478f91818ac08ddf) Thanks [@niko047](https://github.com/niko047)! - Convert `conic-gradient` and the repeating gradient functions instead of
+  dropping them, and keep hard colour stops hard.
+
+  `conic-gradient` produced no paint at all, so an element carrying one rendered
+  empty; it now maps to Figma's angular paint, with gradient space rotated a
+  quarter turn because Figma's sweep starts at three o'clock where CSS starts at
+  twelve. `repeating-linear-gradient` and `repeating-radial-gradient` were matched
+  by the plain `linear-gradient`/`radial-gradient` parsers and painted as a single
+  pass; Figma has no repeating gradient, so the repeat is now baked into the stop
+  list by tiling one period across the gradient line.
+
+  That tiling needed two supporting fixes. Stop offsets written in `px` were
+  discarded and replaced with an even split, so they now resolve against the real
+  gradient line — `|w·sin| + |h·cos|` for a linear ramp, the horizontal radius for
+  a radial one. And CSS writes a hard stop as two stops at the same offset, which
+  Figma reorders, turning flat bands back into ramps; coincident stops are now
+  separated by a sub-pixel epsilon so their source order survives the round trip.
+
+- [#33](https://github.com/figitdesign/web-to-figma/pull/33) [`83202a3`](https://github.com/figitdesign/web-to-figma/commit/83202a39356affe1d8eba0baf9807584adb46e7b) Thanks [@niko047](https://github.com/niko047)! - Render a uniform CSS `dotted` border as a Figma dashed stroke instead of a solid
+  line. Dots take the border width with an equal gap, matching Chrome's raster.
+  `dashed` stays solid on purpose: Figma runs one dash pattern around the whole
+  path while Chrome fits dashes to each side, so a dashed pattern drifts out of
+  phase and measures worse than a solid line.
+
+- [#47](https://github.com/figitdesign/web-to-figma/pull/47) [`7dd5da2`](https://github.com/figitdesign/web-to-figma/commit/7dd5da2bc77e722064730ee95768f43bf8f91f70) Thanks [@niko047](https://github.com/niko047)! - Ship the browser's measured box for text nodes and content-sized elements
+  instead of an inflated one. Text sizes were padded twice — `ceil(width) + 1`
+  when measuring, then a further weight-keyed width buffer when building the node
+  — and element frames were rounded up with `Math.ceil`, so every text run was up
+  to 4px wider than the DOM laid it out and every content-sized box up to 1px
+  wider. On a bordered inline element the padding pushed the text past the
+  parent's content box and displaced the right border edge.
+
+  The slack that absorbs Figma remeasuring a run wider than the browser did is
+  still applied, but only where it does any work: the line-breaking container
+  width. The node's own size, which is transparent and no longer drives wrapping,
+  now carries the measured geometry. Block boxes are unaffected — CSS already
+  gives them integer widths, so the rounding only ever bit the text-driven
+  fractional case.
+
 ## 0.2.2
 
 ### Patch Changes
