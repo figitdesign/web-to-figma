@@ -781,6 +781,32 @@
         "diffRatio": 0
       }
     },
+    "fx/fx-02-shadow-inset": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
+    "fx/fx-03-shadow-multiple": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
     "fx/fx-04-shadow-spread": {
       "tier0": {
         "findings": 0,
@@ -847,6 +873,19 @@
       }
     },
     "fx/fx-10-backdrop-filter": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
+    "fx/fx-11-mix-blend-mode": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0

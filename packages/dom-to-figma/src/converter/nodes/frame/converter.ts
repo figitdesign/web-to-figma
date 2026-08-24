@@ -3,6 +3,7 @@ import { isElementNode, isTextEmpty, isTextNode } from "../../dom";
 import type { InferredChildStack } from "../../layout/infer";
 import { inferAutoLayout } from "../../layout/infer";
 import { getNodeNameFromElement } from "../../naming";
+import { cssMixBlendModeToFigmaBlendMode } from "../../styles/blend";
 import {
   cssBackdropFilterToFigmaEffects,
   cssFilterToFigmaEffects,
@@ -398,6 +399,7 @@ export function elementToFrameNodeChange(
   const backdropFilter = computedStyle.backdropFilter;
   const filter = computedStyle.filter;
   const opacity = parseOpacity(computedStyle.opacity);
+  const blendMode = cssMixBlendModeToFigmaBlendMode(computedStyle.mixBlendMode);
 
   const shadowEffects = cssBoxShadowToFigmaEffects(boxShadow);
   const filterEffects = cssFilterToFigmaEffects(filter);
@@ -545,6 +547,9 @@ export function elementToFrameNodeChange(
     name: getNodeNameFromElement(element),
     visible: true,
     opacity,
+    // Omitted for `mix-blend-mode: normal` so the node keeps Figma's
+    // PASS_THROUGH default.
+    ...(blendMode && { blendMode }),
     frameMaskDisabled: !hasOverflowHidden,
 
     /* Size and Position */

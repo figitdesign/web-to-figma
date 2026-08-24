@@ -69,8 +69,8 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 
 ## Shadows & effects (FX)
 - FX-01 [P0 T2] box-shadow, single · scene: `fx/fx-01-box-shadow`
-- FX-02 [P1 T2] box-shadow inset
-- FX-03 [P1 T2] multiple box-shadows
+- FX-02 [P1 T2] box-shadow inset · scene: `fx/fx-02-shadow-inset`
+- FX-03 [P1 T2] multiple box-shadows · scene: `fx/fx-03-shadow-multiple`
 - FX-04 [P1 T2] box-shadow with spread · scene: `fx/fx-04-shadow-spread`
 - FX-05 [P1 T2] colored / rgba shadow
 - FX-06 [P1 T2] text-shadow · scene: `fx/fx-06-text-shadow`
@@ -78,7 +78,7 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 - FX-08 [P2 T2] filter: drop-shadow · scene: `fx/fx-08-filter-drop-shadow`
 - FX-09 [P2 T2] filter: brightness / contrast / grayscale · scene: `fx/fx-09-filter-colormatrix`
 - FX-10 [P2 T2] backdrop-filter · scene: `fx/fx-10-backdrop-filter`
-- FX-11 [P2 T2] mix-blend-mode
+- FX-11 [P2 T2] mix-blend-mode · scene: `fx/fx-11-mix-blend-mode`
 - FX-12 [P0 T2] element opacity vs rgba color · scene: `fx/fx-12-opacity-vs-rgba`
 - FX-13 [P1 T2] nested opacity stacking (parent .5 × child .5)
 

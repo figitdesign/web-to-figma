@@ -6,13 +6,15 @@ type FigmaEffectType =
   | "FOREGROUND_BLUR"
   | "BACKGROUND_BLUR";
 
-type FigmaBlendMode =
+export type FigmaBlendMode =
   | "NORMAL"
   | "DARKEN"
   | "MULTIPLY"
+  | "LINEAR_BURN"
   | "COLOR_BURN"
   | "LIGHTEN"
   | "SCREEN"
+  | "LINEAR_DODGE"
   | "COLOR_DODGE"
   | "OVERLAY"
   | "SOFT_LIGHT"
