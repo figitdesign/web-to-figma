@@ -304,6 +304,16 @@ exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
   },
   {
     "height": 180,
+    "id": "fx/fx-02-shadow-inset",
+    "width": 240,
+  },
+  {
+    "height": 180,
+    "id": "fx/fx-03-shadow-multiple",
+    "width": 240,
+  },
+  {
+    "height": 180,
     "id": "fx/fx-04-shadow-spread",
     "width": 240,
   },
@@ -330,6 +340,11 @@ exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
   {
     "height": 160,
     "id": "fx/fx-10-backdrop-filter",
+    "width": 240,
+  },
+  {
+    "height": 180,
+    "id": "fx/fx-11-mix-blend-mode",
     "width": 240,
   },
   {

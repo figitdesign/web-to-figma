@@ -1,5 +1,5 @@
 import type { FigmaGuid, FigmaSize, FigmaTransform } from "./core";
-import type { FigmaEffect } from "./effects";
+import type { FigmaBlendMode, FigmaEffect } from "./effects";
 import type { FigmaStackMode } from "./layout";
 import type { FigmaPaint } from "./paint";
 import type {
@@ -9,6 +9,13 @@ import type {
   FigmaTextData,
   FigmaTextDecoration,
 } from "./text";
+
+/**
+ * A node's own blend mode. Unlike an effect's, it may be `PASS_THROUGH` — the
+ * Figma default, where the node composites into its parent's backdrop rather
+ * than isolating first.
+ */
+export type FigmaNodeBlendMode = FigmaBlendMode | "PASS_THROUGH";
 
 // Base properties common to all nodes
 type FigmaBaseNodeChange = {
@@ -21,7 +28,7 @@ type FigmaBaseNodeChange = {
   name: string;
   visible: boolean;
   opacity: number;
-  blendMode?: string;
+  blendMode?: FigmaNodeBlendMode;
   size?: FigmaSize;
   transform?: FigmaTransform;
   mask?: boolean;

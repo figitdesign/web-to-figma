@@ -1,5 +1,6 @@
 import type { Position } from "../../dom";
 import type { ImageCache } from "../../image-cache";
+import { cssMixBlendModeToFigmaBlendMode } from "../../styles/blend";
 import { parseBorderFromComputedStyle } from "../../styles/border";
 import { parseOpacity } from "../../styles/opacity";
 import { cssBoxShadowToFigmaEffects } from "../../styles/shadow";
@@ -56,6 +57,7 @@ export async function elementToImageNodeChange(
   const boxShadow = computedStyle.boxShadow;
   const effects = cssBoxShadowToFigmaEffects(boxShadow);
   const opacity = parseOpacity(computedStyle.opacity);
+  const blendMode = cssMixBlendModeToFigmaBlendMode(computedStyle.mixBlendMode);
 
   // Parse border information (includes border radius)
   const borderProperties = parseBorderFromComputedStyle(computedStyle, {
@@ -78,6 +80,9 @@ export async function elementToImageNodeChange(
     name: "Image",
     visible: true,
     opacity,
+    // Omitted for `mix-blend-mode: normal` so the node keeps Figma's
+    // PASS_THROUGH default.
+    ...(blendMode && { blendMode }),
 
     /* Size and Position */
     size: {
