@@ -384,6 +384,21 @@ exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
   },
   {
     "height": 160,
+    "id": "svg/svg-08-text",
+    "width": 240,
+  },
+  {
+    "height": 160,
+    "id": "svg/svg-09-group-transform",
+    "width": 240,
+  },
+  {
+    "height": 160,
+    "id": "svg/svg-10-clip-path",
+    "width": 240,
+  },
+  {
+    "height": 160,
     "id": "xfrm/xfrm-02-scale",
     "width": 240,
   },

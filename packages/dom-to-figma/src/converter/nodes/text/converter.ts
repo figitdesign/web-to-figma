@@ -48,6 +48,39 @@ function getWidthBuffer(fontWeight: number, fontSize: number) {
   return fontSize > 60 ? fontWeightBuffer + 1 : fontWeightBuffer;
 }
 
+const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+const SVG_TEXT_TAGS = new Set(["text", "tspan", "textpath"]);
+
+function isSvgTextElement(element: Element): boolean {
+  return (
+    element.namespaceURI === SVG_NAMESPACE &&
+    SVG_TEXT_TAGS.has(element.tagName.toLowerCase())
+  );
+}
+
+/**
+ * Glyphs in `<text>` are painted with `fill`/`fill-opacity`, not CSS `color`
+ * — which stays at its inherited default (black) unless the document sets it.
+ */
+function textFillColor(
+  element: Element,
+  computedStyle: CSSStyleDeclaration
+): ReturnType<typeof cssColorToFigmaColor> {
+  if (!isSvgTextElement(element)) {
+    return cssColorToFigmaColor(computedStyle.color);
+  }
+
+  const fill = cssColorToFigmaColor(computedStyle.fill);
+  if (!fill) {
+    return null;
+  }
+  const fillOpacity = Number.parseFloat(computedStyle.fillOpacity);
+  return {
+    color: fill.color,
+    opacity: fill.opacity * (Number.isNaN(fillOpacity) ? 1 : fillOpacity),
+  };
+}
+
 const cssToFigmaTextDecorationMap: Record<string, FigmaTextDecoration> = {
   none: "NONE",
   underline: "UNDERLINE",
@@ -153,7 +186,7 @@ export async function nodeToTextNodeChange(
   const fontWeight = Number.parseInt(computedStyle.fontWeight, 10);
   const textAlign =
     cssToFigmaTextAlignHorizontalMap[computedStyle.textAlign] ?? "LEFT";
-  const color = cssColorToFigmaColor(computedStyle.color);
+  const color = textFillColor(element, computedStyle);
   const textShadowEffects = cssTextShadowToFigmaEffects(
     computedStyle.textShadow
   );
@@ -213,10 +246,16 @@ export async function nodeToTextNodeChange(
 
   // It's generally more accurate to use the actual box height as the line height, but this doesn't work for text on multiple lines,
   // so in that case we use the computed line height.
+  // SVG `<text>` has no line box: the glyphs sit on the baseline given by `y`
+  // and the measured box is exactly the ascent and descent around it. Giving
+  // Figma 1.2×font-size there invents half-leading and drops the baseline.
+  const normalLineHeight = isSvgTextElement(element)
+    ? baseHeight
+    : fontSize * 1.2;
   const computedLineHeight =
     computedStyle.lineHeight !== "normal"
       ? Number.parseFloat(computedStyle.lineHeight)
-      : fontSize * 1.2;
+      : normalLineHeight;
 
   const lineHeight = computedLineHeight;
 
@@ -253,6 +292,13 @@ export async function nodeToTextNodeChange(
 
   const { font, ...styles } = parseTextProperties(element);
 
+  // Figma lays the run out from the node's `lineHeight`, so the derived layout
+  // has to agree with it — otherwise the baselines shipped here and the ones
+  // Figma computes disagree by the half-leading difference.
+  const layoutLineHeight = isSvgTextElement(element)
+    ? lineHeight
+    : styles.lineHeight;
+
   const loadedFont = await fontCache.get(font);
 
   // Wrap and align within the box this node ships with, NOT the parent
@@ -270,7 +316,7 @@ export async function nodeToTextNodeChange(
     spacing: { letterSpacing: styles.letterSpacing },
     alignment: styles.textAlign,
     containerWidth: wrappingContainerWidth,
-    lineHeight: styles.lineHeight,
+    lineHeight: layoutLineHeight,
     wrapping: {
       enabled: true,
       wordWrap: !isSingleLine,
@@ -331,7 +377,7 @@ export async function nodeToTextNodeChange(
       baselines: baselines.map((baseline, index) => {
         let lineWidth = 0;
         let baselineX = 0;
-        const lineHeight = styles.lineHeight;
+        const lineHeight = layoutLineHeight;
         let lineY = 0;
         const firstCharacter = baseline.characterStart;
         const endCharacter = baseline.characterEnd;

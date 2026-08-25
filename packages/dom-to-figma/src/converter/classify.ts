@@ -48,7 +48,10 @@ function isNonVisualElement(element: Element): boolean {
     tagName === "comment" ||
     tagName === "defs" ||
     tagName === "desc" ||
-    tagName === "clipPath"
+    // `tagName` is lower-cased, so these must be too — `<clipPath>` and
+    // `<mask>` define paint-time geometry and are never drawn themselves.
+    tagName === "clippath" ||
+    tagName === "mask"
   );
 }
 
