@@ -171,6 +171,9 @@ type Params = {
   parentGuid: FigmaGuid;
   childIndex: number;
   position: Position;
+  /** Overrides the measured rect; needed for shapes inside `<clipPath>`, which
+   * are not rendered and so report an empty bounding client rect. */
+  size?: { width: number; height: number };
   registerBlob: (blob: FigmaBlob) => number;
   inheritedProperties?: {
     svgViewbox?: {
@@ -198,13 +201,14 @@ export function elementToVectorNodeChange(
     parentGuid,
     childIndex,
     position,
+    size,
     registerBlob,
     inheritedProperties,
   } = options;
 
   const rect = element.getBoundingClientRect();
-  const width = rect.width;
-  const height = rect.height;
+  const width = size?.width ?? rect.width;
+  const height = size?.height ?? rect.height;
 
   const computedStyle = window.getComputedStyle(element);
 

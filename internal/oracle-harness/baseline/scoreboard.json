@@ -549,8 +549,8 @@
     },
     "bg/bg-15-clip-text": {
       "tier0": {
-        "findings": 1,
-        "maxDeltaPx": 3
+        "findings": 0,
+        "maxDeltaPx": 0
       },
       "tier1": {
         "findings": 0,
@@ -977,6 +977,45 @@
       }
     },
     "svg/svg-02-path-fill": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
+    "svg/svg-08-text": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0.00484375
+      }
+    },
+    "svg/svg-09-group-transform": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0
+      }
+    },
+    "svg/svg-10-clip-path": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0

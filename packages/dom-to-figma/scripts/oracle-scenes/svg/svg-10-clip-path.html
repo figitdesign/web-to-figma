@@ -1,0 +1,42 @@
+<!-- oracle: width=240 height=160 -->
+<style>
+body {
+  margin: 0;
+}
+</style>
+<div
+  style="width:240px;height:160px;background:#fff;box-sizing:border-box;padding:20px"
+>
+  <svg
+    width="200"
+    height="120"
+    viewBox="0 0 200 120"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>Clip path</title>
+    <defs>
+      <clipPath id="clip-rect">
+        <rect x="10" y="20" width="50" height="50" />
+      </clipPath>
+      <clipPath id="clip-circle">
+        <circle cx="145" cy="60" r="35" />
+      </clipPath>
+    </defs>
+    <rect
+      x="10"
+      y="20"
+      width="80"
+      height="80"
+      fill="#6366f1"
+      clip-path="url(#clip-rect)"
+    />
+    <rect
+      x="110"
+      y="20"
+      width="80"
+      height="80"
+      fill="#f59e0b"
+      clip-path="url(#clip-circle)"
+    />
+  </svg>
+</div>

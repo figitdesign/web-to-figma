@@ -90,9 +90,9 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 - SVG-05 [P1 T2] stroke-linecap / linejoin
 - SVG-06 [P1 T2] SVG linearGradient / radialGradient defs
 - SVG-07 [P1 T2] viewBox scaling / preserveAspectRatio
-- SVG-08 [P2 T2] SVG <text>
-- SVG-09 [P2 T2] SVG transform on a group
-- SVG-10 [P2 T2] clipPath / mask
+- SVG-08 [P2 T2] SVG <text> · scene: `svg/svg-08-text`
+- SVG-09 [P2 T2] SVG transform on a group · scene: `svg/svg-09-group-transform`
+- SVG-10 [P2 T2] clipPath / mask · scene: `svg/svg-10-clip-path`
 - SVG-11 [P1 T2] currentColor inheritance
 - SVG-12 [P1 T2] multiple paths / groups
 - SVG-13 [P1 T2] SVG referenced via `<img src=.svg>`

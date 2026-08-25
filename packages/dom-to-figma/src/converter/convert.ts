@@ -8,6 +8,7 @@ import { elementToFrameNodeChange } from "./nodes/frame";
 import { elementToGroupNodeChange } from "./nodes/group";
 import { elementToImageNodeChange } from "./nodes/image";
 import { nodeToTextNodeChange } from "./nodes/text";
+import { clipFrameNodeChange, resolveSvgClip } from "./nodes/vector/clip-path";
 import type { SVGChildElement } from "./nodes/vector/converter";
 import { elementToVectorNodeChange } from "./nodes/vector/converter";
 import type {
@@ -142,15 +143,75 @@ export async function convertElement(
       };
     }
 
-    case "vector":
+    case "vector": {
+      const clip = resolveSvgClip(element);
+      if (!clip) {
+        return {
+          changes: withChildStackSpec(
+            [
+              elementToVectorNodeChange(element as SVGChildElement, {
+                guid,
+                parentGuid,
+                childIndex,
+                position,
+                registerBlob,
+              }),
+            ],
+            childStackSpec
+          ),
+          hasChildren: false,
+        };
+      }
+
+      // The shape keeps `guid` (and so its own geometry, which the trace and
+      // the ground truth are matched on); the clipping frame wrapping it gets
+      // a fresh one. `position` is relative to the element's parent, so the
+      // clip offset moves the frame and un-moves the shape inside it.
+      const frameGuid = createGuid();
+      const rect = element.getBoundingClientRect();
+      const offsetX = clip.rect.x - rect.left;
+      const offsetY = clip.rect.y - rect.top;
+
+      const maskChanges = clip.isRectangular
+        ? []
+        : [
+            {
+              ...elementToVectorNodeChange(clip.shape, {
+                guid: createGuid(),
+                parentGuid: frameGuid,
+                childIndex: 0,
+                position: { x: 0, y: 0 },
+                size: { width: clip.rect.width, height: clip.rect.height },
+                registerBlob,
+              }),
+              name: "Clip",
+              mask: true,
+              maskType: "OUTLINE",
+            },
+          ];
+
       return {
         changes: withChildStackSpec(
           [
-            elementToVectorNodeChange(element as SVGChildElement, {
-              guid,
+            clipFrameNodeChange({
+              guid: frameGuid,
               parentGuid,
               childIndex,
-              position,
+              position: {
+                x: position.x + offsetX,
+                y: position.y + offsetY,
+              },
+              size: { width: clip.rect.width, height: clip.rect.height },
+            }),
+            ...maskChanges,
+            elementToVectorNodeChange(element as SVGChildElement, {
+              guid,
+              parentGuid: frameGuid,
+              childIndex: maskChanges.length,
+              position: {
+                x: rect.left - clip.rect.x,
+                y: rect.top - clip.rect.y,
+              },
               registerBlob,
             }),
           ],
@@ -158,6 +219,7 @@ export async function convertElement(
         ),
         hasChildren: false,
       };
+    }
 
     case "image":
       return {
