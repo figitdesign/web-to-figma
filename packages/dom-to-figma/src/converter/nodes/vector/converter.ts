@@ -2,6 +2,8 @@ import type { Position } from "../../dom";
 import { createSolidPaint, cssColorToFigmaColor } from "../../styles/color";
 import { parseOpacity } from "../../styles/opacity";
 import type { FigmaBlob, FigmaGuid, FigmaVectorNodeChange } from "../../types";
+import { bakeDashesIntoNetwork } from "./dashing";
+import { getAverageScaleFactor } from "./scaling/scale-factors";
 import { shapeToPath } from "./shapes";
 import { svgPathToVectorNetworkWithScaling } from "./vector-networks";
 import { vectorNetworkToBytes } from "./vector-networks/encoder";
@@ -235,7 +237,20 @@ export function elementToVectorNodeChange(
     fillRule,
   });
 
-  const vectorNetwork = scalingResult.vectorNetwork;
+  // Figma re-fits a `dashPattern` to each segment of the network, so a dashed
+  // stroke only lands where SVG put it if the dashes are cut into the geometry.
+  // That costs the fill regions, so it is only for shapes that have no fill.
+  const scale = getAverageScaleFactor(scalingResult.scaleFactors);
+  const bakedDashes =
+    strokeDasharray && !fillColor
+      ? bakeDashesIntoNetwork(
+          scalingResult.vectorNetwork,
+          strokeDasharray.map((value) => value * scale),
+          Number.parseFloat(computedStyle.strokeDashoffset) * scale || 0
+        )
+      : null;
+
+  const vectorNetwork = bakedDashes ?? scalingResult.vectorNetwork;
   const vectorNetworkBytes = vectorNetworkToBytes(vectorNetwork);
 
   const blobIndex = registerBlob({ bytes: Array.from(vectorNetworkBytes) });
@@ -275,7 +290,7 @@ export function elementToVectorNodeChange(
     strokePaints: strokeColor
       ? [createSolidPaint(strokeColor.color, strokeOpacity)]
       : [],
-    dashPattern: strokeDasharray ?? [],
+    dashPattern: bakedDashes ? [] : (strokeDasharray ?? []),
 
     /* Vector Data */
     vectorData: {
