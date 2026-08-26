@@ -1,0 +1,30 @@
+<!-- oracle: width=240 height=160 -->
+<style>
+body {
+  margin: 0;
+}
+</style>
+<div
+  style="width:240px;height:160px;background:#fff;box-sizing:border-box;padding:20px"
+>
+  <svg
+    width="200"
+    height="120"
+    viewBox="0 0 200 120"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>Fill rule evenodd</title>
+    <!-- Both subpaths wind clockwise, so evenodd punches a hole and
+         nonzero would fill it solid. -->
+    <path
+      d="M10 10 H100 V110 H10 Z M35 35 H75 V85 H35 Z"
+      fill="#6366f1"
+      fill-rule="evenodd"
+    />
+    <path
+      d="M110 10 H190 V110 H110 Z M135 35 H165 V85 H135 Z"
+      fill="#f59e0b"
+      fill-rule="nonzero"
+    />
+  </svg>
+</div>

@@ -85,8 +85,8 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 ## SVG (SVG)
 - SVG-01 [P0 T2] inline SVG rect / circle · scene: `svg/svg-01-shapes`
 - SVG-02 [P0 T2] SVG path fill · scene: `svg/svg-02-path-fill`
-- SVG-03 [P1 T2] SVG stroke (width, color)
-- SVG-04 [P1 T2] SVG stroke-dasharray (dashed vector)
+- SVG-03 [P1 T2] SVG stroke (width, color) · scene: `svg/svg-03-stroke`
+- SVG-04 [P1 T2] SVG stroke-dasharray (dashed vector) · scene: `svg/svg-04-stroke-dasharray`
 - SVG-05 [P1 T2] stroke-linecap / linejoin
 - SVG-06 [P1 T2] SVG linearGradient / radialGradient defs
 - SVG-07 [P1 T2] viewBox scaling / preserveAspectRatio
@@ -96,7 +96,7 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 - SVG-11 [P1 T2] currentColor inheritance
 - SVG-12 [P1 T2] multiple paths / groups
 - SVG-13 [P1 T2] SVG referenced via `<img src=.svg>`
-- SVG-14 [P2 T2] SVG with fill-rule evenodd
+- SVG-14 [P2 T2] SVG with fill-rule evenodd · scene: `svg/svg-14-fill-rule-evenodd`
 
 ## Typography (TXT)
 - TXT-01 [P0 T2] font-weight scale (300/400/700/900)
