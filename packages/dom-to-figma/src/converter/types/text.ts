@@ -6,6 +6,8 @@ export type FigmaTextAlignHorizontal =
 
 export type FigmaTextDecoration = "NONE" | "UNDERLINE" | "STRIKETHROUGH";
 
+export type FigmaTextDecorationStyle = "SOLID" | "DOTTED" | "WAVY";
+
 export type FigmaTextCase =
   | "ORIGINAL"
   | "UPPER"

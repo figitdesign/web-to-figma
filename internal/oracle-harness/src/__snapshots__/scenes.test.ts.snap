@@ -383,6 +383,21 @@ exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
     "width": 240,
   },
   {
+    "height": 180,
+    "id": "txt/txt-08-decoration-style",
+    "width": 280,
+  },
+  {
+    "height": 160,
+    "id": "txt/txt-15-super-subscript",
+    "width": 280,
+  },
+  {
+    "height": 160,
+    "id": "txt/txt-17-rtl",
+    "width": 280,
+  },
+  {
     "height": 160,
     "id": "xfrm/xfrm-02-scale",
     "width": 240,
