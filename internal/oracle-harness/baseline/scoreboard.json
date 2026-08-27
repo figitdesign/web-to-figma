@@ -549,8 +549,8 @@
     },
     "bg/bg-15-clip-text": {
       "tier0": {
-        "findings": 1,
-        "maxDeltaPx": 3
+        "findings": 0,
+        "maxDeltaPx": 0
       },
       "tier1": {
         "findings": 0,
@@ -987,6 +987,45 @@
       },
       "tier2": {
         "diffRatio": 0
+      }
+    },
+    "txt/txt-08-decoration-style": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0.02748015873015873
+      }
+    },
+    "txt/txt-15-super-subscript": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0.009776785714285714
+      }
+    },
+    "txt/txt-17-rtl": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0.019464285714285715
       }
     },
     "xfrm/xfrm-02-scale": {

@@ -12,6 +12,7 @@ import type {
   FigmaTextAlignHorizontal,
   FigmaTextCase,
   FigmaTextDecoration,
+  FigmaTextDecorationStyle,
   FigmaTextNodeChange,
 } from "../../types";
 import { buildBaselines } from "./builders/baselines";
@@ -30,6 +31,21 @@ const cssToFigmaTextAlignHorizontalMap: Record<
   right: "RIGHT",
   justify: "JUSTIFIED",
 };
+
+// `text-align` computes to the logical keyword `start` on an element that
+// never set it, and Figma only speaks physical alignment — so both logical
+// keywords have to be resolved against the element's inline direction.
+function resolveTextAlign(
+  cssTextAlign: string,
+  direction: "ltr" | "rtl"
+): FigmaTextAlignHorizontal {
+  const start: FigmaTextAlignHorizontal =
+    direction === "rtl" ? "RIGHT" : "LEFT";
+  if (cssTextAlign === "end") {
+    return direction === "rtl" ? "LEFT" : "RIGHT";
+  }
+  return cssToFigmaTextAlignHorizontalMap[cssTextAlign] ?? start;
+}
 
 const fontWeightToWidthBufferMap: Record<number, number> = {
   100: 0,
@@ -52,6 +68,86 @@ const cssToFigmaTextDecorationMap: Record<string, FigmaTextDecoration> = {
   none: "NONE",
   underline: "UNDERLINE",
 };
+
+// Figma's decoration styles are SOLID | DOTTED | WAVY. CSS `dashed` has no
+// counterpart, so it takes the nearest broken line; `double` has none either
+// and stays solid, which is what Figma's own importer does.
+const cssToFigmaTextDecorationStyleMap: Record<
+  string,
+  FigmaTextDecorationStyle
+> = {
+  solid: "SOLID",
+  double: "SOLID",
+  dotted: "DOTTED",
+  dashed: "DOTTED",
+  wavy: "WAVY",
+};
+
+type TextDecorationDetail = {
+  style?: FigmaTextDecorationStyle;
+  /** Resolved CSS thickness in px, or null for `auto`. */
+  thicknessPx: number | null;
+  thickness?: { value: number; units: "PIXELS" };
+  fillPaints?: Array<FigmaPaint>;
+};
+
+/**
+ * Reads the `text-decoration-style` / `-color` / `-thickness` longhands off the
+ * element that owns the decoration line.
+ *
+ * Each is emitted only when it actually departs from Figma's default, so a
+ * plain `text-decoration: underline` keeps producing exactly the node change it
+ * did before: `SOLID`, auto thickness, and the line inheriting the text fill.
+ */
+function parseTextDecorationDetail(
+  style: CSSStyleDeclaration,
+  fontSize: number
+): TextDecorationDetail {
+  // `auto` (the default) means "let the renderer pick from font metrics",
+  // which is exactly Figma's behaviour when the field is absent.
+  const thicknessPx = parseDecorationThickness(
+    style.textDecorationThickness,
+    fontSize
+  );
+  const detail: TextDecorationDetail = { thicknessPx };
+
+  const figmaStyle =
+    cssToFigmaTextDecorationStyleMap[style.textDecorationStyle];
+  if (figmaStyle && figmaStyle !== "SOLID") {
+    detail.style = figmaStyle;
+  }
+
+  if (thicknessPx !== null) {
+    detail.thickness = { value: thicknessPx, units: "PIXELS" };
+  }
+
+  // An unset `text-decoration-color` computes to `currentColor`, i.e. the same
+  // colour Figma already paints the line with from the text fill.
+  if (style.textDecorationColor !== style.color) {
+    const decorationColor = cssColorToFigmaColor(style.textDecorationColor);
+    if (decorationColor) {
+      detail.fillPaints = [
+        createSolidPaint(decorationColor.color, decorationColor.opacity),
+      ];
+    }
+  }
+
+  return detail;
+}
+
+function parseDecorationThickness(
+  value: string,
+  fontSize: number
+): number | null {
+  if (!value || value === "auto" || value === "from-font") {
+    return null;
+  }
+  const parsed = Number.parseFloat(value);
+  if (Number.isNaN(parsed)) {
+    return null;
+  }
+  return value.trim().endsWith("%") ? (parsed / 100) * fontSize : parsed;
+}
 
 const cssToFigmaTextCaseMap: Record<string, FigmaTextCase> = {
   none: "ORIGINAL",
@@ -151,8 +247,8 @@ export async function nodeToTextNodeChange(
   const fontFamily =
     computedStyle.fontFamily.replace(/["']/g, "").split(",")[0]?.trim() ?? "";
   const fontWeight = Number.parseInt(computedStyle.fontWeight, 10);
-  const textAlign =
-    cssToFigmaTextAlignHorizontalMap[computedStyle.textAlign] ?? "LEFT";
+  const direction = computedStyle.direction === "rtl" ? "rtl" : "ltr";
+  const textAlign = resolveTextAlign(computedStyle.textAlign, direction);
   const color = cssColorToFigmaColor(computedStyle.color);
   const textShadowEffects = cssTextShadowToFigmaEffects(
     computedStyle.textShadow
@@ -184,8 +280,11 @@ export async function nodeToTextNodeChange(
     fillPaints.push(createSolidPaint(color.color, color.opacity));
   }
 
-  // Check for text decoration on current element and parent elements
+  // Check for text decoration on current element and parent elements. The
+  // style/color/thickness longhands are not inherited independently — they
+  // belong to whichever ancestor introduced the line — so track that element.
   let textDecoration = computedStyle.textDecorationLine || "none";
+  let decorationStyle = computedStyle;
 
   // If no decoration found on current element, recursively check parent elements
   if (textDecoration === "none") {
@@ -196,6 +295,7 @@ export async function nodeToTextNodeChange(
 
       if (parentDecoration !== "none") {
         textDecoration = parentDecoration;
+        decorationStyle = parentStyle;
         break;
       }
       parentElement = parentElement.parentElement;
@@ -204,6 +304,11 @@ export async function nodeToTextNodeChange(
 
   const figmaTextDecoration =
     cssToFigmaTextDecorationMap[textDecoration] ?? "NONE";
+
+  const decorationDetail =
+    figmaTextDecoration === "NONE"
+      ? null
+      : parseTextDecorationDetail(decorationStyle, fontSize);
 
   // Parse text transform (text case)
   const textTransform = computedStyle.textTransform || "none";
@@ -306,6 +411,7 @@ export async function nodeToTextNodeChange(
     decorationType,
     fontSize: styles.fontSize,
     respectGlyphDescent: true,
+    thickness: decorationDetail?.thicknessPx ?? null,
   });
 
   // Build textData and derivedTextData
@@ -317,7 +423,10 @@ export async function nodeToTextNodeChange(
           lineType: "PLAIN" as const,
           styleId: 0,
           indentationLevel: 0,
-          sourceDirectionality: "AUTO" as const,
+          // `AUTO` lets Figma infer the paragraph direction from the first
+          // strong character, which is wrong for an explicitly `dir=rtl`
+          // paragraph whose text happens to start with a Latin run.
+          sourceDirectionality: direction === "rtl" ? "RTL" : "AUTO",
           listStartOffset: 0,
           isFirstLineOfList: false,
         },
@@ -444,7 +553,8 @@ export async function nodeToTextNodeChange(
       logicalIndexToCharacterOffsetMap: characterOffsets,
       derivedLines: [
         {
-          directionality: "LTR" as const,
+          directionality:
+            direction === "rtl" ? ("RTL" as const) : ("LTR" as const),
         },
       ],
       ...(decorations.length > 0 && { decorations }),
@@ -519,6 +629,15 @@ export async function nodeToTextNodeChange(
     /* Text Decoration */
     ...(figmaTextDecoration !== "NONE" && {
       textDecoration: figmaTextDecoration,
+    }),
+    ...(decorationDetail?.style && {
+      textDecorationStyle: decorationDetail.style,
+    }),
+    ...(decorationDetail?.thickness && {
+      textDecorationThickness: decorationDetail.thickness,
+    }),
+    ...(decorationDetail?.fillPaints && {
+      textDecorationFillPaints: decorationDetail.fillPaints,
     }),
 
     /* Text Case */

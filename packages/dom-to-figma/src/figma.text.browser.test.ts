@@ -284,3 +284,110 @@ describe("text-shadow → TEXT node DROP_SHADOW effect", () => {
     expect(textChange.effects ?? []).toHaveLength(0);
   });
 });
+
+const convertText = async (style: string, text: string) => {
+  const element = mountElement(
+    `<div style="width:${FRAME_WIDTH}px;height:${FRAME_HEIGHT}px;font-family:'${TEST_FONT_FAMILY}',sans-serif;font-size:18px;color:rgb(0,0,0);${style}">${text}</div>`
+  );
+
+  const figma = createFigmaConverter({ fontLoader: createTestFontLoader() });
+  const result = await figma.convert({
+    element,
+    width: FRAME_WIDTH,
+    height: FRAME_HEIGHT,
+  });
+
+  const textChange = result.document.nodeChanges.find(
+    (change) => change.type === "TEXT"
+  );
+  if (textChange?.type !== "TEXT") {
+    throw new Error("expected TEXT node");
+  }
+  return textChange;
+};
+
+describe("text-decoration style, color, and thickness", () => {
+  it("maps text-decoration-style to Figma's SOLID/DOTTED/WAVY", async () => {
+    const wavy = await convertText("text-decoration:underline wavy", "Wavy");
+    expect(wavy.textDecorationStyle).toBe("WAVY");
+
+    const dotted = await convertText(
+      "text-decoration:underline dotted",
+      "Dotted"
+    );
+    expect(dotted.textDecorationStyle).toBe("DOTTED");
+  });
+
+  it("maps dashed to DOTTED, the nearest broken line Figma has", async () => {
+    const dashed = await convertText(
+      "text-decoration:underline dashed",
+      "Dashed"
+    );
+    expect(dashed.textDecorationStyle).toBe("DOTTED");
+  });
+
+  it("leaves style, thickness, and fill unset for a plain underline", async () => {
+    const plain = await convertText("text-decoration:underline", "Plain");
+    expect(plain.textDecoration).toBe("UNDERLINE");
+    expect(plain.textDecorationStyle).toBeUndefined();
+    expect(plain.textDecorationThickness).toBeUndefined();
+    expect(plain.textDecorationFillPaints).toBeUndefined();
+  });
+
+  it("emits an explicit thickness in pixels", async () => {
+    const thick = await convertText(
+      "text-decoration:underline;text-decoration-thickness:3px",
+      "Thick"
+    );
+    expect(thick.textDecorationThickness).toEqual({
+      value: 3,
+      units: "PIXELS",
+    });
+  });
+
+  it("emits decoration fill paints when the line colour differs from the text", async () => {
+    const coloured = await convertText(
+      "text-decoration:underline;text-decoration-color:#dc2626",
+      "Red line"
+    );
+    const paint = coloured.textDecorationFillPaints?.[0];
+    expect(paint?.type).toBe("SOLID");
+    if (paint?.type !== "SOLID") {
+      throw new Error("expected a solid decoration paint");
+    }
+    // #dc2626 in sRGB 0-1.
+    expect(paint.color.r).toBeCloseTo(0.863, 2);
+    expect(paint.color.g).toBeCloseTo(0.149, 2);
+    expect(paint.color.b).toBeCloseTo(0.149, 2);
+  });
+
+  it("emits nothing decoration-related when there is no decoration", async () => {
+    const none = await convertText("", "None");
+    expect(none.textDecoration).toBeUndefined();
+    expect(none.textDecorationStyle).toBeUndefined();
+    expect(none.textDecorationThickness).toBeUndefined();
+    expect(none.textDecorationFillPaints).toBeUndefined();
+  });
+});
+
+describe("inline direction", () => {
+  it("right-aligns an rtl paragraph that never set text-align", async () => {
+    const rtl = await convertText("direction:rtl", "Right to left");
+    expect(rtl.textAlignHorizontal).toBe("RIGHT");
+    expect(rtl.derivedTextData?.derivedLines?.[0]?.directionality).toBe("RTL");
+  });
+
+  it("keeps ltr paragraphs left-aligned and LTR", async () => {
+    const ltr = await convertText("", "Left to right");
+    expect(ltr.textAlignHorizontal).toBe("LEFT");
+    expect(ltr.derivedTextData?.derivedLines?.[0]?.directionality).toBe("LTR");
+  });
+
+  it("resolves an explicit physical alignment regardless of direction", async () => {
+    const rtlLeft = await convertText(
+      "direction:rtl;text-align:left",
+      "Explicit"
+    );
+    expect(rtlLeft.textAlignHorizontal).toBe("LEFT");
+  });
+});

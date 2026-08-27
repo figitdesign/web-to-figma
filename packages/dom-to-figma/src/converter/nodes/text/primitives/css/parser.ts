@@ -34,8 +34,10 @@ export type ParsedTextProperties = {
   letterSpacing: number;
   /** Word spacing in pixels */
   wordSpacing: number;
-  /** Text alignment */
+  /** Text alignment, with logical `start`/`end` already resolved */
   textAlign: "left" | "center" | "right";
+  /** Inline base direction */
+  direction: "ltr" | "rtl";
   /** Text color (CSS color value) */
   color: string;
   /** Element dimensions */
@@ -68,6 +70,8 @@ export function parseTextProperties(element: Element): ParsedTextProperties {
   // Parse font size first (needed for relative calculations)
   const fontSize = parseFontSize(computedStyle.fontSize);
 
+  const direction = computedStyle.direction === "rtl" ? "rtl" : "ltr";
+
   // Parse font properties
   const font = parseFontProperties(
     computedStyle.fontFamily,
@@ -82,8 +86,9 @@ export function parseTextProperties(element: Element): ParsedTextProperties {
   const letterSpacing = parseLetterSpacing(computedStyle.letterSpacing);
   const wordSpacing = parseWordSpacing(computedStyle.wordSpacing);
 
-  // Parse alignment
-  const textAlign = parseTextAlign(computedStyle.textAlign);
+  // Parse alignment. `start`/`end` are logical, so they need the inline
+  // direction to resolve; `start` is also what an unstyled element reports.
+  const textAlign = parseTextAlign(computedStyle.textAlign, direction);
 
   // Get color
   const color = computedStyle.color || "rgb(0, 0, 0)";
@@ -95,6 +100,7 @@ export function parseTextProperties(element: Element): ParsedTextProperties {
     letterSpacing,
     wordSpacing,
     textAlign,
+    direction,
     color,
     dimensions: {
       width: Math.ceil(rect.width),
@@ -327,21 +333,35 @@ function parseWordSpacing(wordSpacingValue: string): number {
 /**
  * Parse CSS text-align value
  *
+ * `start` and `end` are logical keywords — an element with no explicit
+ * `text-align` computes to `start`, which is the left edge in an LTR box and
+ * the right edge in an RTL one. Resolving them needs the inline direction.
+ *
  * @param textAlignValue - CSS text-align value
- * @returns Normalized text alignment
+ * @param direction - Inline base direction of the element
+ * @returns Normalized physical text alignment
  */
-function parseTextAlign(textAlignValue: string): "left" | "center" | "right" {
+function parseTextAlign(
+  textAlignValue: string,
+  direction: "ltr" | "rtl"
+): "left" | "center" | "right" {
+  const logicalStart = direction === "rtl" ? "right" : "left";
+  const logicalEnd = direction === "rtl" ? "left" : "right";
+
   if (!textAlignValue) {
-    return "left";
+    return logicalStart;
   }
 
   switch (textAlignValue.toLowerCase().trim()) {
     case "center":
       return "center";
     case "right":
-    case "end":
       return "right";
-    default:
+    case "left":
       return "left";
+    case "end":
+      return logicalEnd;
+    default:
+      return logicalStart;
   }
 }

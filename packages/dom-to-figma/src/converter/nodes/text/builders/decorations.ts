@@ -44,6 +44,13 @@ export type DecorationOptions = {
   fontSize: number;
   /** Whether to adjust for glyph descent */
   respectGlyphDescent: boolean;
+  /**
+   * Resolved `text-decoration-thickness` in pixels, or null for CSS `auto`.
+   * Figma paints the rectangles we ship verbatim, so this is what actually
+   * determines how thick the rule renders — the `textDecorationThickness`
+   * node field alone does nothing on paste.
+   */
+  thickness?: number | null;
 };
 
 /**
@@ -127,7 +134,10 @@ function createUnderlineDecoration(
     layout.metrics,
     options.fontSize
   );
-  const underlineThickness = calculateUnderlineThickness(options.fontSize);
+  const underlineThickness = calculateUnderlineThickness(
+    options.fontSize,
+    options.thickness ?? null
+  );
 
   // Always use multi-line approach as it's more general and handles single lines too
   const rects = createMultiLineUnderlineRects(
@@ -174,17 +184,26 @@ function calculateUnderlinePosition(
 }
 
 /**
- * Calculate underline thickness based on font size
+ * Calculate underline thickness
  *
- * Standard practice is to make underline thickness proportional to font size,
- * typically around 1/16 to 1/12 of the font size.
+ * An explicit CSS `text-decoration-thickness` wins outright. `auto` falls back
+ * to a ratio of the font size, which is roughly what a browser derives from
+ * the font's `post` table for the faces in the corpus.
  *
  * @param fontSize - Font size in pixels
+ * @param cssThickness - Resolved CSS thickness in pixels, or null for `auto`
  * @returns Thickness in pixels
  *
  * @internal
  */
-function calculateUnderlineThickness(fontSize: number): number {
+function calculateUnderlineThickness(
+  fontSize: number,
+  cssThickness: number | null
+): number {
+  if (cssThickness !== null && cssThickness > 0) {
+    return cssThickness;
+  }
+
   // Based on ground truth: thickness=0.392 for fontSize=14, lineHeight=19
   // This is about fontSize * 0.028 (0.392/14 ≈ 0.028)
   const thickness = fontSize * 0.028;
