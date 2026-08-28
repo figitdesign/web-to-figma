@@ -549,8 +549,8 @@
     },
     "bg/bg-15-clip-text": {
       "tier0": {
-        "findings": 1,
-        "maxDeltaPx": 3
+        "findings": 0,
+        "maxDeltaPx": 0
       },
       "tier1": {
         "findings": 0,
@@ -987,6 +987,45 @@
       },
       "tier2": {
         "diffRatio": 0
+      }
+    },
+    "txt/txt-07-decoration-lines": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0.0017534722222222222
+      }
+    },
+    "txt/txt-18-unicode": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0.018110795454545456
+      }
+    },
+    "txt/txt-19-tabular-nums": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier1": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      },
+      "tier2": {
+        "diffRatio": 0.001015625
       }
     },
     "xfrm/xfrm-02-scale": {

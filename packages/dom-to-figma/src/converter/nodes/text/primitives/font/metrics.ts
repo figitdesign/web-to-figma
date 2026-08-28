@@ -30,6 +30,8 @@ export type FontMetrics = {
   capHeight: number;
   /** Height of lowercase letters (typically 'x') */
   xHeight: number;
+  /** Thickness of decoration rules, from the `post` table */
+  underlineThickness: number;
 
   /** Total line height in font units (ascender - descender + lineGap) */
   lineHeight: number;
@@ -82,6 +84,13 @@ export function extractFontMetrics(font: OpenTypeFont): FontMetrics {
   const capHeight = font.capHeight ?? Math.round(unitsPerEm * 0.7);
   const xHeight = font.xHeight ?? Math.round(unitsPerEm * 0.5);
 
+  // Browsers draw an `auto` text-decoration at the font's own rule thickness,
+  // falling back to a tenth of the em when the `post` table omits it.
+  const underlineThickness =
+    font.underlineThickness && font.underlineThickness > 0
+      ? font.underlineThickness
+      : Math.round(unitsPerEm * 0.1);
+
   const lineHeight = ascender - descender + lineGap;
   const baseline = Math.abs(descender);
 
@@ -92,6 +101,7 @@ export function extractFontMetrics(font: OpenTypeFont): FontMetrics {
     lineGap,
     capHeight,
     xHeight,
+    underlineThickness,
     lineHeight,
     lineHeightRatio: lineHeight / unitsPerEm,
     baseline,

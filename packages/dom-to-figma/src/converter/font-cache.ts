@@ -11,6 +11,7 @@ export type FontCache = DedupCache<FontProperties, LoadedFont>;
 export function createFontCache(fontLoader: FontLoader): FontCache {
   return new DedupCache({
     load: (properties) => loadFont(fontLoader, properties),
-    toCacheKey: ({ family, weight, italic }) => `${family}:${weight}:${italic}`,
+    toCacheKey: ({ family, weight, italic, subset }) =>
+      `${family}:${weight}:${italic}:${subset ?? ""}`,
   });
 }

@@ -1,0 +1,47 @@
+<!-- oracle: width=320 height=220 -->
+<style>
+/* The exact files the converter's fontsource loader fetches, one per script
+   subset, so the browser and Figma lay this scene out against identical bytes
+   and the diff measures glyph coverage rather than a font substitution.
+   The emoji row has no @font-face and falls back to the system emoji font. */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  src: url(https://cdn.jsdelivr.net/fontsource/fonts/inter@5/cyrillic-400-normal.woff2)
+    format("woff2");
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  src: url(https://cdn.jsdelivr.net/fontsource/fonts/inter@5/greek-400-normal.woff2)
+    format("woff2");
+  unicode-range:
+    U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  src: url(https://cdn.jsdelivr.net/fontsource/fonts/inter@5/latin-400-normal.woff2)
+    format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+body {
+  margin: 0;
+  font-family: Inter, sans-serif;
+}
+</style>
+<div
+  style="width:320px;height:220px;background:#fff;box-sizing:border-box;padding:24px;display:flex;flex-direction:column;gap:12px;font-size:26px;color:#18181b"
+>
+  <div>Привет</div>
+  <div>Γειά σου</div>
+  <div>Ünïcødé ß æ</div>
+  <div>🎉 ✅ 🚀</div>
+</div>

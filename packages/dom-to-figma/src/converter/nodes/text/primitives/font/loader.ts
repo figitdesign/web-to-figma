@@ -13,6 +13,13 @@ export type FontProperties = {
   family: string;
   weight: number;
   italic: boolean;
+  /**
+   * Script subset the run needs, e.g. `"cyrillic"`. Google Fonts ships one
+   * file per subset and the default `latin` file has no Cyrillic or Greek
+   * glyphs, so a loader that ignores this lays non-latin text out against
+   * `.notdef`. See `detectFontSubset`.
+   */
+  subset?: string;
 };
 
 /**
@@ -178,29 +185,34 @@ const DEFAULT_FALLBACK_FAMILY = "Inter";
 export function createFontsourceLoader(
   options: FontsourceLoaderOptions = {}
 ): FontLoader {
-  const subset = options.subset ?? FONTSOURCE_DEFAULT_SUBSET;
+  const defaultSubset = options.subset ?? FONTSOURCE_DEFAULT_SUBSET;
   // `undefined` → use the default; `null` → strict-fail; a string overrides.
   const fallbackFamily =
     options.fallbackFamily === undefined
       ? DEFAULT_FALLBACK_FAMILY
       : options.fallbackFamily;
   const fallbackKey = fallbackFamily ? familyToSlug(fallbackFamily) : null;
+  // Keyed by family *and* subset: a family can carry `latin` but not
+  // `cyrillic`, and memoizing the whole family off one missing subset would
+  // wrongly send every later run to the fallback.
   const knownMissingFamilies = new Set<string>();
 
   return async (request: FontProperties): Promise<FontFile> => {
     const familyKey = familyToSlug(request.family);
     const isFallbackRequest = fallbackKey === familyKey;
+    const subsets = subsetChain(request.subset ?? defaultSubset);
+    const missingKey = `${familyKey}@${subsets[0]}`;
 
-    if (knownMissingFamilies.has(familyKey)) {
+    if (knownMissingFamilies.has(missingKey)) {
       if (fallbackFamily && !isFallbackRequest) {
-        return await loadAsFallback(fallbackFamily, request, subset);
+        return await loadAsFallback(fallbackFamily, request, subsets);
       }
       throw new Error(
         `fontsource: ${request.family} is not in the catalog (cached)`
       );
     }
 
-    const outcome = await fetchFromFontsource(request, subset);
+    const outcome = await fetchSubsetChain(request, subsets);
     if (outcome.kind === "ok") {
       return {
         bytes: outcome.bytes,
@@ -210,30 +222,58 @@ export function createFontsourceLoader(
     }
 
     if (outcome.kind === "not-found") {
-      knownMissingFamilies.add(familyKey);
+      knownMissingFamilies.add(missingKey);
       if (fallbackFamily && !isFallbackRequest) {
-        return await loadAsFallback(fallbackFamily, request, subset);
+        return await loadAsFallback(fallbackFamily, request, subsets);
       }
     }
 
     throw new Error(
-      `fontsource: no variant found for ${formatRequest(request)} (subset=${subset})`
+      `fontsource: no variant found for ${formatRequest(request)} (subset=${subsets.join(", ")})`
     );
   };
+}
+
+/**
+ * Subsets to try, in order. A script subset the family doesn't publish still
+ * has to render *something*, so `latin` is always the last resort — better
+ * the wrong glyphs than a dropped text node.
+ */
+function subsetChain(subset: string): ReadonlyArray<string> {
+  return subset === FONTSOURCE_DEFAULT_SUBSET
+    ? [subset]
+    : [subset, FONTSOURCE_DEFAULT_SUBSET];
+}
+
+async function fetchSubsetChain(
+  request: FontProperties,
+  subsets: ReadonlyArray<string>
+): Promise<FontsourceFetchOutcome> {
+  let onlySawNotFound = true;
+  for (const subset of subsets) {
+    const outcome = await fetchFromFontsource(request, subset);
+    if (outcome.kind === "ok") {
+      return outcome;
+    }
+    if (outcome.kind !== "not-found") {
+      onlySawNotFound = false;
+    }
+  }
+  return { kind: onlySawNotFound ? "not-found" : "transient" };
 }
 
 async function loadAsFallback(
   fallbackFamily: string,
   originalRequest: FontProperties,
-  subset: string
+  subsets: ReadonlyArray<string>
 ): Promise<FontFile> {
-  const outcome = await fetchFromFontsource(
+  const outcome = await fetchSubsetChain(
     { ...originalRequest, family: fallbackFamily },
-    subset
+    subsets
   );
   if (outcome.kind !== "ok") {
     throw new Error(
-      `fontsource: fallback family "${fallbackFamily}" is not available (subset=${subset})`
+      `fontsource: fallback family "${fallbackFamily}" is not available (subset=${subsets.join(", ")})`
     );
   }
   return {

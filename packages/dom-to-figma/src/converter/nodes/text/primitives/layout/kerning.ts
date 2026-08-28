@@ -9,6 +9,7 @@
  * One layout call per run replaces what used to be N pairwise calls.
  */
 
+import type { OpenTypeFeatures } from "../../primitives/font/features";
 import { fontUnitsToPixels } from "../../primitives/font/metrics";
 import type { FontMetrics, OpenTypeFont, OpenTypeGlyph } from "../../types";
 
@@ -40,7 +41,8 @@ export function computeKernings(
   text: string,
   glyphs: ReadonlyArray<OpenTypeGlyph>,
   metrics: FontMetrics,
-  fontSize: number
+  fontSize: number,
+  features: OpenTypeFeatures = []
 ): Array<number> {
   const result = new Array<number>(Math.max(0, glyphs.length - 1)).fill(0);
   if (glyphs.length < 2) {
@@ -48,7 +50,12 @@ export function computeKernings(
   }
 
   try {
-    const run = font.layout(text, NO_SHAPING_FEATURES);
+    // The run's own features go in alongside the shaping switches, so kern
+    // deltas are read off the same glyphs the positions were measured from.
+    const run = font.layout(text, {
+      ...NO_SHAPING_FEATURES,
+      ...Object.fromEntries(features.map((tag) => [tag, true])),
+    });
     // If shaping merged or split clusters, the per-character contract is
     // broken; fall back to no kerning rather than misattributing deltas.
     if (run.glyphs.length !== glyphs.length) {

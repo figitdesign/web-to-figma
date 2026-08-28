@@ -1,0 +1,24 @@
+<!-- oracle: width=320 height=180 -->
+<style>
+/* The exact file the converter's fontsource loader fetches, so the browser
+   and Figma lay this scene out against identical bytes and the diff measures
+   the decoration rules rather than a font substitution. */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  src: url(https://cdn.jsdelivr.net/fontsource/fonts/inter@5/latin-400-normal.woff2)
+    format("woff2");
+}
+body {
+  margin: 0;
+  font-family: Inter, sans-serif;
+}
+</style>
+<div
+  style="width:320px;height:180px;background:#fff;box-sizing:border-box;padding:24px;display:flex;flex-direction:column;gap:14px;font-size:26px;color:#18181b"
+>
+  <div style="text-decoration:underline">Underline</div>
+  <div style="text-decoration:line-through">Strike</div>
+  <div style="text-decoration:overline">Overline</div>
+</div>
