@@ -16,8 +16,12 @@ import type {
 } from "../../types";
 import { buildBaselines } from "./builders/baselines";
 import { buildCharacterOffsets } from "./builders/character-offsets";
-import { processTextDecorations } from "./builders/decorations";
+import {
+  parseDecorationLines,
+  processTextDecorations,
+} from "./builders/decorations";
 import { parseTextProperties } from "./primitives/css/parser";
+import { detectFontSubset } from "./primitives/font/subset";
 import { processGlyphs } from "./primitives/glyph/processor";
 import { processTextLayout } from "./primitives/layout/processor";
 
@@ -48,9 +52,12 @@ function getWidthBuffer(fontWeight: number, fontSize: number) {
   return fontSize > 60 ? fontWeightBuffer + 1 : fontWeightBuffer;
 }
 
+// Figma has no overline, so `overline` deliberately has no entry here — it is
+// painted from the decoration rects in `derivedTextData` instead.
 const cssToFigmaTextDecorationMap: Record<string, FigmaTextDecoration> = {
   none: "NONE",
   underline: "UNDERLINE",
+  "line-through": "STRIKETHROUGH",
 };
 
 const cssToFigmaTextCaseMap: Record<string, FigmaTextCase> = {
@@ -202,6 +209,7 @@ export async function nodeToTextNodeChange(
     }
   }
 
+  const decorationLines = parseDecorationLines(textDecoration);
   const figmaTextDecoration =
     cssToFigmaTextDecorationMap[textDecoration] ?? "NONE";
 
@@ -253,7 +261,13 @@ export async function nodeToTextNodeChange(
 
   const { font, ...styles } = parseTextProperties(element);
 
-  const loadedFont = await fontCache.get(font);
+  // The subset comes from the run's own characters: a `latin` file has no
+  // Cyrillic or Greek glyphs, so laying "Привет" out against one measures
+  // `.notdef` and paints nothing in Figma.
+  const loadedFont = await fontCache.get({
+    ...font,
+    subset: detectFontSubset(text),
+  });
 
   // Wrap and align within the box this node ships with, NOT the parent
   // element's width: glyph/baseline offsets bake the alignment in, and the
@@ -267,7 +281,10 @@ export async function nodeToTextNodeChange(
 
   const layout = processTextLayout(loadedFont.font, text, {
     fontSize: styles.fontSize,
-    spacing: { letterSpacing: styles.letterSpacing },
+    spacing: {
+      letterSpacing: styles.letterSpacing,
+      features: styles.features,
+    },
     alignment: styles.textAlign,
     containerWidth: wrappingContainerWidth,
     lineHeight: styles.lineHeight,
@@ -284,6 +301,7 @@ export async function nodeToTextNodeChange(
     {
       fontSize: styles.fontSize,
       includeWhitespace: true,
+      features: styles.features,
     },
     registerBlob
   );
@@ -298,14 +316,12 @@ export async function nodeToTextNodeChange(
 
   const characterOffsets = buildCharacterOffsets(layout);
 
-  // Process text decorations (underlines, etc.) - implement strikethrough later
-  const decorationType =
-    figmaTextDecoration === "UNDERLINE" ? "underline" : "none";
-
-  const decorations = processTextDecorations(layout, loadedFont.font, text, {
-    decorationType,
+  // Draw every rule the DOM asked for. Figma's `textDecoration` enum only
+  // covers underline and strikethrough, so the rects in `derivedTextData` are
+  // what actually paint an overline on paste.
+  const decorations = processTextDecorations(layout, {
+    lines: decorationLines,
     fontSize: styles.fontSize,
-    respectGlyphDescent: true,
   });
 
   // Build textData and derivedTextData

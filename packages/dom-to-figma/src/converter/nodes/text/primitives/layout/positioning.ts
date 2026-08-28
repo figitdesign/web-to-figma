@@ -9,6 +9,8 @@
 
 import type { OpenTypeFont } from "../../types";
 import type { FontMetrics } from "../font";
+import type { OpenTypeFeatures } from "../font/features";
+import { glyphForCharacter } from "../font/features";
 import { computeKernings } from "./kerning";
 import { scaleAdvanceWidth } from "./scaling";
 
@@ -18,13 +20,17 @@ import { scaleAdvanceWidth } from "./scaling";
 export type HorizontalAlignment = "left" | "center" | "right";
 
 /**
- * Configuration options for text spacing
+ * Configuration options for laying a run out: the spacing added around each
+ * glyph, plus the OpenType features that decide which glyph a character maps
+ * to in the first place.
  */
 export type SpacingOptions = {
   /** Additional letter spacing in pixels */
   letterSpacing?: number;
   /** Additional word spacing in pixels */
   wordSpacing?: number;
+  /** OpenType feature tags the run asks for, e.g. `["tnum"]` */
+  features?: OpenTypeFeatures;
 };
 
 /**
@@ -107,7 +113,7 @@ export function calculateGlyphPositions(
     return [];
   }
 
-  const { letterSpacing = 0, wordSpacing = 0 } = options;
+  const { letterSpacing = 0, wordSpacing = 0, features = [] } = options;
   const positions: Array<GlyphPosition> = [];
   let currentX = 0;
 
@@ -116,12 +122,19 @@ export function calculateGlyphPositions(
   // (e.g. an "fi" ligature glyph) would be silently corrupted anyway.
   const chars = [...text];
   const glyphs = chars.map((char) =>
-    font.glyphForCodePoint(char.codePointAt(0) ?? 0)
+    glyphForCharacter(font, char.codePointAt(0) ?? 0, features)
   );
 
   // One layout call resolves all pair kernings; index i holds the kern
   // between glyphs[i] and glyphs[i + 1].
-  const kernings = computeKernings(font, text, glyphs, metrics, fontSize);
+  const kernings = computeKernings(
+    font,
+    text,
+    glyphs,
+    metrics,
+    fontSize,
+    features
+  );
 
   for (let i = 0; i < glyphs.length; i += 1) {
     const glyph = glyphs[i];

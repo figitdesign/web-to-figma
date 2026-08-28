@@ -242,9 +242,14 @@ export function calculateWrappedLayout(
     wordWrap = true,
     breakWords = false,
     letterSpacing = 0,
+    features = [],
     lineHeight: customLineHeight,
     wrapTolerance = 2, // Default 2px tolerance
   } = options;
+
+  // Every measurement below has to see the same spacing *and* the same
+  // OpenType features, or the widths won't match the glyphs we emit.
+  const spacing: SpacingOptions = { letterSpacing, features };
 
   const lines: Array<LinePosition> = [];
   const lineHeight =
@@ -269,9 +274,7 @@ export function calculateWrappedLayout(
             currentLine,
             metrics,
             fontSize,
-            {
-              letterSpacing,
-            }
+            spacing
           );
           lines.push({
             characters: currentLine,
@@ -300,9 +303,7 @@ export function calculateWrappedLayout(
           tokenContent,
           metrics,
           fontSize,
-          {
-            letterSpacing,
-          }
+          spacing
         );
         // Apply tolerance when checking if word needs breaking
         if (wordWidth > maxWidth + wrapTolerance) {
@@ -312,9 +313,7 @@ export function calculateWrappedLayout(
             maxWidth + wrapTolerance,
             metrics,
             fontSize,
-            {
-              letterSpacing,
-            }
+            spacing
           );
 
           // Process each part as a separate token
@@ -324,9 +323,7 @@ export function calculateWrappedLayout(
               part,
               metrics,
               fontSize,
-              {
-                letterSpacing,
-              }
+              spacing
             );
             const testLine = currentLine + part;
             const testWidth = calculateSegmentWidth(
@@ -334,9 +331,7 @@ export function calculateWrappedLayout(
               testLine,
               metrics,
               fontSize,
-              {
-                letterSpacing,
-              }
+              spacing
             );
 
             // Apply tolerance when checking if line would overflow
@@ -348,9 +343,7 @@ export function calculateWrappedLayout(
                 currentLine,
                 metrics,
                 fontSize,
-                {
-                  letterSpacing,
-                }
+                spacing
               );
               lines.push({
                 characters: currentLine,
@@ -382,7 +375,7 @@ export function calculateWrappedLayout(
         testLine,
         metrics,
         fontSize,
-        { letterSpacing }
+        spacing
       );
 
       // Apply tolerance when checking if line would overflow
@@ -395,9 +388,7 @@ export function calculateWrappedLayout(
           currentLine,
           metrics,
           fontSize,
-          {
-            letterSpacing,
-          }
+          spacing
         );
         lines.push({
           characters: currentLine,
@@ -422,9 +413,7 @@ export function calculateWrappedLayout(
             tokenContent,
             metrics,
             fontSize,
-            {
-              letterSpacing,
-            }
+            spacing
           );
         }
       } else {
@@ -442,9 +431,7 @@ export function calculateWrappedLayout(
         currentLine,
         metrics,
         fontSize,
-        {
-          letterSpacing,
-        }
+        spacing
       );
       lines.push({
         characters: currentLine,
@@ -459,9 +446,13 @@ export function calculateWrappedLayout(
       });
     }
   } else {
-    const positions = calculateGlyphPositions(font, text, metrics, fontSize, {
-      letterSpacing,
-    });
+    const positions = calculateGlyphPositions(
+      font,
+      text,
+      metrics,
+      fontSize,
+      spacing
+    );
     const width =
       positions.length > 0
         ? (positions.at(-1)?.x ?? 0) + (positions.at(-1)?.advance ?? 0)

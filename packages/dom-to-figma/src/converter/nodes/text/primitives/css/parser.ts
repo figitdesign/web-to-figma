@@ -7,6 +7,8 @@
  * @module CSSParserPrimitives
  */
 
+import type { OpenTypeFeatures } from "../font/features";
+import { parseFontFeatures } from "../font/features";
 import type { FontProperties } from "../font/properties";
 import { parseFontProperties } from "../font/properties";
 
@@ -38,6 +40,8 @@ export type ParsedTextProperties = {
   textAlign: "left" | "center" | "right";
   /** Text color (CSS color value) */
   color: string;
+  /** OpenType feature tags the run asks for, e.g. `["tnum"]` */
+  features: OpenTypeFeatures;
   /** Element dimensions */
   dimensions: {
     width: number;
@@ -88,6 +92,9 @@ export function parseTextProperties(element: Element): ParsedTextProperties {
   // Get color
   const color = computedStyle.color || "rgb(0, 0, 0)";
 
+  // OpenType features that change which glyph a character maps to
+  const features = parseFontFeatures(computedStyle);
+
   return {
     font,
     fontSize,
@@ -96,6 +103,7 @@ export function parseTextProperties(element: Element): ParsedTextProperties {
     wordSpacing,
     textAlign,
     color,
+    features,
     dimensions: {
       width: Math.ceil(rect.width),
       height: Math.ceil(rect.height),

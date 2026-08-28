@@ -105,7 +105,7 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 - TXT-04 [P1 T2] letter-spacing
 - TXT-05 [P2 T2] word-spacing
 - TXT-06 [P0 T2] text-align left/center/right/justify
-- TXT-07 [P1 T2] underline / line-through / overline
+- TXT-07 [P1 T2] underline / line-through / overline · scene: `txt/txt-07-decoration-lines`
 - TXT-08 [P2 T2] text-decoration style/color/thickness
 - TXT-09 [P1 T2] text-transform uppercase/capitalize
 - TXT-10 [P1 T2] text-overflow: ellipsis (single line)
@@ -116,8 +116,8 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 - TXT-15 [P2 T2] super/subscript
 - TXT-16 [P1 T2] font-size units (em / rem / %)
 - TXT-17 [P2 T2] direction: rtl / writing-mode
-- TXT-18 [P2 T2] emoji / non-latin unicode
-- TXT-19 [P2 T2] font-feature-settings / tabular-nums
+- TXT-18 [P2 T2] emoji / non-latin unicode · scene: `txt/txt-18-unicode`
+- TXT-19 [P2 T2] font-feature-settings / tabular-nums · scene: `txt/txt-19-tabular-nums`
 - TXT-20 [P1 T2] font-family fallback chain
 
 ## Images (IMG)

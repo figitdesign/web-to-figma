@@ -1,14 +1,14 @@
 /**
  * Font Decorations Primitives
  *
- * Low-level text decoration processing for creating underlines
- * and other text decorations in Figma-compatible format.
+ * Low-level text decoration processing for creating underlines,
+ * strikethroughs and overlines in Figma-compatible format.
  *
  * @module FontDecorationsPrimitives
  */
 
 import type { FontMetrics } from "../primitives/font/metrics";
-import type { OpenTypeFont, ProcessedTextLayout } from "../types";
+import type { ProcessedTextLayout } from "../types";
 
 /**
  * Decoration rectangle definition
@@ -34,187 +34,161 @@ export type TextDecoration = {
   styleID: number;
 };
 
+/** A single CSS `text-decoration-line` keyword we can draw. */
+export type DecorationLine = "underline" | "line-through" | "overline";
+
+const DECORATION_LINES: ReadonlyArray<DecorationLine> = [
+  "underline",
+  "line-through",
+  "overline",
+];
+
 /**
  * Decoration processing options
  */
 export type DecorationOptions = {
-  /** CSS text-decoration-line value */
-  decorationType: "none" | "underline" | "line-through" | "overline";
+  /** The `text-decoration-line` keywords to draw. */
+  lines: ReadonlyArray<DecorationLine>;
   /** Font size in pixels */
   fontSize: number;
-  /** Whether to adjust for glyph descent */
-  respectGlyphDescent: boolean;
 };
+
+/**
+ * Parse a CSS `text-decoration-line` value into the keywords we can draw.
+ *
+ * The property is a space-separated list (`underline line-through` is legal),
+ * so a plain map lookup would miss combinations. Unsupported keywords
+ * (`blink`, `spelling-error`, …) are dropped.
+ */
+export function parseDecorationLines(
+  value: string
+): ReadonlyArray<DecorationLine> {
+  const tokens = new Set(value.trim().toLowerCase().split(/\s+/));
+  return DECORATION_LINES.filter((line) => tokens.has(line));
+}
 
 /**
  * Process text decorations for the given layout
  *
  * Generates Figma-compatible decoration data based on text layout
- * and CSS decoration properties. Handles word wrapping, glyph descent,
- * and proper positioning.
+ * and CSS decoration properties. Handles word wrapping and per-line
+ * positioning.
  *
  * @param layout - Processed text layout with glyph positions
- * @param font - OpenType font for glyph metrics
- * @param text - Original text string
  * @param options - Decoration processing options
  * @returns Array of decoration objects ready for Figma
  *
  * @example
  * ```typescript
- * const decorations = processTextDecorations(layout, font, "Hello world", {
- *   decorationType: "underline",
+ * const decorations = processTextDecorations(layout, {
+ *   lines: ["underline"],
  *   fontSize: 16,
- *   respectGlyphDescent: true
  * });
  * ```
  */
 export function processTextDecorations(
   layout: ProcessedTextLayout,
-  font: OpenTypeFont,
-  text: string,
   options: DecorationOptions
 ): Array<TextDecoration> {
-  if (options.decorationType === "none") {
+  if (options.lines.length === 0 || layout.positions.length === 0) {
     return [];
   }
 
+  const thickness = calculateDecorationThickness(
+    layout.metrics,
+    options.fontSize
+  );
   const decorations: Array<TextDecoration> = [];
 
-  if (options.decorationType === "underline") {
-    const underlineDecoration = createUnderlineDecoration(
-      layout,
-      font,
-      text,
-      options
+  for (const line of options.lines) {
+    const offset = decorationOffsetFromBaseline(
+      line,
+      layout.metrics,
+      options.fontSize,
+      thickness
     );
-    if (underlineDecoration) {
-      decorations.push(underlineDecoration);
+    const rects = createDecorationRects(layout, offset, thickness);
+    if (rects.length > 0) {
+      decorations.push({ rects, styleID: 0 });
     }
   }
-
-  // Future: Add support for line-through, overline, etc.
 
   return decorations;
 }
 
 /**
- * Create underline decoration for text layout
+ * Offset of a decoration rect's *top* edge from the baseline, in pixels.
+ * Positive is below the baseline.
  *
- * Generates underline rectangles based on glyph positions and font metrics.
- * Handles multi-line text with proper positioning and spacing.
- *
- * @param layout - Text layout with glyph positions
- * @param font - OpenType font for metrics
- * @param text - Original text string
- * @param options - Decoration options
- * @returns Underline decoration object or null if not applicable
+ * Each line is derived from the font's own metrics and then checked against
+ * a rendered scene: an overline rests its underside on the ascender line, a
+ * line-through is centred on half the cap height, and an underline keeps the
+ * calibrated offset that already matched. The metric-derived positions land
+ * within ~0.3px of what Chromium paints at 26px.
  *
  * @internal
  */
-function createUnderlineDecoration(
-  layout: ProcessedTextLayout,
-  font: OpenTypeFont,
-  text: string,
-  options: DecorationOptions
-): TextDecoration | null {
-  if (layout.positions.length === 0) {
-    return null;
-  }
-
-  // We need line height for proper positioning - get it from layout options or estimate
-  // const lineHeight = layout.options.lineHeight ?? options.fontSize * 1.2;
-  const underlineY = calculateUnderlinePosition(
-    layout.metrics,
-    options.fontSize
-  );
-  const underlineThickness = calculateUnderlineThickness(options.fontSize);
-
-  // Always use multi-line approach as it's more general and handles single lines too
-  const rects = createMultiLineUnderlineRects(
-    layout,
-    underlineY,
-    underlineThickness,
-    font,
-    text,
-    options
-  );
-
-  return rects.length > 0
-    ? {
-        rects,
-        styleID: 0,
-      }
-    : null;
-}
-
-/**
- * Calculate underline Y position based on font metrics
- *
- * Positions the underline below the baseline, accounting for font metrics
- * and potential glyph descent.
- *
- * @param metrics - Font metrics
- * @param fontSize - Font size in pixels
- * @returns Y position for underline in pixels
- *
- * @internal
- */
-function calculateUnderlinePosition(
-  _metrics: FontMetrics,
-  fontSize: number
+function decorationOffsetFromBaseline(
+  line: DecorationLine,
+  metrics: FontMetrics,
+  fontSize: number,
+  thickness: number
 ): number {
-  // Standard underline position is typically 1-2px below baseline
-  // Based on ground truth: baseline=14.106, underline=15.316, diff=1.21px
-  // lineHeight=19, fontSize=14, so underline is positioned relative to both
+  const em = (units: number) => (units / metrics.unitsPerEm) * fontSize;
 
-  // Either this or we can try with lineHeight, but this seems to work ok
-  const underlineOffset = fontSize * 0.086; // ~1.21px for 14px font (matches ground truth)
-
-  return underlineOffset;
+  switch (line) {
+    case "overline":
+      return -(em(metrics.ascender) + thickness);
+    case "line-through":
+      return -(em(metrics.capHeight) + thickness) / 2;
+    default:
+      // Based on ground truth: baseline=14.106, underline=15.316, diff=1.21px
+      // for a 14px font, i.e. ~0.086em below the baseline.
+      return fontSize * 0.086;
+  }
 }
 
 /**
- * Calculate underline thickness based on font size
+ * Calculate decoration thickness
  *
- * Standard practice is to make underline thickness proportional to font size,
- * typically around 1/16 to 1/12 of the font size.
+ * `text-decoration-thickness: auto` resolves to the font's own rule
+ * thickness, so a 26px Inter rule is ~1.8px — a flat ratio of the font size
+ * drew a hairline a quarter that width and left most of the browser's rule
+ * showing as a diff.
  *
+ * @param metrics - Font metrics carrying the `post` table thickness
  * @param fontSize - Font size in pixels
  * @returns Thickness in pixels
  *
  * @internal
  */
-function calculateUnderlineThickness(fontSize: number): number {
-  // Based on ground truth: thickness=0.392 for fontSize=14, lineHeight=19
-  // This is about fontSize * 0.028 (0.392/14 ≈ 0.028)
-  const thickness = fontSize * 0.028;
+function calculateDecorationThickness(
+  metrics: FontMetrics,
+  fontSize: number
+): number {
+  const thickness =
+    (metrics.underlineThickness / metrics.unitsPerEm) * fontSize;
 
   return Math.max(thickness, 0.25); // Minimum thickness for visibility
 }
 
 /**
- * Create underline rectangles for multi-line text
+ * Create decoration rectangles, one per visual line of text
  *
- * Generates separate underline rectangles for each line of wrapped text,
- * maintaining proper alignment and positioning.
+ * Generates a separate rect for each line of wrapped text, maintaining
+ * proper alignment and positioning.
  *
- * @param layout - Multi-line text layout
- * @param underlineY - Base Y position for underline
- * @param thickness - Underline thickness
- * @param font - OpenType font for analysis
- * @param text - Original text
- * @param options - Decoration options
- * @returns Array of underline rectangles
+ * @param layout - Text layout with glyph positions
+ * @param offsetFromBaseline - Top edge of the rule relative to the baseline
+ * @param thickness - Rule thickness
+ * @returns Array of decoration rectangles
  *
  * @internal
  */
-function createMultiLineUnderlineRects(
+function createDecorationRects(
   layout: ProcessedTextLayout,
-  underlineY: number,
-  thickness: number,
-  _font: OpenTypeFont,
-  _text: string,
-  options: DecorationOptions
+  offsetFromBaseline: number,
+  thickness: number
 ): Array<DecorationRect> {
   const rects: Array<DecorationRect> = [];
 
@@ -233,11 +207,10 @@ function createMultiLineUnderlineRects(
     const lastPos = nonSpacePositions.at(-1);
 
     if (firstPos && lastPos) {
-      const lineWidth =
-        lastPos.x - firstPos.x + lastPos.advance * options.fontSize;
+      const lineWidth = lastPos.x - firstPos.x + lastPos.advance;
       const singleLineRect: DecorationRect = {
         x: firstPos.x,
-        y: firstPos.y + underlineY,
+        y: firstPos.y + offsetFromBaseline,
         w: lineWidth,
         h: thickness,
       };
@@ -285,23 +258,20 @@ function createMultiLineUnderlineRects(
       continue;
     }
 
-    // Calculate line underline position - add underline offset to the glyph baseline Y
+    // Offset the rule from this line's glyph baseline
     const firstGlyphY = linePositions[0]?.y ?? 0;
-    const lineUnderlineY = firstGlyphY + underlineY;
+    const lineRuleY = firstGlyphY + offsetFromBaseline;
 
-    // Create underline rect for this line
+    // Create the rect for this line
     const firstPos = nonSpacePositions[0];
-    const lastPos = nonSpacePositions.at(-1);
 
-    if (firstPos && lastPos) {
+    if (firstPos) {
       // Use the line's reported width from layout instead of calculating from positions
       // This should be more accurate and match the ground truth better
-      const lineWidth = line.width;
-
       const lineRect: DecorationRect = {
         x: firstPos.x,
-        y: lineUnderlineY,
-        w: lineWidth,
+        y: lineRuleY,
+        w: line.width,
         h: thickness,
       };
 

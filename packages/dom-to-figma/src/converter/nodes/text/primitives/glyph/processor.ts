@@ -9,6 +9,8 @@
 
 import type { FigmaBlob, OpenTypeFont, OpenTypeGlyph } from "../../types";
 import type { FontMetrics, LoadedFont } from "../font";
+import type { OpenTypeFeatures } from "../font/features";
+import { glyphForCharacter } from "../font/features";
 import { pathCommandsToGlyphBytes } from "./encoder";
 
 /**
@@ -50,6 +52,8 @@ export type GlyphProcessingOptions = {
   includeWhitespace?: boolean;
   /** Custom character substitutions */
   characterSubstitutions?: Map<string, string>;
+  /** OpenType feature tags the run asks for, e.g. `["tnum"]` */
+  features?: OpenTypeFeatures;
 };
 
 /**
@@ -88,6 +92,7 @@ export function processGlyphs(
     fontSize,
     includeWhitespace = true,
     characterSubstitutions,
+    features = [],
   } = options;
 
   // Get unique characters, applying substitutions if provided
@@ -111,7 +116,8 @@ export function processGlyphs(
       char,
       metrics,
       fontSize,
-      registerBlob
+      registerBlob,
+      features
     );
     if (glyphData) {
       glyphDataMap.set(char, glyphData);
@@ -151,13 +157,14 @@ function processSingleGlyph(
   char: string,
   metrics: FontMetrics,
   fontSize: number,
-  registerBlob: (blob: FigmaBlob) => number
+  registerBlob: (blob: FigmaBlob) => number,
+  features: OpenTypeFeatures
 ): GlyphData | null {
   const codePoint = char.codePointAt(0);
   if (codePoint === undefined) {
     return null;
   }
-  const glyph = font.glyphForCodePoint(codePoint);
+  const glyph = glyphForCharacter(font, codePoint, features);
 
   // glyph.id 0 is the .notdef glyph for unmapped characters. Treat space as a
   // valid glyph even when the cmap returns .notdef, since we substitute a
