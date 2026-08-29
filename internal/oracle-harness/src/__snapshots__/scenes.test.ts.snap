@@ -354,6 +354,21 @@ exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
   },
   {
     "height": 160,
+    "id": "img/img-05-aspect-ratio",
+    "width": 240,
+  },
+  {
+    "height": 160,
+    "id": "img/img-06-data-uri",
+    "width": 240,
+  },
+  {
+    "height": 160,
+    "id": "img/img-07-broken",
+    "width": 240,
+  },
+  {
+    "height": 160,
     "id": "pos/pos-03-z-index",
     "width": 240,
   },

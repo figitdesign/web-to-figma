@@ -125,9 +125,9 @@ Tier that can catch it: **T0** structural (geometry only, today) · **T2** pixel
 - IMG-02 [P0 T2] object-fit cover / contain / fill · scene: `img/img-02-object-fit`
 - IMG-03 [P1 T2] object-position
 - IMG-04 [P1 T2] img + border-radius
-- IMG-05 [P2 T2] aspect-ratio box
-- IMG-06 [P2 T2] data-URI image
-- IMG-07 [P2 T2] broken image (alt/placeholder)
+- IMG-05 [P2 T2] aspect-ratio box · scene: `img/img-05-aspect-ratio`
+- IMG-06 [P2 T2] data-URI image · scene: `img/img-06-data-uri`
+- IMG-07 [P2 T2] broken image (alt/placeholder) · scene: `img/img-07-broken`
 
 ## Transforms (XFRM)  *(rotate already fixed)*
 - XFRM-01 [P0 T0] rotate

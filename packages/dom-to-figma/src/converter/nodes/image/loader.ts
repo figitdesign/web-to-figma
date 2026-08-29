@@ -20,6 +20,12 @@ export type ImageFile = {
 
 export type ImageLoader = (request: ImageRequest) => Promise<ImageFile>;
 
+/** Size in CSS pixels at which the browser paints an image's own bitmap. */
+export type ImageRenderSize = {
+  width: number;
+  height: number;
+};
+
 /**
  * Result of processing an `ImageFile` for Figma blob registration.
  */
@@ -38,6 +44,12 @@ const FIGMA_SUPPORTED_FORMATS = [
 ] as const;
 
 const PNG_QUALITY = 1.0;
+
+/**
+ * Ceiling on a baked-in enlargement, so a small spacer image stretched across a
+ * whole page can't turn into a hundred-megabyte blob.
+ */
+const MAX_BAKED_PIXELS = 4_000_000;
 
 /**
  * Build an `ImageLoader` that performs a single direct `fetch(src)`. Works
@@ -60,21 +72,66 @@ export function createDirectImageLoader(): ImageLoader {
 }
 
 /**
- * Convert raw loader output into Figma-ready blob info: re-encode to PNG when
- * the mime type isn't supported, then SHA-1 hash the final bytes.
+ * Convert raw loader output into Figma-ready blob info: bake in an enlargement
+ * when `renderSize` asks for one, otherwise re-encode to PNG when the mime type
+ * isn't supported, then SHA-1 hash the final bytes.
  */
 export async function processImageFile(
-  file: ImageFile
+  file: ImageFile,
+  renderSize?: ImageRenderSize | null
 ): Promise<ImageBlobInfo> {
-  const finalBytes = isFigmaSupportedFormat(file.mimeType)
-    ? file.bytes
-    : await convertToPng(file);
+  const baked = renderSize ? await bakeRenderSize(file, renderSize) : null;
+  const finalBytes =
+    baked ??
+    (isFigmaSupportedFormat(file.mimeType)
+      ? file.bytes
+      : await convertToPng(file));
 
   const hash = await sha1(finalBytes);
   return {
     hash,
     bytes: Array.from(new Uint8Array(finalBytes)),
   };
+}
+
+/**
+ * Redraw the bitmap at the size the page paints it. Figma stores the source
+ * bitmap and rescales it with its own filter, so an image the page enlarges
+ * otherwise lands with different interpolation than the browser showed; a
+ * canvas `drawImage` reproduces CSS scaling exactly, and Figma then paints the
+ * result 1:1.
+ *
+ * Returns `null` — leaving the original bytes to take the usual path — when the
+ * request is too large to be worth re-encoding or the source won't decode.
+ */
+async function bakeRenderSize(
+  file: ImageFile,
+  renderSize: ImageRenderSize
+): Promise<ArrayBuffer | null> {
+  const { width, height } = renderSize;
+  if (width * height > MAX_BAKED_PIXELS) {
+    return null;
+  }
+
+  const sourceBlob = new Blob([file.bytes], { type: file.mimeType });
+  const objectUrl = URL.createObjectURL(sourceBlob);
+  try {
+    const img = await loadImageElement(objectUrl);
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      return null;
+    }
+    canvas.width = width;
+    canvas.height = height;
+    ctx.drawImage(img, 0, 0, width, height);
+    const pngBlob = await canvasToBlob(canvas, "image/png", PNG_QUALITY);
+    return await pngBlob.arrayBuffer();
+  } catch {
+    return null;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
 }
 
 function isFigmaSupportedFormat(mimeType: string): boolean {
