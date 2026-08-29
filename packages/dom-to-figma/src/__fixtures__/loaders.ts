@@ -53,3 +53,10 @@ async function registerFontFace(family: string, url: string): Promise<void> {
 /** Inline 1x1 red PNG (69 bytes). The default ImageLoader's fetch handles data URLs. */
 export const TINY_RED_PNG_DATA_URL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC";
+
+/**
+ * Inline 8x8 PNG split into four solid quadrants. Multi-pixel and multi-colour,
+ * so tests can tell resampled bytes apart from the original.
+ */
+export const QUAD_PNG_DATA_URL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAN0lEQVR4AWN8amn6nwEJWPpvYEAGTAwEABMDAcDEQACwSMxnQAGqJ5IYkAETAwHAxEAAMDEQAACGegWiVgjoJQAAAABJRU5ErkJggg==";

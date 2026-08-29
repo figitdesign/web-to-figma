@@ -1,12 +1,14 @@
 import type { Position } from "../../dom";
 import type { ImageCache } from "../../image-cache";
 import { parseBorderFromComputedStyle } from "../../styles/border";
+import { cssColorToFigmaColor } from "../../styles/color";
 import { parseOpacity } from "../../styles/opacity";
 import { cssBoxShadowToFigmaEffects } from "../../styles/shadow";
 import type {
   FigmaBlob,
   FigmaGuid,
   FigmaNodeChange,
+  FigmaPaint,
   FigmaRoundedRectangleNodeChange,
 } from "../../types";
 
@@ -40,6 +42,31 @@ function objectFitToScaleMode(objectFit: string): "FILL" | "FIT" | "STRETCH" {
   }
 }
 
+/**
+ * Browsers paint a thin grey outline inside the box of an `<img>` whose source
+ * failed to load, so the slot stays visible instead of collapsing to nothing.
+ * Reproduce it when the element has no border of its own, so a paste keeps the
+ * placeholder the page was showing.
+ */
+const BROKEN_IMAGE_OUTLINE_WEIGHT = 1;
+const BROKEN_IMAGE_OUTLINE_COLOR = "rgb(192, 192, 192)";
+
+function brokenImageOutlinePaints(): Array<FigmaPaint> {
+  const parsed = cssColorToFigmaColor(BROKEN_IMAGE_OUTLINE_COLOR);
+  if (!parsed) {
+    return [];
+  }
+  return [
+    {
+      type: "SOLID",
+      color: parsed.color,
+      opacity: parsed.opacity,
+      visible: true,
+      blendMode: "NORMAL",
+    },
+  ];
+}
+
 export async function elementToImageNodeChange(
   element: HTMLImageElement,
   options: Params
@@ -63,8 +90,37 @@ export async function elementToImageNodeChange(
     height,
   });
 
-  const { hash, bytes } = await imageCache.get(element);
-  const blobIndex = registerBlob({ bytes });
+  // A source that won't load still occupies its box on the page, so keep the
+  // node and fall back to a placeholder rather than dropping it from the tree.
+  const blob = await imageCache.get(element).catch((error: unknown) => {
+    console.warn("Failed to load image:", element.src, error);
+    return null;
+  });
+  const fillPaints: Array<FigmaPaint> = blob
+    ? [
+        {
+          type: "IMAGE",
+          opacity: 1.0,
+          visible: true,
+          blendMode: "NORMAL",
+          transform: {
+            m00: 1.0,
+            m01: 0.0,
+            m02: 0.0,
+            m10: 0.0,
+            m11: 1.0,
+            m12: 0.0,
+          },
+          image: {
+            hash: blob.hash,
+            dataBlob: registerBlob({ bytes: blob.bytes }),
+          },
+          imageScaleMode: objectFitToScaleMode(computedStyle.objectFit),
+        },
+      ]
+    : [];
+
+  const brokenPlaceholder = !blob && borderProperties.strokePaints.length === 0;
 
   const nodeChange: FigmaNodeChange = {
     /* General Info */
@@ -97,41 +153,13 @@ export async function elementToImageNodeChange(
     strokeAlign: "INSIDE",
     strokeJoin: "MITER",
     ...borderProperties,
+    ...(brokenPlaceholder && {
+      strokeWeight: BROKEN_IMAGE_OUTLINE_WEIGHT,
+      strokePaints: brokenImageOutlinePaints(),
+    }),
 
     /* Fill */
-    fillPaints: [
-      {
-        type: "IMAGE",
-        opacity: 1.0,
-        visible: true,
-        blendMode: "NORMAL",
-        transform: {
-          m00: 1.0,
-          m01: 0.0,
-          m02: 0.0,
-          m10: 0.0,
-          m11: 1.0,
-          m12: 0.0,
-        },
-        image: {
-          hash,
-          dataBlob: blobIndex,
-        },
-        // imageThumbnail: {
-        //   hash: [],
-        //   name: "image",
-        // },
-        imageScaleMode: objectFitToScaleMode(computedStyle.objectFit),
-        // animationFrame: 0,
-        // imageShouldColorManage: true,
-        // rotation: 0.0,
-        // scale: 0.5,
-        // originalImageWidth: 3000,
-        // originalImageHeight: 2003,
-        // thumbHash: [],
-        // altText: "",
-      },
-    ],
+    fillPaints,
 
     /* Effects */
     effects,
