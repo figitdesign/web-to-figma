@@ -254,8 +254,10 @@ export function sortNodesByStackingOrder(nodes: Array<Node>) {
   positiveZIndex.sort((a, b) => a.zIndex - b.zIndex);
 
   return [
-    ...nonPositioned,
+    // CSS paints negative z-index stacking contexts BEFORE in-flow content (CSS 2.1 Appendix E);
+    // listing them after it put a `z-index: -1` page backdrop on top of the whole design.
     ...negativeZIndex.map((item) => item.node),
+    ...nonPositioned,
     ...positionedAuto,
     ...positiveZIndex.map((item) => item.node),
   ];

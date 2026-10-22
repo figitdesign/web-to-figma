@@ -46,6 +46,44 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
+describe("paint order", () => {
+  it("puts a negative z-index layer below in-flow content", async () => {
+    const element = mountElement(
+      `<div style="position:relative;z-index:0;width:${FRAME_WIDTH}px;height:${FRAME_HEIGHT}px">
+        <div style="width:100px;height:40px;background:rgb(0, 0, 255)"></div>
+        <div style="position:absolute;inset:0;z-index:-1;background:rgb(255, 0, 0)"></div>
+      </div>`
+    );
+
+    const figma = createFigmaConverter({ fontLoader: createTestFontLoader() });
+    const result = await figma.convert({
+      element,
+      width: FRAME_WIDTH,
+      height: FRAME_HEIGHT,
+    });
+
+    const positionOf = (r: number, b: number) => {
+      const node = result.document.nodeChanges.find((change) => {
+        const fill =
+          "fillPaints" in change ? change.fillPaints?.[0] : undefined;
+        return (
+          fill !== undefined &&
+          "color" in fill &&
+          fill.color.r === r &&
+          fill.color.b === b
+        );
+      });
+      return node?.parentIndex?.position;
+    };
+    const backdrop = positionOf(1, 0);
+    const content = positionOf(0, 1);
+    expect(backdrop).toBeDefined();
+    expect(content).toBeDefined();
+    // Figma paints siblings in position order, first at the bottom.
+    expect(String(backdrop) < String(content)).toBe(true);
+  });
+});
+
 describe("layout assertions for nested frames", () => {
   it("preserves a two-column flex layout in the document tree", async () => {
     // Two 100x80 boxes side-by-side inside a 320x200 frame.
