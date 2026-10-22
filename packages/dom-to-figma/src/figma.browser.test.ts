@@ -95,6 +95,33 @@ describe("createFigmaConverter convert()", () => {
   });
 });
 
+describe("SVG paint", () => {
+  it("keeps a shape whose fill is a paint server, with its solid stroke", async () => {
+    const element = mountElement(
+      `<svg width="100" height="50" viewBox="0 0 100 50">
+        <defs><linearGradient id="g"><stop offset="0" stop-color="red"/><stop offset="1" stop-color="blue"/></linearGradient></defs>
+        <rect width="100" height="50" fill="url(#g)" stroke="black"/>
+      </svg>`
+    );
+
+    const figma = createFigmaConverter();
+    const result = await figma.convert({
+      element,
+      width: FRAME_WIDTH,
+      height: FRAME_HEIGHT,
+    });
+
+    const vectors = result.document.nodeChanges.filter(
+      (change) => change.type === "VECTOR"
+    );
+    expect(vectors).toHaveLength(1);
+    const vector = vectors[0];
+    expect(
+      vector && "strokePaints" in vector ? vector.strokePaints : []
+    ).toHaveLength(1);
+  });
+});
+
 describe("ConvertResult clipboard helpers", () => {
   it("toClipboardItem returns a ClipboardItem with text/html mime type", async () => {
     const element = mountElement(

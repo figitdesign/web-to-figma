@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { cssColorToFigmaColor } from "./color";
 
 describe("cssColorToFigmaColor", () => {
+  it("returns null for a value that is not a colour instead of throwing", () => {
+    expect(cssColorToFigmaColor('url("#gradient")')).toBeNull();
+    expect(cssColorToFigmaColor("context-fill")).toBeNull();
+  });
+
   it("returns null for css transparent values", () => {
     expect(cssColorToFigmaColor("transparent")).toBeNull();
     expect(cssColorToFigmaColor("none")).toBeNull();

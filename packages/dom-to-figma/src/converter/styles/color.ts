@@ -17,7 +17,14 @@ export function cssColorToFigmaColor(cssColor: string): {
     return null;
   }
 
-  const color = new Color(cssColor);
+  let color: Color;
+  try {
+    color = new Color(cssColor);
+  } catch {
+    // A paint server (`url(#gradient)`), `context-fill`, or a syntax colorjs does not know: no
+    // solid colour. Throwing here dropped the whole layer.
+    return null;
+  }
 
   return {
     color: {
