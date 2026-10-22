@@ -1,5 +1,21 @@
 import { TRANSPARENT_COLOR_VALUES } from "./styles/color";
 
+const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+
+// SVG elements that are only ever referenced, never drawn where they stand. Compared lowercased:
+// `tagName` keeps an SVG element's case, so "clipPath" never matched a lowercased name, and a clip
+// shape outside <defs> pasted as a visible shape (a <symbol>'s, <mask>'s or <pattern>'s likewise).
+const SVG_REFERENCED_ONLY = new Set([
+  "clippath",
+  "mask",
+  "symbol",
+  "pattern",
+  "marker",
+  "lineargradient",
+  "radialgradient",
+  "filter",
+]);
+
 export type ElementKind =
   | "skip"
   | "group"
@@ -48,7 +64,7 @@ function isNonVisualElement(element: Element): boolean {
     tagName === "comment" ||
     tagName === "defs" ||
     tagName === "desc" ||
-    tagName === "clipPath"
+    (element.namespaceURI === SVG_NAMESPACE && SVG_REFERENCED_ONLY.has(tagName))
   );
 }
 

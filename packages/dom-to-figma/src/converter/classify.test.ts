@@ -82,4 +82,23 @@ describe("defaultClassify", () => {
   it("falls back to frame for an empty div", () => {
     expect(defaultClassify(make("div"))).toBe("frame");
   });
+
+  it("skips SVG elements that are only referenced, whatever their case", () => {
+    for (const tag of [
+      "clipPath",
+      "mask",
+      "symbol",
+      "pattern",
+      "marker",
+      "linearGradient",
+      "radialGradient",
+      "filter",
+    ]) {
+      expect(defaultClassify(makeSvg(tag))).toBe("skip");
+    }
+  });
+
+  it("does not skip an HTML element that shares a referenced-only SVG name", () => {
+    expect(defaultClassify(make("mask"))).toBe("frame");
+  });
 });
